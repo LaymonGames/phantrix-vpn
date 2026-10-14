@@ -1,0 +1,17 @@
+name: phantrix_core
+description: Platform-agnostic domain logic for Phantrix - protocol parsing, server discovery, trust model, connection state machine and diagnostics.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  http: ^1.2.2
+  collection: ^1.19.1
+  cryptography: ^2.9.0
+  meta: ^1.16.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^5.0.0

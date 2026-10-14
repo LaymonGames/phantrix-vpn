@@ -1,0 +1,65 @@
+﻿run: 2026-10-10 15:16:07
+bundle: build\windows\x64\runner\Release
+engine layout: flat beside the plugin (flutter generated-plugin install)
+
+Inspecting build/windows/x64/runner/Release
+
+Files
+  ok    the executable exists
+  ok    the plugin library exists
+  ok    the Flutter engine is present
+  ok    the data directory is present
+
+Plugin registration
+  ok    the engine is linked in
+  ok    every bridge method is present
+
+No command interpreter
+  ok    no reference to 'cmd.exe'
+  ok    no reference to 'cmd /c'
+  ok    no reference to 'powershell.exe'
+  ok    no reference to 'powershell -'
+  ok    no reference to 'wscript'
+  ok    no reference to 'cscript'
+  ok    no command chaining via '&&'
+  ok    no command chaining via '||'
+  ok    no command chaining via '2>&1'
+  ok    no command chaining via '| tee'
+
+WireGuard for Windows contract
+  ok    the 'wireguard.exe' argument is passed
+  ok    the '/installtunnelservice' argument is passed
+  ok    the '/uninstalltunnelservice' argument is passed
+  ok    the per-user data directory is used
+  ok    an unsecurable key file is refused, not left behind
+  ok    no private key is embedded in the binary
+
+OpenVPN helper
+  ok    the elevated helper is installed
+  ok    the helper asks for administrator rights
+  ok    the helper passes 'openvpn.exe'
+  ok    the helper passes '--windows-driver wintun'
+  ok    the helper passes '--config'
+  ok    the helper passes '--status'
+  ok    the helper never passes credentials on the command line
+  ok    a profile asking for credentials is refused, not passed through
+  ok    the profile reaches the engine as a file, not as arguments
+  ok    the helper does not daemonise the engine
+  ok    the helper has no reference to 'cmd.exe'
+  ok    the helper has no reference to 'cmd /c'
+  ok    the helper has no reference to 'powershell.exe'
+  ok    the helper has no reference to 'powershell -'
+  ok    the helper has no reference to 'wscript'
+  ok    the helper has no reference to 'cscript'
+  ok    the pipe carries a Medium integrity label
+  ok    the OpenVPN engine is installed beside the plugin
+  ok    the wintun driver is installed with the engine
+  ok    the engine actually loads and runs
+  ok    the engine reports the SSL library it was built with
+
+All checks passed.
+
+This proves the bundle was built and that its contents match the
+invariants above. It does not prove a tunnel can be created: that
+needs an administrator token and a reachable server.
+See tools/windows_check.ps1 and docs/BUILDING.md.

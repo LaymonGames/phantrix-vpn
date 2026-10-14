@@ -1,0 +1,16 @@
+Phantrix
+Copyright (c) 2026 Laymon Games.
+
+SPDX-License-Identifier: GPL-3.0-only
+
+Original Phantrix source code that is independently authored and is not derived
+from third-party code is licensed under GNU General Public License version 3.0
+only. See LICENSE for the unmodified licence text.
+
+This notice does not relicense third-party code or adapted/derivative code under
+terms its rightsholders have not granted. Third-party components keep their own
+licences and are listed with their licence texts in THIRD_PARTY_LICENSES.md and
+in the in-app licences screen. On Windows the OpenVPN 2 community engine is
+shipped as a separate, unmodified process (a mere aggregation, not a linked
+combined work); that boundary and the components it covers are recorded in
+docs/LICENSING_AUDIT.md.

@@ -1,0 +1,105 @@
+--- baseline (no tunnel) ---
+shell egress: HTTP-EMPTY
+--- 13:53:30 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:53:48 files/ ---
+-rw------- 1 u0_a444 u0_a444  24 2026-10-10 13:53 profileInstalled
+--- 13:54:09 ---
+tun0: 49: tun0: <POINTOPOINT,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN group default qlen 500 /     link/none  /     inet 10.211.1.13/30 scope global tun0
+defaults: default via 192.168.1.1 dev wlan0 table 1030 proto static  // default dev tun0 table 1049 proto static scope link  // default dev dummy0 table 1003 proto static scope link  // default dev dummy0 table 1003 proto static metric 1024 pref medium // default via fe80::980d:d7fc:46a8:3534 dev rmnet_data0 table 1010 proto ra metric 1024 expires 54893sec hoplimit 255 pref medium
+rules: 10000:	from all fwmark 0xc0000/0xd0000 lookup 99  // 11000:	from all iif lo oif dummy0 uidrange 0-0 lookup 1003  // 11000:	from all iif lo oif rmnet_data0 uidrange 0-0 lookup 1010  // 11000:	from all iif lo oif wlan0 uidrange 0-0 lookup 1030  // 11000:	from all iif lo oif r_rmnet_data0 uidrange 0-0 lookup 1021  // 12000:	from all iif tun0 lookup 97  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 0-99999 lookup 1049  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 99900000-99999999 lookup 1049  // 16000:	from all fwmark 0x10063/0x1ffff iif lo lookup 97  // 16000:	from all fwmark 0x10069/0x1ffff iif lo uidrange 0-0 lookup 1049  // 16000:	from all fwmark 0x10069/0x1ffff iif lo uidrange 0-99999 lookup 1049  // 16000:	from all fwmark 0x10069/0x1ffff iif lo uidrange 99900000-99999999 lookup 1049  // 17000:	from all iif lo oif tun0 uidrange 0-99999 lookup 1049  // 17000:	from all iif lo oif tun0 uidrange 99900000-99999999 lookup 1049  // 18000:	from all fwmark 0x0/0x10000 lookup 99  // 19000:	from all fwmark 0x0/0x10000 lookup 98  // 20000:	from all fwmark 0x0/0x10000 lookup 97 
+shell egress: HTTP-EMPTY
+--- 13:54:16 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7786 2026-10-10 13:53 temporary-vpn-profile.vp
+--- 13:54:32 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+--- 13:54:48 ---
+tun0: 50: tun0: <POINTOPOINT,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN group default qlen 500 /     link/none  /     inet 10.211.1.13/30 scope global tun0
+defaults: default via 192.168.1.1 dev wlan0 table 1030 proto static  // default dev tun0 table 1050 proto static scope link  // default dev dummy0 table 1003 proto static scope link  // default dev dummy0 table 1003 proto static metric 1024 pref medium // default via fe80::980d:d7fc:46a8:3534 dev rmnet_data0 table 1010 proto ra metric 1024 expires 54854sec hoplimit 255 pref medium
+rules: 10000:	from all fwmark 0xc0000/0xd0000 lookup 99  // 11000:	from all iif lo oif dummy0 uidrange 0-0 lookup 1003  // 11000:	from all iif lo oif rmnet_data0 uidrange 0-0 lookup 1010  // 11000:	from all iif lo oif wlan0 uidrange 0-0 lookup 1030  // 11000:	from all iif lo oif r_rmnet_data0 uidrange 0-0 lookup 1021  // 12000:	from all iif tun0 lookup 97  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 0-99999 lookup 1050  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 99900000-99999999 lookup 1050  // 16000:	from all fwmark 0x10063/0x1ffff iif lo lookup 97  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 0-0 lookup 1050  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 0-99999 lookup 1050  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 99900000-99999999 lookup 1050  // 17000:	from all iif lo oif tun0 uidrange 0-99999 lookup 1050  // 17000:	from all iif lo oif tun0 uidrange 99900000-99999999 lookup 1050  // 18000:	from all fwmark 0x0/0x10000 lookup 99  // 19000:	from all fwmark 0x0/0x10000 lookup 98  // 20000:	from all fwmark 0x0/0x10000 lookup 97 
+shell egress: HTTP-EMPTY
+--- 13:54:54 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7786 2026-10-10 13:54 temporary-vpn-profile.vp
+--- 13:55:10 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7786 2026-10-10 13:54 temporary-vpn-profile.vp
+--- 13:55:26 ---
+tun0: 50: tun0: <POINTOPOINT,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN group default qlen 500 /     link/none  /     inet 10.211.1.13/30 scope global tun0
+defaults: default via 192.168.1.1 dev wlan0 table 1030 proto static  // default dev tun0 table 1050 proto static scope link  // default dev dummy0 table 1003 proto static scope link  // default dev dummy0 table 1003 proto static metric 1024 pref medium // default via fe80::980d:d7fc:46a8:3534 dev rmnet_data0 table 1010 proto ra metric 1024 expires 54815sec hoplimit 255 pref medium
+rules: 10000:	from all fwmark 0xc0000/0xd0000 lookup 99  // 11000:	from all iif lo oif dummy0 uidrange 0-0 lookup 1003  // 11000:	from all iif lo oif rmnet_data0 uidrange 0-0 lookup 1010  // 11000:	from all iif lo oif wlan0 uidrange 0-0 lookup 1030  // 11000:	from all iif lo oif r_rmnet_data0 uidrange 0-0 lookup 1021  // 12000:	from all iif tun0 lookup 97  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 0-99999 lookup 1050  // 13000:	from all fwmark 0x0/0x20000 iif lo uidrange 99900000-99999999 lookup 1050  // 16000:	from all fwmark 0x10063/0x1ffff iif lo lookup 97  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 0-0 lookup 1050  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 0-99999 lookup 1050  // 16000:	from all fwmark 0x1006a/0x1ffff iif lo uidrange 99900000-99999999 lookup 1050  // 17000:	from all iif lo oif tun0 uidrange 0-99999 lookup 1050  // 17000:	from all iif lo oif tun0 uidrange 99900000-99999999 lookup 1050  // 18000:	from all fwmark 0x0/0x10000 lookup 99  // 19000:	from all fwmark 0x0/0x10000 lookup 98  // 20000:	from all fwmark 0x0/0x10000 lookup 97 
+shell egress: HTTP-EMPTY
+--- 13:55:31 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7786 2026-10-10 13:54 temporary-vpn-profile.vp
+--- 13:55:47 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7786 2026-10-10 13:54 temporary-vpn-profile.vp
+--- 13:56:03 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:56:03 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:56:19 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:56:35 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:56:35 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:56:51 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:57:07 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:57:07 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:57:23 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:57:39 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:57:39 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:57:54 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:58:11 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:58:11 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:58:26 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:58:42 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:58:43 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:58:58 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:59:14 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:59:14 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:59:30 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 13:59:46 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- 13:59:47 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 14:00:02 files/ ---
+-rw------- 1 u0_a444 u0_a444    24 2026-10-10 13:53 profileInstalled
+-rw-rw---- 1 u0_a444 u0_a444  7787 2026-10-10 13:56 temporary-vpn-profile.vp
+--- 14:00:19 ---
+--- net probe failed: Device "tun0" does not exist. ---
+--- files/ probe failed: run-as: unknown package: dev.phantrix.phantrix ---

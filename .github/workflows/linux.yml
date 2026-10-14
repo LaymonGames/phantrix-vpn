@@ -1,0 +1,243 @@
+name: linux
+
+# Compiles and tests the Linux backend and the Flutter application.
+#
+# ## What this workflow does and does not do
+#
+# It **compiles** the real Linux plugin, links it, and runs every test
+# that can run without a device. That is the work that could not be done
+# on a Windows development machine, and it is the only thing here that
+# needs a Linux host.
+#
+# It does **not** run the tunnel. Bringing a WireGuard interface up needs
+# CAP_NET_ADMIN, which a CI job does not have, and a runner that
+# could obtain it would be a privileged machine. Concretely, nothing in
+# this workflow ever calls `pkexec`, runs `wg-quick`, writes to
+# /etc/wireguard, or changes a route. Runtime verification of the
+# tunnel requires a machine the operator controls; see
+# docs/LINUX_RUNTIME_TESTING.md for the procedure.
+#
+# ## Third-party actions
+#
+# There are two, both first-party from the actions organisation, both
+# pinned to an immutable commit SHA rather than a mutable tag:
+#
+#   actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   (v4.2.2)
+#   actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 (v4.6.2)
+#
+# Flutter is *not* installed by a third-party action. It is downloaded
+# directly from Google's first-party bucket and its SHA-256 digest is
+# verified before it is unpacked, so a compromised mirror cannot supply
+# the toolchain. Pinning the toolchain to a digest is stricter than
+# pinning an action that downloads it unpinned.
+#
+# ## Privilege
+#
+# permissions: contents: read — the job cannot write to the repository,
+# cannot open a pull request, and cannot read any secret. Nothing here
+# needs more.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - '.github/workflows/linux.yml'
+      - 'lib/**'
+      - 'test/**'
+      - 'packages/**'
+      - 'linux/**'
+      - 'integration_test/**'
+      - 'pubspec.yaml'
+  pull_request:
+    paths:
+      - '.github/workflows/linux.yml'
+      - 'lib/**'
+      - 'test/**'
+      - 'packages/**'
+      - 'linux/**'
+      - 'integration_test/**'
+      - 'pubspec.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    env:
+      # Pinned so a CI run reproduces the version the repository was
+      # verified against instead of whatever Flutter publishes next.
+      FLUTTER_VERSION: 3.47.0
+      FLUTTER_CHANNEL: stable
+      # SHA-256 of flutter_linux_${FLUTTER_VERSION}-${FLUTTER_CHANNEL}.tar.xz,
+      # taken from Google's releases_linux.json for that version.
+      FLUTTER_SHA256: 26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install native build prerequisites
+        run: |
+          sudo apt-get update -qq
+          # Flutter's Linux desktop embedder needs GTK, and the dependency
+          # discovery for pkg-config is what locates it.
+          sudo apt-get install -y --no-install-recommends \
+            clang \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libgtk-3-dev \
+            liblzma-dev \
+            libstdc++-12-dev \
+            curl \
+            ca-certificates
+          cc --version
+          cmake --version
+          pkg-config --modversion gtk+-3.0
+
+      - name: Download and verify the Flutter toolchain
+        env:
+          FLUTTER_VERSION: ${{ env.FLUTTER_VERSION }}
+          FLUTTER_CHANNEL: ${{ env.FLUTTER_CHANNEL }}
+          FLUTTER_SHA256: ${{ env.FLUTTER_SHA256 }}
+        run: |
+          # Installed under the runner's own tool cache, which is the
+          # documented location for toolchains and is re-used between steps
+          # and jobs. Writing to the workspace instead would leave a 700 MB
+          # toolchain in the checkout, where every later step would scan it.
+          #
+          # The download and the digest check live in one shared script so
+          # that every workflow in this repository installs the same
+          # toolchain the same way, rather than each carrying its own copy of
+          # the verification logic.
+          tools/install_flutter.sh "${{ runner.tool_cache }}/flutter-${FLUTTER_VERSION}"
+          echo "${{ runner.tool_cache }}/flutter-${FLUTTER_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Record the toolchain actually used
+        run: |
+          flutter --version
+          dart --version
+          # Written before anything runs, so a failure later still shows
+          # which toolchain produced it.
+          {
+            echo "flutter: $(dart --version 2>&1)"
+            echo "clang: $(clang --version | head -n1)"
+            echo "cmake: $(cmake --version | head -n1)"
+          } | tee toolchain.txt
+
+      - name: Resolve dependencies
+        run: |
+          flutter config --no-analytics --no-cli-animations >/dev/null
+          flutter pub get
+
+      - name: Analyse every package
+        run: |
+          # Reported separately rather than together, so a failure names
+          # the package that owns it.
+          dart analyze --fatal-infos . | tee analysis-app.txt
+          (cd packages/phantrix_core && dart analyze --fatal-infos .) | tee analysis-core.txt
+          (cd packages/phantrix_platform && dart analyze --fatal-infos .) | tee analysis-platform.txt
+
+      - name: Run unit and widget tests
+        run: |
+          dart test --reporter expanded | tee tests-app.txt
+          (cd packages/phantrix_core && dart test --reporter expanded) | tee tests-core.txt
+
+      - name: Build the Linux application and plugin
+        run: |
+          # This is the step that compiles phantrix_plugin.cc. It is the
+          # only compile of the Linux backend available to this project,
+          # and it is the reason this workflow exists.
+          flutter build linux --debug 2>&1 | tee build-linux.txt
+
+      - name: Verify the plugin compiled and registered
+        run: |
+          # A successful build is not by itself proof the plugin loaded:
+          # a plugin that compiles but is not registered is silently
+          # absent at runtime, and the Dart layer then reports
+          # `platform.missing` for a backend that exists. Both facts are
+          # checked here.
+          set -euo pipefail
+
+          bundle="build/linux/x64/debug"
+          so="$(find "${bundle}" -name 'libphantrix_platform_plugin.so' -print -quit)"
+          if [ -z "${so}" ]; then
+            echo "::error::libphantrix_platform_plugin.so was not produced by the build"
+            exit 1
+          fi
+          echo "plugin shared object: ${so}"
+
+          # The registrant must call the plugin's entry point. Flutter
+          # derives the symbol from the plugin's dartPluginClass, so a
+          # mismatch here means the header name, the pubspec platform
+          # declaration, and the C symbol have drifted apart.
+          registrant="linux/flutter/generated_plugin_registrant.cc"
+          grep -q 'phantrix_plugin_register_with_registrar' "${registrant}" \
+            || { echo "::error::the generated registrant does not register PhantrixPlugin"; exit 1; }
+          echo "registrant registers phantrix_plugin_register_with_registrar"
+
+          # And the compiled object must actually export that symbol.
+          so_symbol="$(basename "${so}" .so)"
+          if nm -D "${so}" 2>/dev/null | grep -q 'phantrix_plugin_register_with_registrar'; then
+            echo "exported symbol present"
+          else
+            echo "::error::${so} does not export phantrix_plugin_register_with_registrar"
+            exit 1
+          fi
+
+          # The privilege-escalation shape matters: every elevated command
+          # must be an argument vector. A `system()` call anywhere in the
+          # backend would reintroduce shell injection, so its presence is a
+          # failure rather than a warning.
+          #
+          # Comments are stripped *before* the search, because the
+          # explanation of why `std::system` is banned necessarily contains
+          # its name. A naive grep would match that explanation and fail the
+          # build for a reason that has nothing to do with the code. Line
+          # comments and single-line block comments are both stripped; the
+          # file contains no multi-line block comment, and this build does
+          # not depend on that remaining true forever — the check fails safe
+          # (it reports a violation that must be inspected) rather than
+          # failing open.
+          stripped="$(mktemp)"
+          sed -e 's://.*$::' -e 's:/\*.*\*/::g' \
+            packages/phantrix_platform/linux/phantrix_plugin.cc > "${stripped}"
+          if grep -q 'std::system' "${stripped}"; then
+            grep -n 'std::system' "${stripped}"
+            rm -f "${stripped}"
+            echo "::error::phantrix_plugin.cc still executes a shell command"
+            exit 1
+          fi
+          rm -f "${stripped}"
+          echo "no std::system in the Linux backend"
+
+      - name: Upload logs and build artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75d540449e92b4886f43607fa02
+        with:
+          name: linux-build-${{ github.run_id }}
+          path: |
+            build/linux/x64/debug/bundle
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload diagnostic logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75d540449e92b4886f43607fa02
+        with:
+          name: linux-logs-${{ github.run_id }}
+          path: |
+            toolchain.txt
+            analysis-*.txt
+            tests-*.txt
+            build-linux.txt
+          if-no-files-found: warn
+          retention-days: 14

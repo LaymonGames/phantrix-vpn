@@ -1,0 +1,31 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+  language:
+    strict-casts: true
+    strict-inference: true
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_empty_else
+    - avoid_relative_lib_imports
+    - avoid_slow_async_io
+    - cancel_subscriptions
+    - close_sinks
+    - comment_references
+    - directives_ordering
+    - unnecessary_lambdas
+    - unnecessary_statements
+    - valid_regexps
+    - eol_at_end_of_file
+

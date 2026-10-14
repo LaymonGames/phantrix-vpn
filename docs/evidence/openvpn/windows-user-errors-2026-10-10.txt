@@ -1,0 +1,82 @@
+User-reported errors, 2026-10-10 (Windows, local Debug build)
+=============================================================
+
+Two failures the user hit on different servers this evening, and what each
+one is.
+
+Screenshot A (19:35:40)
+-----------------------
+OCR of the app screen:
+
+    Not connected
+    Tap to try again
+    2026-10-10 19:35:29 Exiting due to fatal error
+    Try again
+    ovpn.engine_exited
+
+Meaning: the OpenVPN engine itself printed a fatal error and exited before
+any handshake. OpenVPN appends the identical sentence "Exiting due to fatal
+error" (msg(M_INFO, "Exiting due to fatal error") in src/openvpn/error.c,
+printed immediately after the real M_FATAL line) after EVERY fatal exit.
+The engine's error capture kept the *last* matching line, which is that
+generic terminator, so the actual cause was overwritten and the user saw
+the sentence that names nothing. Fixed: the terminator no longer overwrites
+a captured cause line (and "Assertion failed" is captured too), so future
+fatal exits report e.g. "ERROR: Cannot open TUN/TAP…" instead.
+
+Screenshot B (19:44:27)
+-----------------------
+OCR of the app screen:
+
+    Not connected
+    Tap to try again
+    The connection did not complete within 45s: the engine never reported a
+    handshake. The tunnel has been stopped.
+    tunnel.timeout
+
+Meaning: the selected relay sat silent for the whole attempt budget — no
+packets in, no TLS, no fatal. This is the "silent relay" shape finding #10
+exists to walk past in automatic mode; this run predates it (the running
+app instance was started before the fixed build) and/or the budget shown is
+the single-attempt default. The failure mode itself is reproduced live
+below.
+
+Live reproduction of the silent shape (same machine, app's own profile)
+-----------------------------------------------------------------------
+Session created 19:46:59 by the app's engine against a JP relay:
+
+    -- %LOCALAPPDATA%\Phantrix\openvpn\session-* openvpn.log --
+    2026-10-10 19:46:59 TCP/UDP: Preserving recently used remote address: [AF_INET]27.130.206.249:1754
+    2026-10-10 19:46:59 UDPv4 link local: (not bound)
+    2026-10-10 19:46:59 UDPv4 link remote: [AF_INET]27.130.206.249:1754
+
+-- status.txt a few seconds later --
+    TUN/TAP read bytes,0
+    TUN/TAP write bytes,0
+    TCP/UDP read bytes,0
+    TCP/UDP write bytes,42     <- the only bytes ever sent were the probe
+
+0 bytes read: the relay never answered. This is exactly the `tunnel.timeout`
+shape. The engine keeps running under `resolv-retry infinite`, so the
+controller's deadline — not the engine — is what turns this silence into a
+failure.
+
+Engine options errors reach stderr, not the --log file
+------------------------------------------------------
+Probes with `openvpn.exe --config <bad> --log <file>`:
+
+  * unknown option -> "Options error: ..." + "Use --help..." on stderr, --log empty
+  * missing --ca    -> same shape
+
+The engine redirects stderr to its captured pipe, so those lines still reach
+the state machine; the fix above ensures the "Options error" line survives
+to the report rather than being masked.
+
+Not verified here
+-----------------
+* No engine fatal was reproduced with a *live* server profile today (the
+  fresh JP profile ran silent, not fatal); the message fix is validated by
+  construction against the OpenVPN error.c behaviour above.
+* The 45s `tunnel.timeout` was shown by an app instance started before the
+  walk fix; the walk is verified by its four unit tests
+  (test/connection_walk_test.dart).

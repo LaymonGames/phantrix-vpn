@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phantrix is dark on every platform, so the launch window matches the
+         app surface instead of following the system theme. Without this the
+         splash flashes white in light mode and then the near-black UI paints
+         over it. -->
+    <color name="launch_background">#080B0A</color>
+</resources>

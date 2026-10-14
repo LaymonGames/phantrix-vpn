@@ -1,0 +1,124 @@
+name: verify
+
+# The checks that run on every push: static analysis, the whole test suite,
+# and the dependency-integrity gate.
+#
+# ## What this workflow does and does not do
+#
+# It compiles and tests the Dart and Flutter code. It does **not** build the
+# native backends on Windows, Linux or Android — those have their own
+# workflows, because each needs a different toolchain and each fails for a
+# different reason.
+#
+# It also does not run a VPN tunnel. No job here has CAP_NET_ADMIN, a Windows
+# service token, or a reachable WireGuard peer, so nothing here claims a
+# connection works. See docs/BUILDING.md for what each workflow actually
+# proves.
+#
+# ## Third-party actions
+#
+# All three are first-party from the actions organisation, each pinned to an
+# immutable commit SHA rather than a mutable tag. Every SHA here was resolved
+# through the GitHub API and checked against the release commit it names —
+# a pin nobody verified is not a pin, it is a guess with extra steps:
+#
+#   actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   (v4.2.2)
+#   actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830      (v4.3.0)
+#   actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 (v4.6.2)
+#
+# Flutter is downloaded directly from Google's own first-party bucket and its
+# SHA-256 is verified before use, so a compromised mirror cannot supply a
+# tampered SDK. See tools/install_flutter.sh.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege. This workflow only ever reads the repository and writes
+# nothing outside the runner, so it does not need a token with write access.
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install Flutter
+        run: tools/install_flutter.sh "$GITHUB_WORKSPACE/.flutter"
+
+      - name: Cache the pub and Gradle downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.gradle/caches
+          key: verify-${{ runner.os }}-${{ hashFiles('**/pubspec.lock', '**/pubspec.yaml') }}
+          restore-keys: |
+            verify-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: .flutter/bin/flutter pub get
+
+      - name: Analyze
+        # `--fatal-infos` as well as warnings: an analyzer info is a lint this
+        # project has chosen to care about, and letting them accumulate is how
+        # a repository slowly fills with advice nobody reads.
+        run: .flutter/bin/flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Check formatting
+        run: |
+          # Only the files this project owns. Generated sources and the
+          # vendored upstream Apple bridge are formatted by their upstream and
+          # are not reformatted here.
+          unformatted=$(.flutter/bin/dart format --output=none --set-exit-if-changed \
+            lib test packages/phantrix_core/lib packages/phantrix_core/test \
+            packages/phantrix_platform/lib packages/phantrix_platform/test 2>&1 || true)
+          if echo "$unformatted" | grep -q 'Changed '; then
+            echo "::error::These files are not formatted. Run 'dart format .'"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install Flutter
+        run: tools/install_flutter.sh "$GITHUB_WORKSPACE/.flutter"
+
+      - name: Resolve dependencies
+        run: .flutter/bin/flutter pub get
+
+      - name: Core package
+        working-directory: packages/phantrix_core
+        run: dart test --reporter expanded
+
+      - name: Platform bridge package
+        working-directory: packages/phantrix_platform
+        run: ../../.flutter/bin/flutter test --reporter expanded
+
+      - name: Application
+        run: .flutter/bin/flutter test --reporter expanded
+
+      - name: Upload the rendered interface
+        # The screenshot suite writes real renders of the real widget tree to
+        # docs/evidence/ui. Uploading them makes a visual regression visible in
+        # the pull request instead of only on a developer's machine.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui-screenshots
+          path: docs/evidence/ui/
+          if-no-files-found: error
+          retention-days: 14

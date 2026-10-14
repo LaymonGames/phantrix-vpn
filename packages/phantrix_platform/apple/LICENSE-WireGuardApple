@@ -1,0 +1,55 @@
+Phantrix's Apple backend integrates the official WireGuard
+implementation for Apple platforms, WireGuard for iOS and macOS
+(wireguard-apple), which is MIT licensed.
+
+The following files are vendored from that project, under its MIT
+license, with only the platform-specific labels adapted to
+Phantrix:
+
+  Sources/Shared/Keychain.swift
+  Sources/Shared/FileManager+Extension.swift
+  Sources/Shared/ErrorNotifier.swift
+  Sources/Shared/NotificationToken.swift
+  Sources/Shared/Logger.swift
+  Sources/Shared/String+ArrayConversion.swift
+  Sources/Shared/NETunnelProviderProtocol+Extension.swift
+  Sources/Shared/TunnelConfiguration+WgQuickConfig.swift
+  Sources/Extension/PhantrixPacketTunnelProvider.swift
+  (adapted from Sources/WireGuardNetworkExtension/PacketTunnelProvider.swift)
+
+The WireGuardKit Swift package, which provides the
+TunnelConfiguration, InterfaceConfiguration, PeerConfiguration,
+PrivateKey, PublicKey, IPAddressRange, DNSServer, Endpoint and
+WireGuardAdapter types these files build on, is added as a
+package dependency, not vendored here. It is built from
+https://git.zx2c4.com/wireguard-apple with the
+WireGuardGoBridge<PLATFORM> external build target described in
+the project README, because Swift Package Manager cannot build
+the wireguard-go-bridge library itself.
+
+The full MIT license text of wireguard-apple follows.
+
+------------------------------------------------------------------------------
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.

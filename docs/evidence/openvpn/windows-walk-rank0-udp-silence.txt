@@ -1,0 +1,10 @@
+2026-10-10 18:59:15 Note: cipher 'AES-128-CBC' in --data-ciphers is not supported by ovpn-dco, disabling data channel offload.
+2026-10-10 18:59:15 OpenVPN 2.6.17 [git:v2.6.17/fa20154d58ca609b] Windows [SSL (OpenSSL)] [LZO] [LZ4] [PKCS11] [AEAD] [DCO] built on Nov 28 2025
+2026-10-10 18:59:15 Windows version 10.0 (Windows 10 or greater), amd64 executable
+2026-10-10 18:59:15 library versions: OpenSSL 3.6.0 1 Oct 2025, LZO 2.10
+2026-10-10 18:59:15 DCO version: N/A
+2026-10-10 18:59:15 WARNING: No server certificate verification method has been enabled.  See http://openvpn.net/howto.html#mitm for more info.
+2026-10-10 18:59:15 TCP/UDP: Preserving recently used remote address: [AF_INET]130.62.15.40:40792
+2026-10-10 18:59:15 Socket Buffers: R=[65536->65536] S=[65536->65536]
+2026-10-10 18:59:15 UDPv4 link local: (not bound)
+2026-10-10 18:59:15 UDPv4 link remote: [AF_INET]130.62.15.40:40792

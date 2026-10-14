@@ -1,0 +1,36 @@
+name: phantrix_platform
+description: Native VPN platform bindings for Phantrix (Android VpnService, Windows/Linux tunnels, Apple Network Extension).
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  phantrix_core:
+    path: ../phantrix_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.0.0
+
+flutter:
+  plugin:
+    # `android`, `linux` and `windows` each have a real native implementation
+    # that drives an official WireGuard engine.
+    #
+    # `macos` and `ios` are deliberately not declared: the Apple sources under
+    # `apple/` have never been compiled, signed or wired into an Xcode target,
+    # so no Apple platform is a supported build target. The Dart layer reports
+    # each undeclared platform as unsupported explicitly. See ARCHITECTURE.md.
+    platforms:
+      android:
+        package: dev.phantrix.phantrix_platform
+        pluginClass: PhantrixPlugin
+      linux:
+        pluginClass: PhantrixPlugin
+      windows:
+        pluginClass: PhantrixPlugin

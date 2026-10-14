@@ -1,0 +1,39 @@
+name: phantrix
+description: "Phantrix - a free-first, account-free, privacy-focused WireGuard/OpenVPN client."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  phantrix_core:
+    path: packages/phantrix_core
+  phantrix_platform:
+    path: packages/phantrix_platform
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # On-device tests. These run the real app on a real device or emulator
+  # through the real widget tree and the real platform channel, which is the
+  # only way to observe what the operating system actually does. They are kept
+  # out of `test/`, which runs on the host VM where none of that exists.
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    # The app mark. tools/generate_app_icons.ps1 derives every platform's
+    # launcher icon from this same file, so the in-app mark and the icon in
+    # the dock or on the home screen are always the same drawing.
+    - assets/icon.png

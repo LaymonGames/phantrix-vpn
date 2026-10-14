@@ -1,0 +1,14 @@
+# The OpenVPN engine and the wintun driver.
+#
+# Fetched by `tools/fetch_openvpn_bundle.ps1`, which pins the SHA-256 of
+# everything it installs and fails on a mismatch. They are not committed: a
+# repository that carries a 7.7 MB binary nobody can rebuild or audit is a
+# repository where "which build is this?" has no answer, and a bundle whose
+# hash is checked at download time is the same protection without the size.
+#
+# The build does not require them. Without this directory the plugin reports the
+# engine as missing and the Dart layer refuses an OpenVPN server with an
+# explanation, which is a working build rather than a broken one.
+# Everything below `bundle/` is fetched, not committed.
+*
+!.gitignore

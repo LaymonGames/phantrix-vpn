@@ -1,0 +1,118 @@
+name: windows
+
+# Builds the Windows release bundle and checks the invariants that only hold on
+# a real Windows build.
+#
+# ## What this workflow does and does not do
+#
+# It compiles the C++ backend with MSVC, links it into a release executable,
+# and then inspects the *result* — not the source — for the properties this
+# project cares about. The checks below exist because each one has been a real
+# bug here, and a comment saying "do not do this" is not a check.
+#
+# It does **not** run the tunnel. Creating one needs the WireGuard for Windows
+# service, which needs an administrator token, and it needs a reachable peer.
+# See docs/BUILDING.md and tools/windows_check.ps1 for the procedure on a
+# machine that has both.
+#
+# ## Third-party actions
+#
+# All first-party, pinned to immutable commit SHAs resolved through the GitHub
+# API:
+#
+#   actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   (v4.2.2)
+#   actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830      (v4.3.0)
+#   actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 (v4.6.2)
+#
+# Flutter comes from Google's own bucket with a verified SHA-256, via
+# tools/install_flutter.sh.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.47.0
+  FLUTTER_CHANNEL: stable
+  FLUTTER_SHA256: 26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
+
+jobs:
+  build:
+    name: Release build
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Cache the pub and CMake downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.cmake
+          key: windows-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            windows-
+
+      - name: Install Flutter
+        # The shared installer is a bash script because the Linux workflow
+        # needs one too. Git Bash ships with every Windows runner, so this is
+        # the same verified path rather than a second copy of it.
+        run: |
+          $env:FLUTTER_VERSION = $env:FLUTTER_VERSION
+          $env:FLUTTER_CHANNEL = $env:FLUTTER_CHANNEL
+          $env:FLUTTER_SHA256 = $env:FLUTTER_SHA256
+          bash tools/install_flutter_windows.sh "${{ runner.tool_cache }}\flutter-$env:FLUTTER_VERSION"
+          Add-Content $env:GITHUB_PATH "${{ runner.tool_cache }}\flutter-$env:FLUTTER_VERSION\bin"
+
+      - name: Record the toolchain actually used
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Resolve dependencies
+        run: |
+          flutter config --no-analytics --no-cli-animations
+          flutter pub get
+
+      - name: Cache the pinned OpenVPN runtime
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: packages/phantrix_platform/windows/bundle/openvpn
+          key: windows-openvpn-2.6.17-wintun-0.14.1-${{ hashFiles('tools/fetch_openvpn_bundle.ps1') }}
+
+      - name: Fetch and verify the OpenVPN runtime
+        # The app's built-in VPN Gate feed contains OpenVPN profiles. A release
+        # built without this hash-pinned engine can compile but cannot connect
+        # to those servers, so do not produce a misleading release artifact.
+        run: |
+          pwsh -NoProfile -File tools/fetch_openvpn_bundle.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File tools/fetch_openvpn_bundle.ps1 -VerifyOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build the release bundle
+        run: flutter build windows --release
+
+      - name: Check the built artifacts
+        run: tools/check_windows_build.ps1 -RequireOpenVpn
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phantrix-windows-x64
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
+          retention-days: 30

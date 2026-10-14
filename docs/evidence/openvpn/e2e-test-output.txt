@@ -1,0 +1,39 @@
+00:00 +0: loading &lt;repo&gt;/integration_test/openvpn_live_tunnel_test.dart
+Running Gradle task 'assembleDebug'...                          
+Running Gradle task 'assembleDebug'...                             24.7s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           7.7s
+00:00 +0: the OpenVPN tunnel connects, verifies and stops
+00:04 +0: loading &lt;repo&gt;/integration_test/openvpn_live_tunnel_test.dart
+Some possible finders for the widgets at Offset(77.8, 788.7):
+  find.byType(GestureDetector)
+  find.byType(InkWell)
+  find.byType(FilledButton)
+  find.byType(SafeArea)
+  find.byType(KeyedSubtree)
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+Some possible finders for the widgets at Offset(92.7, 752.0):
+  find.text('Choose a location')
+  find.widgetWithText(Flexible, 'Choose a location')
+  find.widgetWithText(GestureDetector, 'Choose a location')
+  find.widgetWithText(MouseRegion, 'Choose a location')
+  find.widgetWithText(InkWell, 'Choose a location')
+  find.widgetWithText(PhysicalShape, 'Choose a location')
+  find.byType(FilledButton)
+  find.byType(Wrap)
+  find.byType(ImageFiltered)
+  find.byType(StretchEffect)
+  find.byType(ClipRect)
+  find.byKey(const Key('home'))
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+00:47 +0: the OpenVPN tunnel connects, verifies and stops
+ATTEMPT 1 connected=true Home | Connected | Tunnel established | Connected via 60.119.0.51, which is different from the address used before connecting. | SERVER | Japan | Tap to change location | The built-in public relays need OpenVPN support | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | THIS SESSION | Connected for | 0:00 | Downloaded | 203.4 KB | Uploaded | 142.8 KB | Public IP | 60.119.0.51 | Protocol | OpenVPN | IPv6 | Blocked | ACTIONS | Choose a location | Import | Phantrix cannot block traffic itself if the tunnel drops; Settings shows the system protection that exists. | Home | Locations | Configs | Settings
+AFTER DISCONNECT: Home | Disconnected | Tap to connect | Not connected. | SERVER | Automatic · best available | Tap to change location | The built-in public relays need OpenVPN support | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | ACTIONS | Choose a location | Import | Phantrix cannot block traffic itself if the tunnel drops; Settings shows the system protection that exists. | Home | Locations | Configs | Settings
+00:48 +1: several countries are surveyed for a working relay
+SURVEY OUTCOMES: {JP (tapped 🇯🇵 / Japan / 53 servers available · OVPN / 1 ms): Locations | Search countries | Fastest | Name | Server count | The server list could not be loaded. | The server took too long to answer. | Retry | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | 🇯🇵 | Japan | 53 servers available · OVPN | 1 ms | Home | Locations | Configs | Settings, US (tapped 🇷🇺 / Russia / 5 servers available · OVPN / 36 ms): Locations | Search countries | Fastest | Name | Server count | The server list could not be loaded. | The server took too long to answer. | Retry | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | 🇷🇺 | Russia | 5 servers available · OVPN | 36 ms | 🇺🇸 | United States | 1 servers available · OVPN | — | Home | Locations | Configs | Settings, KR (tapped 🇰🇷 / South Korea / 23 servers available · OVPN / 24 ms): Locations | Search countries | Fastest | Name | Server count | The server list could not be loaded. | The server took too long to answer. | Retry | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | 🇰🇷 | South Korea | 23 servers available · OVPN | 24 ms | Home | Locations | Configs | Settings, RU (tapped 🇷🇺 / Russia / 5 servers available · OVPN / 36 ms): Locations | Search countries | Fastest | Name | Server count | The server list could not be loaded. | The server took too long to answer. | Retry | The bundled public servers use OpenVPN, but this build currently connects through WireGuard only. Import a valid WireGuard .conf file with a reachable peer to connect. | Import WireGuard config | 🇷🇺 | Russia | 5 servers available · OVPN | 36 ms | Home | Locations | Configs | Settings, DE: not offered, FR: not offered, SG: not offered}
+06:43 +2: (tearDownAll)
+06:44 +2: All tests passed!
+
+(consent approved: True)

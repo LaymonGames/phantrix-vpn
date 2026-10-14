@@ -1,0 +1,34 @@
+﻿Phantrix - relay-reachability controls, 2026-10-10 ~19:00 local
+==============================================================
+Context: after a live app run failed at 18:40 ("engine never reported a
+handshake"), the app's own ranking was replayed against its cached
+directory (fetchedAt 17:40:04Z, 100 servers) with the real
+ServerSelector: rank #0 = vpn703894277 (130.62.15.40, JP).
+
+Probes ran the bundled engine (build/windows/.../Release/openvpn.exe,
+2.6.17) with --dev null against the feeds' own profiles, unprivileged,
+from the same PC and network the app failed on.
+
+Rank-ordered probes (each bounded to 35-45s):
+  #0 vpn703894277  130.62.15.40:40792/udp  -> SILENT 45s, killed
+     (engine log ends at "UDPv4 link remote"; no peer, no TLS)
+  #1 vpn460533933   61.211.14.67:1350/tcp  -> "Attempting to establish
+     TCP connection" for 35s, no connect, killed
+  #2 vpn821185792  126.89.189.161:1852/tcp -> same, 35s, killed
+
+Raw TCP controls (Test-NetConnection, 2026-10-10 ~19:01):
+  61.211.14.67:1350   -> False   (filtered or dead)
+  126.89.189.161:1852 -> False   (filtered or dead)
+  219.100.37.207:443  -> True    (network path to JP is fine)
+  1.1.1.1:443         -> True    (general egress is fine)
+
+Live control against a different feed relay:
+  public-vpn-253 219.100.37.207:443/tcp -> FULL HANDSHAKE COMPLETED
+  (openvpn.log contains "Initialization Sequence Completed";
+  see windows-walk-control-handshake.txt)
+
+Conclusion: the network is healthy; the app's top-ranked relays were
+unreachable from this network at that moment. The ranking reads the
+provider's ping/uptime columns, which are measured elsewhere, so a
+dead relay can outrank a live busy one. The bounded walk (top 6 x 20s)
+is the fix; the phone gate at 14:00 passed because its picks answered.
