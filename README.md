@@ -1,6 +1,6 @@
 # Phantrix
 
-Phantrix is a free, account-free VPN client for **WireGuard** and **OpenVPN**,
+Phantrix is a free, vibe-coded, account-free VPN client for **WireGuard** and **OpenVPN**,
 built with Flutter. There is no sign-up, no subscription and no analytics.
 It is a client only: you bring a server (your own, your provider's, or a public
 relay from the built-in VPN Gate list).
