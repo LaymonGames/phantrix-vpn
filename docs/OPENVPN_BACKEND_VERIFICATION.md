@@ -17,6 +17,14 @@ executed.
 > contradicts `docs/evidence/openvpn/WINDOWS_VERIFICATION_2026-10-11.md`, the
 > evidence file is newer and wins.
 
+> **Status change, 2026-10-16: the WireGuard backend was removed and the app
+> became OpenVPN-only.** The Android `VpnService` and its WireGuard engine, the
+> Windows `wireguard.exe` path and the protocol choice in the app are gone. The
+> app now declines a WireGuard server by name instead of offering one. Where
+> this report says WireGuard "remains the other engine", read that as a fact
+> about the time of writing: the only engine any current build can run is
+> OpenVPN on Windows.
+
 Environment used for all results: Windows 11, Flutter 3.47.0 / Dart 3.13.0
 (`C:\FlutterSDK`), JDK 25 (`C:\Program Files\Android\Android Studio\jbr`),
 Gradle 9.3.1 via `android/gradlew.bat`, Android SDK with adb, VS Community
@@ -28,13 +36,15 @@ The engine is the official OpenVPN implementation, not a reimplementation:
 
 | Platform | Engine | Licence | How it ships |
 | --- | --- | --- | --- |
-| Android | **None.** The `icsopenvpn` engine described in this report was removed on 2026-10-13 for licence incompatibility (GPL-2.0-only cannot combine with GPL-3.0) | — | Not shipped. Android is WireGuard-only; OpenVPN servers are reported as unsupported |
+| Android | **None.** The `icsopenvpn` engine described in this report was removed on 2026-10-13 for licence incompatibility (GPL-2.0-only cannot combine with GPL-3.0), and the WireGuard engine that replaced it was removed on 2026-10-16 | — | Not shipped. Android has no engine, and the app declines every relay with an explanation |
 | Windows | Official OpenVPN 2.6 community binaries | GPL-2.0 | Separate elevated helper process (`phantrix_ovpn_helper.exe`); downloaded and verified by `tools/fetch_openvpn_bundle.ps1` |
 | Windows tunnel device | wintun (`wintun.dll`, WireGuard LLC) | wintun prebuilt-binaries licence | Same fetch script |
 
-WireGuard remains the other engine, unchanged in architecture
+WireGuard was the other engine at the time of writing
 (`com.wireguard.android:tunnel` on Android, the official WireGuard for
-Windows service on Windows).
+Windows service on Windows). Both of those paths were removed on
+2026-10-16; the Linux and Apple sources still drive WireGuard, and the
+domain library still parses it.
 
 **[historical] Why the Android engine was removed.** The adjacent sidecar
 copied from upstream tag `v0.7.55` (sha256 `2ff8cdba…`) said
@@ -334,6 +344,52 @@ Full record: `docs/evidence/openvpn/WINDOWS_VERIFICATION_2026-10-11.md` §4;
 raw capture: `live-capture-2026-10-11-honest.log`. One observation on one
 machine — it supersedes the "NOT RUN" above, it is not a regression suite.
 
+### §4 addendum B: WireGuard availability is a reported capability (2026-10-16)
+
+The Windows backend drives the user's own **WireGuard for Windows**
+installation; it is not bundled, and the app had no way to tell whether it was
+there. The Dart resolver answered `ProtocolKind.wireGuard => true`
+unconditionally, so on a PC without it every WireGuard server was offered,
+every attempt reached the engine-launch step, and each one ended in
+`backend.not_installed` from a program that does not exist — while the app
+told the user to import a WireGuard configuration to do the very thing it
+could not do.
+
+What changed:
+
+- `phantrix_windows_plugin.cpp` probes the two documented install locations
+  for `wireguard.exe` (the same probe the tunnel path already used) and
+  reports `wireGuard` in `capabilities` next to `openVpn`. The `engine`
+  string and the `limitations` prose are composed from both answers, so a PC
+  without WireGuard is told that rather than handed the static "WireGuard
+  needs WireGuard for Windows installed separately".
+- `PlatformCapabilities.wireGuard` carries the answer, defaulting to `true`
+  when a backend does not report the key — every platform but Windows bundles
+  the engine, and their backends predate it.
+- The resolver's `_supports` consults it, and `_poolForSelection` drops
+  unrunnable servers **before** ranking instead of rejecting the winner after
+  it. A WireGuard relay can no longer beat an OpenVPN relay that would have
+  connected, and an all-WireGuard list now names the missing engine instead of
+  reporting "no server currently passes the health and trust checks".
+- An imported configuration (always WireGuard) is checked in
+  `connectToConfiguration`, and the Configurations screen states the problem
+  and disables Connect rather than offering a button that can only fail.
+- `ConnectionController.refreshCapabilities()` re-probes before a connection
+  is decided, so installing WireGuard for Windows while the app is open is
+  noticed on the next attempt instead of needing a restart — the advice the
+  app gives can actually be followed.
+
+Observed on this machine, which has no WireGuard for Windows installed:
+`tools/check_windows_build.ps1` → **All checks passed**, including the OpenVPN
+bundle checks; the running release build reports on Home
+
+> WireGuard for Windows is not installed on this PC, so WireGuard servers
+> cannot be used until it is.
+
+and still offers "Choose a location" with the OpenVPN engine present. The
+WireGuard tunnel itself remains unrun here: that needs WireGuard for Windows
+installed *and* an administrator token, and §6 is unchanged on that point.
+
 ## 5. What the live runs found, and fixed
 
 The first live runs (`tools/run_openvpn_e2e.ps1`, Android emulator, API 34)
@@ -602,9 +658,8 @@ carries a filename-only watchdog for exactly this file.
 | **OpenVPN credentials.** `TunnelRequest` carries no username/password, so a profile whose `auth-user-pass` is not satisfied by inline files is refused with `ovpn.credentials_missing`. Every credential-based OpenVPN server is unusable today | Adding a secret field to the frozen channel contract means specifying how the secret is stored (OS keystore), redacted and transmitted — a design decision, not a bug | A `credentialsRef` field plus keychain storage on both platforms, then the same live-tunnel test against a credential server |
 | `reportVerification` is a no-op on both platforms | The method exists in the contract but nothing consumes its result natively | Decide what native effect it should have (e.g. the engine's own verification record) and implement it |
 | Repeated `handshaked`-with-counters as the traffic convention (Windows) | Both Windows paths now emit it — the OpenVPN helper's status poll and the new WireGuard `wg.exe` monitor — and the Dart sink has always accepted it, but the convention is not written into the frozen contract | Agree the convention in the frozen contract (or specify another) before a platform other than Windows depends on it |
-| Nothing reads `capabilities.engine` | The Windows plugin reports `"openvpn-community + wireguard-for-windows"`; the Dart side never distinguishes engines | Surface it in Diagnostics, or drop the field |
+| Nothing reads `capabilities.engine` | The Windows plugin reports `"openvpn-community + wireguard-for-windows"`, or one of them, or `"none"`; the Dart side never distinguishes engines | Surface it in Diagnostics, or drop the field |
 | Windows `capabilities.supportsIpv6Blocking` is `false` | IPv6 blocking on Windows comes from the profile's `block-ipv6`, not the backend | Report it as supported once that behaviour is asserted on a live tunnel |
-| Nothing reads `capabilities.engine`, now `"openvpn-community + wireguard-for-windows"` | The Dart side never needed to distinguish engines | Surface it in Diagnostics, or drop the field |
 | Per-app / LAN policy (`allowedApps`, `disallowedApps`, `allowLan`) | No settings exist to set them; the controller correctly omits them and the native parsers accept null | A split-tunnel screen that writes them, then the same live test |
 | **Same-user pipe piggyback (Windows).** The session token is 128-bit
   CSPRNG but travels on the helper's command line (readable by any
@@ -848,3 +903,43 @@ path: `PhantrixTunnelService.kt`, `WgConfigMapper.kt`, `VpnPermissions.kt`,
 | `README.md`, `THIRD_PARTY_LICENSES.md` | Licences page section, engine sections, why the GPL-2.0-only engine was removed |
 | `docs/OPENVPN_BACKEND_VERIFICATION.md` | This report |
 | `docs/evidence/openvpn/**` | Live-run evidence: logcat, routes, netstats, notifications, test output; plus the Windows engine-notice before/after captures and the 43-check output including the engine `--version` run; plus the §5 item 10 reachability controls: rank #0/#1/#2 silence logs, the live `public-vpn-253` handshake control, and `windows-walk-reachability-controls.txt`; plus `windows-user-errors-2026-10-10.txt` (OCR of the two user-reported error screens, the live silent-session log, and the fatal-terminator probes behind item 11) |
+
+## Appendix addendum (2026-10-16): the WireGuard capability
+
+The rows above are the OpenVPN work and are left as written. This is the
+separate change that made WireGuard availability a reported fact — §4 addendum
+B has the reasoning.
+
+| File | What |
+| --- | --- |
+| `packages/phantrix_platform/windows/phantrix_windows_plugin.cpp` | `capabilities` reports `wireGuard`, probed from the two documented `wireguard.exe` locations, and composes `engine` (`openvpn-community`, `wireguard-for-windows`, `none`) and the `limitations` prose from both answers instead of one static string |
+| `packages/phantrix_platform/lib/phantrix_platform.dart` | `PlatformCapabilities.wireGuard`, defaulting to `true` when a backend does not report the key |
+| `lib/vpn/connection_resolver.dart` | `_supports` consults `wireGuard`; `_poolForSelection` takes the capabilities and drops unrunnable servers before ranking; `_noRunnableServer` + `_remedyFor` replace "no server currently passes the health and trust checks" when the pool is empty for a protocol reason; `resolveAndConnect` re-probes before deciding |
+| `lib/vpn/connection_controller.dart` | `refreshCapabilities()`, which re-reads the platform's answer and emits only when a protocol flag actually changed |
+| `lib/phantrix_app.dart` | `connectToConfiguration` refuses an imported (always WireGuard) configuration when there is no engine, before anything is dialled; the Configurations destination threads `wireGuardSupported` |
+| `lib/ui/screens/configurations_screen.dart` | `wireGuardSupported` prop: a list-level note, a per-card note, and a disabled Connect button when the engine is absent. The configuration is kept and its verdict is unchanged — a missing engine is not a broken file |
+| `packages/phantrix_platform/test/platform_bridge_test.dart` | 2 new tests: `wireGuard: false` parses as unable; a backend that omits the key keeps it available |
+| `test/connection_resolver_test.dart` | 2 new tests: a WireGuard relay loses to a slower connectable OpenVPN one; an all-WireGuard list names the missing engine rather than the health checks |
+| `test/configurations_screen_test.dart` | 2 new tests: no engine disables Connect and says so; the same configuration connects once an engine exists |
+| `README.md`, `BUILDING.md`, `ARCHITECTURE.md`, this file | The capability, and the honest note that the WireGuard tunnel itself is still unrun here |
+## Addendum 2026-10-17: the data-path arguments
+
+Engine::Start (helper-side phantrix_ovpn_engine.cpp) now appends two data-path
+flags after the path arguments:
+
+* --sndbuf 524288 --rcvbuf 524288 � the engine's own defaults are 64KB, which
+  every session log confirms (Socket Buffers: R=[65536->65536]
+  S=[65536->65536]). A cross-continent volunteer relay with even mild packet
+  loss stalls on that send window long before the path is filled; half a
+  megabyte each way is the conventional remedy.
+* --socket-flags TCP_NODELAY � only for profiles whose proto line starts
+  with 	cp. Nagle batching delays exactly the traffic a tunnel carries
+  (keystrokes, DNS, voice). ProfileIsTcp reads the profile with the same
+  capped budget and comment rules as ProfileHasAuthUserPass, because the flag
+  is invalid on a TCP-less link and OpenVPN fails to start when it conflicts.
+
+Verified against a live relay the same way the handshake was verified above:
+the flags parse, the socket log shows Socket Buffers: R=[65536->524288]
+S=[65536->524288], and the TLS negotiation proceeds unchanged. The flag being
+conditional is load-bearing, not cosmetic � see lagtest3.log for the
+udp-link shape the guard avoids.

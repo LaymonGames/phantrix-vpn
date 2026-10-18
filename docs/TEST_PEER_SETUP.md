@@ -1,5 +1,13 @@
 # Test-peer setup for a real WireGuard handshake
 
+> **Status change, 2026-10-16: the app no longer offers WireGuard.** The
+> Android and Windows WireGuard backends were removed when the app became
+> OpenVPN-only, so this procedure cannot be run against the shipping app: it
+> would need a WireGuard engine first. It is kept because the Linux and Apple
+> platform sources still drive WireGuard, and because it is the procedure any
+> future WireGuard engine would have to pass before a connection may be
+> reported as working.
+
 ## Status
 
 No reachable WireGuard peer exists in the development or CI environments, so
