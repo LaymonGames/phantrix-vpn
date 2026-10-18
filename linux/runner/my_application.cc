@@ -3,7 +3,7 @@
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
 
-#include "phantrix_plugin.h"
+#include "flutter/generated_plugin_registrant.h"
 
 struct _MyApplication {
 	GApplication parent_instance;
