@@ -10,11 +10,10 @@ phantrix/                          # root Flutter app
 	                                #   surfaces, rows, brand, status_style)
 	lib/discovery/               # DiscoveryController + the async→UI bridge
 	lib/net/                     # the single outbound HTTPS path
-	lib/config/                  # ConfigurationRepository — imported WireGuard configs
 	lib/storage/                 # AppStore: the app's own key/value persistence
 	lib/settings/ lib/vpn/       # settings holder, connection controller, resolver
 	lib/theme/ lib/l10n/         # colour/motion tokens + English/Arabic strings
-	test/                         # 119 tests, incl. the rendered-UI suite
+	test/                         # 251 tests, incl. the rendered-UI suite
 	android/ linux/ macos/ windows/ web/   # Flutter platform scaffolds
 tools/                          # CI helpers + read-only diagnostics
 packages/
@@ -30,20 +29,15 @@ packages/
 			settings/            # AppSettings (immutable)
 			diagnostics/         # privacy check model
 			logging/             # Logger + Redactor
-		test/                  # 171 core tests
+		test/                  # 197 core tests
 	phantrix_platform/           # Flutter plugin: Dart bridge + Android/Linux/Windows/Apple native
 		lib/phantrix_platform.dart
 		android/src/main/kotlin/dev/phantrix/phantrix_platform/
 			PhantrixPlugin.kt          # MethodChannel handler
-			PhantrixTunnelService.kt   # VpnService driving the official GoBackend
-			WgConfigMapper.kt          # validated Dart config → com.wireguard.config.Config
-			TunnelRequestParser.kt     # strict JSON decode of the tunnel request
-			RoutingPolicy.kt           # routes, DNS, IPv6 policy
 			AndroidCapabilities.kt     # per-API-level capability facts
-			VpnPermissions.kt          # consent flow, settings screen
-			EventChannelListener.kt   # service → Dart state stream
-		android/src/androidTest/…     # ON-DEVICE tests: loads the real libwg-go.so
-		windows/phantrix_windows_plugin.cpp   # official wireguard.exe service
+			VpnSettings.kt             # system lockdown reading, VPN settings screen
+			EventChannelListener.kt    # the tunnel-state subscription Dart opens
+		windows/phantrix_windows_plugin.cpp   # official OpenVPN binaries + elevated helper
 		linux/phantrix_plugin.cc             # kernel WireGuard via wg-quick (pkexec)
 		apple/                                # iOS + macOS: NEPacketTunnelProvider
 			Sources/{Shared,Extension,App}/
@@ -51,7 +45,7 @@ packages/
 			README.md                  # the Xcode wiring steps and what is unverified
 	.github/workflows/linux.yml     # the only place the Linux plugin is compiled
 	integration_test/               # ON-DEVICE app tests
-	test/                           # 105 host tests
+	test/                           # 22 host tests
 ```
 
 Two packages, one rule: **the domain never reaches for the platform.**
@@ -67,8 +61,8 @@ Two packages, one rule: **the domain never reaches for the platform.**
 		│  provides validated VpnConfiguration, servers, state transitions
 	Platform bridge (packages/phantrix_platform Dart side)
 		│  MethodChannel + EventChannel, DTOs only
-	Native (android/src/main/kotlin/...)
-		   VpnService, keystore, routing policy, event publishing
+	Native (windows/phantrix_windows_plugin.cpp)
+		   the channel handler, capability probing, the elevated OpenVPN helper
 ```
 
 Dependencies point one way only. `phantrix_platform` depends on
@@ -170,8 +164,8 @@ The enforcement:
 	`VpnTransition(VpnState.connected)` is `VpnEventType.tunnelVerified`.
 	`tunnelUp` — the OS saying the interface exists — deliberately keeps
 	the machine in `connecting`/`reconnecting` with the message
-	"Handshake complete, verifying…". The Android service agrees: its KDocs
-	state that everything the OS reports as "up" is `established`, never
+	"Handshake complete, verifying…". The Windows helper's event contract
+	agrees: everything the OS reports as "up" is `established`, never
 	`connected`.
 2. **In `allows`:** a second, independent guard used by hosts as a
 	cross-check. `connected` is reachable only from `connecting` or
@@ -239,7 +233,6 @@ and mirrored by every native backend (`PhantrixPlugin.kt`,
 | `startTunnel` | request map (6.2) | void on acceptance only — **acceptance is not "tunnel up"** |
 | `stopTunnel` | none | void; always cleans up, even mid-connect |
 | `openVpnSettings` | none | void; opens the OS VPN settings |
-| `reportVerification` | `{ipv4, ipv6, protocol}` | void; tells the platform the caller verified the tunnel |
 | `appDataDirectory` | none | `String?`; the platform's private per-user directory, or null where none exists |
 
 `appDataDirectory` returns a **path** rather than reading or writing a file
@@ -259,9 +252,9 @@ tunnel, `permission.*`/`dns.*` → permission, `server.*` → provider).
 A missing native plugin — every platform except Android today — produces
 `platform.missing`: "This platform has no Phantrix tunnel implementation."
 
-### 6.1a Persistence and configuration import
+### 6.1a Persistence
 
-Two layers, deliberately separated from both the core package and the UI:
+One layer, deliberately separated from both the core package and the UI:
 
 ```
 lib/storage/app_store.dart              AppStore interface
@@ -269,41 +262,22 @@ lib/storage/app_store.dart              AppStore interface
   └─ FileAppStore                      one JSON file, written atomically
         ▲
         │ FileAppStore.inDirectory(dir, fileName)
-lib/config/configuration_repository.dart
-  └─ ConfigurationRepository           parse → validate → persist → list → connect
-        ▲
-        │ AppScope.connectToConfiguration()
+lib/settings/settings_controller.dart  what the app remembers between runs
 lib/vpn/connection_controller.dart     re-validates, then starts the tunnel
 ```
 
-`ConfigurationRepository` is the layer that made this application usable. The
-only bundled feed publishes **OpenVPN**; every native backend drives
-**WireGuard**; so before it existed there was no configuration a user could
-supply and therefore nothing to connect to. It:
-
-- parses and **validates before persisting** — an unchecked configuration is
-  never written and never reaches a platform;
-- derives its id from the *public* keys, so importing the same configuration
-  twice updates the entry instead of creating a duplicate;
-- re-validates on connect rather than trusting a cached verdict, because the
-  validator may have been tightened since the configuration was imported, and a
-  tunnel is the last thing to start from a cached "this was fine yesterday";
-- is **not** part of the discovery layer. Imported configurations are not a
-  directory of public relays to be scored against each other; they are entries
-  the user chose, listed in import order and connected to directly.
-
-Storing them is discussed, with what it does and does not protect, in
-[SECURITY.md §4.0](SECURITY.md#40-at-rest-imported-configurations-are-stored-in-plain-text).
+The file holds settings and the cached server directories: the chosen country,
+the kill-switch/DNS/IPv6 preferences, the last selected relay, and the public
+relay list the app last fetched. Nothing secret is in it — the app holds no
+key material of its own — and what that does and does not protect is
+discussed in [SECURITY.md §4.0](SECURITY.md#40-at-rest-what-the-store-holds-and-what-it-does-not).
 
 ### 6.2 `startTunnel` argument shape
 
 ```
 {
 	configJson:   string   # JSON of the *validated* configuration:
-	                      #   {"wireguard": {privateKey, addresses[], dns[], mtu,
-	                      #                 peers[{publicKey, presharedKey?,
-	                        endpoint, allowedIps[], persistentKeepalive?}]}}
-	                      # or {"openvpn": {proto, dev, cipher?, auth?, remotes[...],
+	                      #   {"openvpn": {proto, dev, cipher?, auth?, remotes[...],
 	                      #                 ca?, cert?, key?, tlsAuth?, authUserPass}}
 	killSwitch:   'off' | 'automatic' | 'strict'
 	dnsMode:      'vpn' | 'trusted' | 'custom'
@@ -318,12 +292,13 @@ Storing them is discussed, with what it does and does not protect, in
 }
 ```
 
-`TunnelRequestParser.parse` on the Android side validates every field on
-arrival and rejects malformed input with a *reason*, never a default:
-missing IPv6 policy fails (it never silently means "allow"), two
-protocols at once fails, both allow- and disallow-app lists fail, an
-empty private key or peerless config fails. Error messages never include
-the payload, because the payload contains keys.
+The receiving backend validates every field on arrival and rejects malformed
+input with a *reason*, never a default: missing IPv6 policy fails (it never
+silently means "allow"), two protocols at once fails, both allow- and
+disallow-app lists fail, an empty private key or peerless config fails. Error
+messages never include the payload, because the payload contains key material.
+The Windows plugin is the only backend that receives this today; the Android
+side answers a start request with the reason it cannot serve one.
 
 ### 6.3 Event payload shape (native → Dart)
 
@@ -332,7 +307,7 @@ the payload, because the payload contains keys.
 	state:        'idle' | 'preparing' | 'connecting' | 'established'
 	              | 'reconnecting' | 'disconnecting' | 'failed' | 'revoked'
 	message?:     string        # short, non-secret
-	errorCode?:   string        # e.g. 'wg.handshake_timeout'
+	errorCode?:   string        # e.g. 'tunnel.not_up'
 	networkChanged?: bool
 	traffic: {
 		rx: int, tx: int, rxRate?: int, txRate?: int,
@@ -366,38 +341,50 @@ traffic outside itself. `AndroidCapabilities.of()` computes facts from
 API 29 (Q), IPv6 blocking always, and pre-Q devices get a `perApp`
 limitation string instead of a silent downgrade.
 
-One known wart: the name `PlatformCapabilities` exists in **both**
-packages — `phantrix_core/src/vpn/vpn_engine.dart` (the engine contract's
-version, which also carries `killSwitchStrictness`) and
-`phantrix_platform/lib/phantrix_platform.dart` (the wire version). The
-bridge one is the DTO the UI should use, and the collision is one of the
-current analyzer errors in `lib/vpn/connection_controller.dart`;
-resolving it (an import prefix, or removing the unused duplicate from
-core) is part of finishing the UI wiring, not something to paper over.
+The engine's capabilities type now has a single home:
+`PlatformCapabilities` in
+`phantrix_platform/lib/phantrix_platform.dart` is the wire DTO the UI
+reads, and the duplicate that once lived in
+`phantrix_core/src/vpn/vpn_engine.dart` has been removed. Importing both
+packages no longer produces an ambiguous name, and `flutter analyze` is
+clean at the root.
 
 ---
 
 ## 7. What is real, and what is scaffolding (honest inventory)
 
-**Real and tested (`phantrix_core`, 171 tests):** WireGuard and OpenVPN
+**Real and tested (`phantrix_core`, 197 tests):** WireGuard and OpenVPN
 parsers, serializers and validators; the three providers; discovery,
 caching and merging; scoring and selection; the state machine; settings;
 diagnostics; the logger, the redactor and the secret fingerprint.
 
-**Real and tested on a device (`phantrix_platform` Android):** the plugin
-and channel plumbing; the `VpnService` subclass driving the official
-`GoBackend`; the config mapper; the strict request parser; the capability
-reporter. `flutter build apk --debug` succeeds, the merged manifest
-contains both `VpnService`s, and `connectedAndroidTest` passes 15 tests on
-a real Android 14 emulator — including loading `libwg-go.so` from the APK
-and bringing an interface up. A **handshake** has never completed, because
-no reachable peer exists in this environment.
+**Real and tested on a device (`phantrix_platform` Android, recorded before the
+app became OpenVPN-only):** the plugin and channel plumbing, the capability
+reporter, and 4 on-device app tests on a real Android 14 emulator. The
+`VpnService` that drove the official WireGuard backend, its config mapper, its
+routing policy and its request parser have since been removed: Android has no
+engine in this build, so the app declines every relay there with an
+explanation.
 
 **Real and compiling (`phantrix_platform` Windows):** the C++ backend
 builds (`phantrix.exe` + `phantrix_platform_plugin.dll`) and drives the
-official WireGuard for Windows service. Never exercised at runtime, because
-WireGuard for Windows is not installed here and the session is not
-Administrator.
+official OpenVPN 2.6 community binaries through the elevated helper. The
+engine's presence is probed from disk: the `openVpn` capability is answered
+from what is installed, so a build without the bundle declines an OpenVPN
+server with an explanation instead of attempting a tunnel that cannot start.
+It has connected live; see `docs/OPENVPN_BACKEND_VERIFICATION.md` §4 addenda.
+
+**A system VPN cannot be sandboxed, and this one does not claim to be.** Every
+tunnel on every platform has to create a network interface and change the
+machine's routing table, and no unprivileged process may do either. What this
+project does instead is
+keep the elevation as far from the app as it can: `phantrix.exe` never runs
+elevated, one small helper is launched per tunnel under a
+`requireAdministrator` manifest, it holds the token only for the life of that
+tunnel, and the two sides talk over a named pipe with an explicit
+Medium-integrity DACL. That is the boundary that exists. "Sandboxed" is not
+available for this class of program, and the app says so rather than implying
+otherwise.
 
 **Real source, compiled by CI (`phantrix_platform` Linux):** the C++
 backend is complete — capability probing, a fixed interface name,
@@ -416,12 +403,12 @@ wireguard-apple sources vendored under their MIT licence. It has never
 been compiled (no Xcode) or signed (no Apple Developer account). It is
 ready for validation, not working.
 
-**Real and tested (`lib/`, 105 tests):** the Flutter UI. Theme tokens,
+**Real and tested (`lib/`, 269 tests):** the Flutter UI. Theme tokens,
 English and Arabic strings with RTL, a responsive three-tab shell — **Home,
 Servers, Settings** as a sidebar on desktop and a bottom bar on mobile. The
 sidebar's footer carries the live connection state, so the tunnel's status is
-readable from every screen rather than only the connection screen. Import/manage
-configurations, diagnostics, privacy and licences are opened *over*
+readable from every screen rather than only the connection screen. Diagnostics,
+privacy and licences are opened *over*
 those tabs as secondary screens that highlight their parent tab and offer a back
 arrow — the connection screen, the server browser, the privacy diagnostics page,
 the privacy explanation and settings. On top of
@@ -431,7 +418,7 @@ the app, `lib/discovery/` runs the providers and publishes a merged
 to Japan" into a specific server plus its validated configuration. The
 country list is derived from real servers; there is no fallback list of
 invented countries. `flutter analyze` is clean at the root and
-`flutter test` passes 105 tests, including whole-app smoke tests at 1x and 2x
+`flutter test` passes 250 tests, including whole-app smoke tests at 1x and 2x
 text scale.
 
 **The Dart plugin surface declares `android`, `linux` and `windows`, each
@@ -443,8 +430,10 @@ answering "not supported" — a placeholder presented as a backend — so the
 Dart layer reports Apple platforms as unsupported instead, and the
 capabilities reporter says so explicitly.
 
-**Not verified anywhere: a completed handshake, and therefore DNS, IPv4
-and IPv6 routing, and leak behaviour.** Every platform's `connected`
+**Not verified anywhere: leak behaviour, DNS and IPv6.** The Windows OpenVPN
+tunnel has been observed live (`docs/evidence/openvpn/`): traffic flowed for
+minutes and the exit address changed. What no platform has verified is what
+happens to DNS and to IPv6 while the tunnel is up. Every platform's `connected`
 requires three evidences, so an unverified tunnel fails closed rather than
 reporting protection the user does not have. This is the single largest
 remaining gap and it is called out in every document rather than blurred.
@@ -457,18 +446,17 @@ The project rule, stated in the code and repeated in SECURITY.md: **crypto
 happens in vetted native or established libraries, and is never
 hand-rolled.**
 
-- **Android, today: no crypto at all in Dart.** The tunnel configuration,
-	including the private key, is handed to the native side in memory via
-	`PendingRequest` and cleared as soon as the service has read it. Nothing
-	is written to disk, so there is nothing to encrypt at rest. When
-	persistent (reboot-restore) tunnels are added, the wrapping key must come
-	from the AndroidKeyStore as a non-exportable AES-256-GCM key, using
-	`javax.crypto` only — no third-party crypto library and no homemade key
-	derivation. That work is not in this build; see the README.
-- **Android, log safety:** exceptions raised while parsing or building the
-	tunnel are logged by class name only. `org.json` puts the offending value
-	in its message and that value is the configuration, so logging the
-	exception object would put a private key in logcat.
+- **Android, today: no crypto at all in Dart.** There is no tunnel engine on
+	Android in this build, so no key material reaches the platform and nothing
+	is written to disk. If an engine is added, the wrapping key for any
+	persistent (reboot-restore) tunnel must come from the AndroidKeyStore as a
+	non-exportable AES-256-GCM key, using `javax.crypto` only — no third-party
+	crypto library and no homemade key derivation. That work is not in this
+	build; see the README.
+- **Android, log safety:** exceptions raised while handling a platform reply
+	are logged by class name only. `org.json` puts the offending value in its
+	message, and that value is payload the app does not control, so logging
+	the exception object would put it in logcat.
 - **Manifest signatures:** `SignatureVerifier` in
 	`manifest_provider.dart` uses `package:cryptography`'s Ed25519 — which
 	is backed by a vetted native library where one exists — with explicit
@@ -476,8 +464,9 @@ hand-rolled.**
 	never throw" contract.
 - **Protocol cryptography:** deliberately *not implemented here*. The
 	Noise_IK handshake, ChaCha20-Poly1305 and the OpenVPN TLS stack live in
-	the upstream engines (`com.wireguard.android:tunnel`, Apache-2.0, is
-	the intended Android engine). The only "crypto-looking" code in Dart is
+	the upstream engines (the Windows build drives the official OpenVPN 2
+	binaries; the Linux backend drives the kernel's own implementation
+	through `wg-quick`). The only "crypto-looking" code in Dart is
 	the FNV-1a digest in `Redactor.fingerprint` and `VpnConfiguration`, used
 	solely to produce stable, non-reversible markers for log correlation —
 	it protects nothing and is documented as such.
@@ -534,8 +523,9 @@ The provider subclass, the manager (including loading the existing
 manager via `loadAllFromPreferences` rather than creating a duplicate),
 the configuration mapper with its full-tunnel and IPv6 guarantees, the
 Flutter bridge, and the handshake-time polling that feeds the Dart
-verification gate. The mapper is the Apple twin of `WgConfigMapper.kt`,
-and it enforces the same two invariants natively: `0.0.0.0/0` is added
+verification gate. The mapper has no Android twin any more — that one was
+removed with the Android WireGuard backend — and it
+enforces the same two invariants natively: `0.0.0.0/0` is added
 when a peer has no default route, and IPv6 routes are stripped when the
 policy forbids carrying IPv6.
 

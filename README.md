@@ -1,15 +1,15 @@
 # Phantrix
 
-Phantrix is a free, vibe-coded, account-free VPN client for **WireGuard** and **OpenVPN**,
-built with Flutter. There is no sign-up, no subscription and no analytics.
+Phantrix is a free, vibe-coded, account-free VPN client for **OpenVPN**, built
+with Flutter. There is no sign-up, no subscription and no analytics.
 It is a client only: you bring a server (your own, your provider's, or a public
 relay from the built-in VPN Gate list).
 
 Phantrix's own code is licensed under **GPL-3.0-only** (see [License](#license)).
 
 > **Status: early and mostly unverified.** An OpenVPN tunnel has been observed
-> working once on Windows. No WireGuard handshake has ever been observed on any
-> platform. Read [Platform status](#platform-status) before relying on it.
+> working once on Windows. Read [Platform status](#platform-status) before
+> relying on it.
 
 ---
 
@@ -38,8 +38,8 @@ Notes:
 - **Do not skip the fetch step.** The OpenVPN engine is deliberately *not* in
   git (everything under `packages/phantrix_platform/windows/bundle/` is
   ignored). A checkout without it still builds, but the app reports OpenVPN as
-  unavailable and cannot connect to relays or `.ovpn` files, so it looks like
-  "nothing happens" when you press Connect.
+  unavailable and cannot connect to relays, so it looks like "nothing happens"
+  when you press Connect.
 - If you already built before fetching, run `flutter clean` and build again so
   CMake picks up the new files.
 - To re-check the downloaded files without downloading anything, add
@@ -48,19 +48,14 @@ Notes:
   (`pwsh`) is not required.
 - OpenVPN connections ask for administrator approval (a UAC prompt) because the
   engine runs in a separate elevated helper. The app itself is not elevated.
-- WireGuard on Windows uses the official **WireGuard for Windows** service. It
-  must be installed, and the app must be run as Administrator.
 
 ## Using it
 
-- **WireGuard:** open **Home → Import** (or **Settings → Configurations**) and
-  paste or pick a `.conf` file. It is parsed and validated before it is saved.
-  Files that contain `PreUp`/`PostUp`/`PreDown`/`PostDown` are refused, because
-  those run commands on your machine.
-- **OpenVPN:** Windows only. Pick a relay from the VPN Gate list or import an
-  `.ovpn` file. The profile is validated before the engine sees it.
-- Imported configurations contain your private key and are stored in the
-  app's per-user data directory without extra encryption by Phantrix.
+- **OpenVPN** is the only protocol, on Windows only. Pick a relay from the
+  built-in VPN Gate list. The profile is validated before the engine sees it.
+- Servers are listed with their country, and **Choose a location** remembers
+  yours. The app walks down the ranked list of relays until one accepts a
+  connection, and says which relay it settled on.
 
 Phantrix reports **Connected** only after the engine confirms a completed
 handshake **and** your public address has changed. Otherwise it says why it is
@@ -70,13 +65,13 @@ not connected rather than showing a green tick.
 
 ## Platform status
 
-| Platform | WireGuard | OpenVPN | Verified |
-| --- | --- | --- | --- |
-| Android | Official `com.wireguard.android:tunnel` library | **None** (see [License](#license)) | Recorded: engine and app tests pass on an Android 14 emulator. No handshake observed |
-| Windows | Official WireGuard for Windows service | Official OpenVPN 2.6 binaries + wintun, run as a separate helper process | OpenVPN: one live tunnel observed, 6.5 minutes, exit address changed (`docs/evidence/openvpn/`). WireGuard: built, never run |
-| Linux | `wg-quick` / kernel module, elevated with `pkexec` | None | Compiled in CI. Never run on a live system |
-| macOS / iOS | Not supported | None | Apple source exists in `packages/phantrix_platform/apple/` but has never been compiled and is not a build target |
-| Web | Not possible | Not possible | A browser cannot tunnel system traffic. The app builds, and Connect fails explicitly |
+| Platform | Engine the app can use | Verified |
+| --- | --- | --- |
+| Windows | Official OpenVPN 2.6 binaries + wintun, run as a separate helper process | OpenVPN: one live tunnel observed, 6.5 minutes, exit address changed (`docs/evidence/openvpn/`) |
+| Android | None. No engine on Android — OpenVPN is not shippable there and the WireGuard backend was removed — so the app declines every relay with an explanation | Recorded: app tests pass on an Android 14 emulator, before the app became OpenVPN-only |
+| Linux | None | Compiled in CI. Never run on a live system |
+| macOS / iOS | None | Apple source exists in `packages/phantrix_platform/apple/` but has never been compiled and is not a build target |
+| Web | None | A browser cannot tunnel system traffic. The app builds, and Connect fails explicitly |
 
 "Official engine" means Phantrix uses the upstream engine and implements no VPN
 cryptography itself. It is not a claim that a tunnel has been verified.

@@ -17,10 +17,10 @@ all in the current code, this document says so instead of hoping.
 | --- | --- | --- |
 | Flutter | 3.47.0 or newer | `flutter --version` on this machine reports 3.47.0, stable |
 | Dart | 3.13.0 (bundled with Flutter) | The root `pubspec.yaml` requires `sdk: ^3.13.0`; `packages/phantrix_core/pubspec.yaml` requires `^3.9.0` |
-| JDK | 17 | `android/app/build.gradle.kts` and `packages/phantrix_platform/android/build.gradle` both set `sourceCompatibility`/`targetCompatibility` and `jvmTarget` to 17 |
-| Android SDK | Platform 35, plus NDK | `packages/phantrix_platform/android/build.gradle` sets `compileSdk = 35`, `ndkVersion = flutter.ndkVersion`; the app module uses `flutter.compileSdkVersion` |
+| JDK | 17 | `android/app/build.gradle.kts` and `packages/phantrix_platform/android/build.gradle.kts` both set `sourceCompatibility`/`targetCompatibility` and `jvmTarget` to 17 |
+| Android SDK | Platform 35 | `packages/phantrix_platform/android/build.gradle.kts` sets `compileSdk = 35`; the app module uses `flutter.compileSdkVersion`. No NDK: the plugin compiles no native code |
 | Gradle | 9.3.1 (via wrapper) | `android/gradle/wrapper/gradle-wrapper.properties` downloads `gradle-9.3.1-all.zip` |
-| Android Gradle Plugin / Kotlin | AGP 9.1.0 / Kotlin 2.4.0 (app build) | `android/settings.gradle.kts`. Note: `packages/phantrix_platform/android/build.gradle` still pins AGP 8.7.2 and Kotlin 2.0.21 in its own `buildscript` block; the plugin-loader build is the one that matters when building the app |
+| Android Gradle Plugin / Kotlin | AGP 9.1.0 / Kotlin 2.4.0 | `android/settings.gradle.kts` |
 | Visual Studio 2022 | "Desktop development with C++" workload | Windows desktop only. Windows builds were verified with Visual Studio Community 2022, as stated at the top of this document |
 | Xcode | Current stable | macOS and iOS only, and only on a Mac |
 
@@ -95,46 +95,16 @@ flutter run -d <android-device-id>
 Requirements and permissions already declared in
 `packages/phantrix_platform/android/src/main/AndroidManifest.xml`:
 
-- `android.permission.INTERNET`
-- `android.permission.BIND_VPN_SERVICE` — a
-	signature-level permission, so only the OS can bind the service; it is
-	not capped by `maxSdkVersion`, and that is what stops other apps
-	starting our tunnel
-- `android.permission.FOREGROUND_SERVICE` and
-	`FOREGROUND_SERVICE_SPECIAL_USE`
-- `android.permission.POST_NOTIFICATIONS` (the ongoing tunnel
-	notification)
-- `android.permission.RECEIVE_BOOT_COMPLETED` (autostart support)
+- `android.permission.INTERNET` — the app fetches the public relay list over
+	HTTPS; it is declared in the plugin manifest because that is where the
+	app inherits it from
 
-The tunnel service itself is declared `android:exported="false"` with
-`android:permission="android.permission.BIND_VPN_SERVICE"` and
-`android:stopWithTask="false"`.
+Nothing else is declared, and that is the point: there is no tunnel service in
+this build, so there is no `BIND_VPN_SERVICE`, no foreground service type, no
+notification permission and no boot receiver to go with one. A manifest that
+kept them would ask the user to grant capabilities the app cannot use.
 
-### 4.2 The specialUse foreground service note
-
-Android 14 (API 34) requires every foreground service to declare a type.
-The tunnel service declares:
-
-```xml
-android:foregroundServiceType="specialUse"
-...
-<property
-	android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-	android:value="vpn" />
-```
-
-and `PhantrixTunnelService.startForegroundCompat()` calls
-`startForeground(NOTIFICATION_ID, notification,
-FOREGROUND_SERVICE_TYPE_SPECIAL_USE)` on SDK 34+.
-
-`specialUse` is used deliberately and only after review: the service *is*
-a system VPN, the `BIND_VPN_SERVICE` permission already gates who can
-bind it, and the notification is low-importance with no vibration and no
-badge. Do not "simplify" this by removing the type or the property —
-Play Store review expects the property, and Android 14+ kills services
-without a type.
-
-### 4.2a Regenerate the plugin registrant before release builds
+### 4.2 Regenerate the plugin registrant before release builds
 
 `flutter test integration_test` generates
 `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java`
@@ -163,7 +133,7 @@ The delete-then-clean procedure above is therefore a **fallback for older
 toolchains**, not a required step on this one; keep it in mind if a release
 build fails on `package dev.flutter.plugins.integration_test does not exist`.
 
-### 4.2b Dependency verification
+### 4.3 Dependency verification
 
 `android/gradle/verification-metadata.xml` pins `sha256` values for every Gradle
 artifact. A stale pin fails the build with `Dependency verification failed`.
@@ -171,7 +141,7 @@ If you bump a dependency, regenerate the pins (`gradlew --write-verification-met
 and review the diff; do not disable the check. Verification stays fully
 enabled — no `trusted-artifacts` escape hatch is added.
 
-### 4.3 Android signing for release
+### 4.4 Android signing for release
 
 `android/app/build.gradle.kts` reads an optional `android/key.properties` and
 uses it to build a `release` signing config. **When that file is absent the
@@ -217,19 +187,18 @@ takes the upload key and re-signs with a key it holds; losing the upload
 keystore is recoverable through Google, losing the app signing key is not.
 
 Release builds are minified (`isMinifyEnabled`, `isShrinkResources`) with keep
-rules in `android/app/proguard-rules.pro` for everything the engine and the
-WireGuard bridge look up by name. Keep the R8 mapping file from every release
+rules in `android/app/proguard-rules.pro` for what the engine looks up by name.
+Keep the R8 mapping file from every release
 — without it a crash report from a shipped build is unreadable:
 
 ```
 build/app/outputs/mapping/release/mapping.txt
 ```
 
-### 4.4 What the Android build does and does not give you
+### 4.5 What the Android build does and does not give you
 
 `flutter build apk --release` succeeds and produces a **minified, installable**
-artifact. Confirm the `VpnService` really is in the merged manifest before
-trusting it:
+artifact. Confirm the permission set is still the small one before trusting it:
 
 ```powershell
 $aapt = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\aapt2.exe"
@@ -237,60 +206,41 @@ $aapt = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\aapt2.exe"
   Select-String "uses-permission"
 ```
 
-Expect exactly these permissions, with no `maxSdkVersion` cap on
-`BIND_VPN_SERVICE` (capping it would leave the app without the permission on
-newer Android releases and the system would refuse the bind):
+Expect exactly this, and nothing else:
 
 ```
 android.permission.INTERNET
-android.permission.BIND_VPN_SERVICE
-android.permission.FOREGROUND_SERVICE
-android.permission.FOREGROUND_SERVICE_SPECIAL_USE
-android.permission.POST_NOTIFICATIONS
-android.permission.RECEIVE_BOOT_COMPLETED
 ```
 
-Anything else is a finding worth stopping for. There is no analytics SDK, no
-location, no contacts, no storage, no `QUERY_ALL_PACKAGES`.
+Anything more is a finding worth stopping for: this build declares no VPN
+service permission, no foreground service type, no notification permission and
+no boot receiver. There is also no analytics SDK, no location, no contacts, no
+storage and no `QUERY_ALL_PACKAGES`.
 
-Confirm the tunnel service is bound to the permission and not exported:
+**What the build gives you:** a real, installable app that lists servers and
+refuses to connect to any of them, saying why — there is no OpenVPN engine on
+Android, and the licence review in `docs/LICENSING_AUDIT.md` explains why the
+only candidate could not be shipped. No cryptography is implemented in this
+repository, on any platform.
 
-```powershell
-Select-String -Path build\app\intermediates\merged_manifest\**\AndroidManifest.xml `
-  -Pattern 'PhantrixTunnelService' -Context 0,4
-```
+**What it does not give you:** a tunnel of any kind. See §4.6 and the README's
+platform table.
 
-Expect `android:permission="android.permission.BIND_VPN_SERVICE"` and
-`android:exported="false"`.
+### 4.6 Proving a connection on a device
 
-**What the build gives you:** a real WireGuard tunnel. `PhantrixTunnelService`
-drives `com.wireguard.android.backend.GoBackend` from the official
-`com.wireguard.android:tunnel` library, which performs all of the WireGuard
-cryptography. No cryptography is implemented in this repository.
+It cannot be done in this build: with no engine on Android, the app declines
+every relay with an explanation instead of attempting a connection.
 
-**What it does not give you:** a tunnel that has completed a handshake. That
-needs a reachable WireGuard peer, and there is none in this environment. See
-§4.5 and the README's platform table — "the engine is real" and "a connection
-works" are separate claims and only the first one is currently true.
+What is on record, from before the app became OpenVPN-only: 4 app tests ran on
+an Android 14 x86_64 emulator and passed (`flutter test integration_test -d
+<device-id>`), exercising the real app against the real platform channel — the
+first-run flow, every screen's layout, and a connect control that reported
+honestly instead of claiming "Connected". The 15 engine tests that loaded
+`libwg-go.so` went away with the WireGuard engine, and no test starts a tunnel
+on Android today.
 
-### 4.5 Proving a connection on a device
-
-15 engine tests and 4 app tests run on an Android 14 x86_64 emulator and pass;
-results are in `docs/evidence/`. They exercise the engine's own configuration
-parsing, address assignment, routing and teardown.
-
-They do **not** include a handshake, because there is no peer to hand-shake
-with. To close that gap you need a WireGuard server you control. Supply its
-configuration as an environment variable rather than committing it:
-
-```powershell
-$env:PHANTRIX_TEST_CONFIG = Get-Content .\peer.conf -Raw
-flutter test integration_test -d <device-id>
-```
-
-Without it, report the connection as unverified. Do not describe byte counters
-as handshake evidence: 148 bytes of handshake *initiation* queued toward a
-black hole look exactly like a working tunnel in a counter-based UI.
+If an OpenVPN engine is ever added for Android, it needs its own on-device
+suite before this section can claim anything again.
 
 ---
 
@@ -376,6 +326,7 @@ Not verifiable in the Windows environment this document was written in.
 # pinned runtime files and verifies their SHA-256 hashes before installation.
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\fetch_openvpn_bundle.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\fetch_openvpn_bundle.ps1 -VerifyOnly
+
 flutter build windows --release
 ```
 
@@ -401,14 +352,8 @@ here** with Visual Studio Community 2026 and produces
 `build/windows/x64/runner/Release/phantrix.exe` (debug builds land under
 `build/windows/x64/runner/Debug/`).
 
-The Windows tunnel backend drives two real engines and implements neither:
+The Windows tunnel backend drives one real engine and implements none of it:
 
-- **WireGuard** through the official **WireGuard for Windows** service
-  (`wireguard.exe /installtunnelservice`), which must be installed
-  separately (from wireguard.com). Without it the backend reports
-  `backend.not_installed` and does nothing. Adding or removing a tunnel
-  needs Administrator rights; the UAC prompt is raised by WireGuard's own
-  service manifest.
 - **OpenVPN** through the official **OpenVPN 2.6 community binaries** plus
   the **wintun** driver, fetched and hash-verified by
   `tools/fetch_openvpn_bundle.ps1` (pinned SHA-256, verified before
@@ -425,8 +370,7 @@ The Windows tunnel backend drives two real engines and implements neither:
 Two consequences the user must know about, both surfaced as errors rather
 than worked around:
 
-- **Running a tunnel needs Administrator rights.** For WireGuard the prompt
-  comes from WireGuard's own service manifest; for OpenVPN it comes from
+- **Running a tunnel needs Administrator rights.** The prompt comes from
   the helper's `runas` launch, which the user can also decline (reported as
   a failure, never retried silently). This code never elevates itself
   beyond that, never installs a driver outside the OpenVPN bundle flow, and
@@ -435,12 +379,7 @@ than worked around:
   can leave over the normal network until the app reconnects. The app says
   so in Settings instead of claiming protection it does not have.
 
-A WireGuard configuration file contains a private key, so it is written under the
-per-user `%LOCALAPPDATA%` and deleted when the tunnel is removed. Every value
-written to it has newlines stripped, because the file is consumed by a
-process running as LocalSystem and a newline in a value would otherwise be
-able to append an arbitrary directive to a system-privileged configuration.
-An OpenVPN profile (which carries certificates and keys) is written to a
+An OpenVPN profile (which carries the relay's certificates) is written to a
 session directory with an explicit owner-only DACL and removed with the whole
 directory on every stop path; a profile that cannot be secured is refused
 rather than connected with.
@@ -538,26 +477,24 @@ appropriate toolchain before treating them as validation of this patch. The
 new cache-bypass, lazy-profile-validation, automatic profile-fallback, and
 preflight-timeout tests are not claimed as passing until executed.
 
-| Command | What it runs | Status recorded before this patch |
+| Command | What it runs | Status on this checkout |
 | --- | --- | --- |
-| `cd packages/phantrix_core && dart test` | 173 domain tests across protocol parsing, validators, providers, scoring, state machine, redaction, fingerprints, full-tunnel repair, OpenVPN host validation | **173 pass** |
+| `cd packages/phantrix_core && dart test` | 197 domain tests across protocol parsing, validators, providers, scoring, state machine, redaction, fingerprints, full-tunnel repair, OpenVPN host validation | **197 pass** |
 | `cd packages/phantrix_core && dart analyze` | Analyzer with strict modes | No issues found |
 | `cd packages/phantrix_platform && dart analyze` | Plugin Dart code | No issues found |
-| `cd packages/phantrix_platform && flutter test` | 20 bridge tests: state-machine wire round trip, `TunnelRequest` field presence and JSON encoding, the `PlatformEvent` handshake-versus-established distinction, and capability honesty | **20 pass** |
+| `cd packages/phantrix_platform && flutter test` | 22 bridge tests: state-machine wire round trip, `TunnelRequest` field presence and JSON encoding, the `PlatformEvent` handshake-versus-established distinction, and capability honesty | **22 pass** |
 | `cd packages/phantrix_platform && dart analyze` | Plugin Dart code | No issues found |
 | `flutter analyze` (root) | App + both packages | No issues found |
-| `flutter test` (root) | 148 host tests: discovery merge/sort/dedup, HTTPS fetcher rules, server resolution and non-silent fallback, leak verification including captive-portal and stale-handshake attacks, connection state machine including a stale-callback race, localisation, privacy copy, widget semantics, whole-app smoke tests at 1x and 2x text scale | **148 pass** |
+| `flutter test` (root) | 250 host tests: discovery merge/sort/dedup, HTTPS fetcher rules, server resolution and non-silent fallback, leak verification including captive-portal and stale-handshake attacks, connection state machine including a stale-callback race, localisation, privacy copy, widget semantics, whole-app smoke tests at 1x and 2x text scale | **250 pass**, 1 skipped |
 | `flutter test test/ui_screenshots_test.dart` | Renders the real widget tree to `docs/evidence/ui/` at four window sizes, both themes, and 1.6x text scale; fails on any overflow |
-| `flutter test integration_test/ -d <device>` | **On-device** app tests: the real app, real platform channel, real OS | **4 pass** on Android 14 x86_64. Using the connect control with no reachable server reports honestly and never shows "Connected" |
-| `gradlew :phantrix_platform:connectedAndroidTest` | **On-device** engine tests: loads the real `libwg-go.so` from the APK and drives the real `GoBackend` | **15 pass** on Android 14 x86_64. Evidence in `docs/evidence/` |
-| `flutter build apk --release --split-per-abi` | R8-minified release APKs: armeabi-v7a 18.1 MB, arm64-v8a 20.8 MB, x86_64 22.4 MB. The Kotlin tunnel and the official WireGuard engine are compiled, not fetched. See 4.4 |
+| `flutter test integration_test/ -d <device>` | **On-device** app tests: the real app, real platform channel, real OS | **4 pass** on Android 14 x86_64, recorded before the app became OpenVPN-only. Using the connect control with no reachable server reports honestly and never shows "Connected" |
+| `flutter build apk --release --split-per-abi` | R8-minified release APKs. See 4.5: the app builds and installs, and has no tunnel engine to reach |
 | `flutter build web --release` | Web build | **Succeeds** |
-| `flutter build windows --release` | Windows release bundle (27.8 MB): `phantrix.exe` + `phantrix_platform_plugin.dll`. 21 artifact checks pass on the built binary |
+| `flutter build windows --release` | Windows release bundle (37.5 MB): `phantrix.exe`, `phantrix_platform_plugin.dll`, `phantrix_ovpn_helper.exe`, and the OpenVPN bundle (`openvpn.exe`, `wintun.dll`, the OpenSSL DLLs). 40 artifact checks pass on the built binary |
 | `flutter build ios` | iOS build | **Not attempted**: requires Xcode, a Mac and Apple signing. A complete `NEPacketTunnelProvider` and plugin bridge exist in `packages/phantrix_platform/apple/`; see the manual steps in its README |
 | `flutter build macos` | macOS build | **Not attempted**: requires Xcode. The extension and plugin source exist in `packages/phantrix_platform/apple/`; signing and provisioning remain |
 | `flutter build linux` | Linux build | **CI only** — no Linux toolchain here. `.github/workflows/linux.yml` compiles the plugin and app, and asserts the plugin registers and exports its entry point |
-| `powershell -File tools/check_windows_build.ps1` | Built-artifact invariants: no shell, no command chaining, WireGuard service arguments present, no embedded private key |
-| `powershell -File tools/windows_check.ps1` | Windows host readiness | Reports whether WireGuard is installed and whether the session is elevated. **Makes no system changes** — it never installs, starts or reconfigures anything |
+| `powershell -File tools/check_windows_build.ps1` | Built-artifact invariants: no shell, no command chaining, the profile directory is private, no embedded private key |
 
 ### Continuous integration
 
@@ -566,9 +503,9 @@ Four workflows, each proving something the others cannot.
 | Workflow | Runner | What it establishes |
 | --- | --- | --- |
 | `verify.yml` | Ubuntu 24.04 | `flutter analyze --fatal-infos`, formatting, and every test in all three packages. Uploads the rendered UI |
-| `android.yml` | Ubuntu 24.04 | The Kotlin backend and the real WireGuard engine compile; JVM tests pass; a minified App Bundle and per-ABI APKs are produced |
+| `android.yml` | Ubuntu 24.04 | The Kotlin bridge compiles and the app tests pass; a minified App Bundle and per-ABI APKs are produced. There is no tunnel engine to compile on Android any more |
 | `linux.yml` | Ubuntu 24.04 | `phantrix_plugin.cc` compiles and links; the registrant calls the entry point and `nm -D` shows the `.so` exports it |
-| `windows.yml` | Windows 2022 | The C++ backend compiles and links, and 21 checks pass **on the built binary** |
+| `windows.yml` | Windows 2022 | The C++ backend compiles and links, and 40 checks pass **on the built binary** |
 
 The Linux workflow additionally **fails the build** if `std::system` reappears
 in the Linux backend, or if a shell metacharacter is introduced alongside it.
@@ -583,15 +520,15 @@ actually had:
 | --- | --- |
 | no `cmd.exe`, `powershell.exe`, `wscript`, `cscript` | the backend shelling out, which would let a configuration value reach a command interpreter |
 | no `&&`, `\|\|`, `2>&1`, `\| tee` | command concatenation, the other half of shell injection |
-| `wireguard.exe`, `/installtunnelservice`, `/uninstalltunnelservice` present | the CLI contract silently changing, turning connect into a confusing runtime failure |
-| no `PrivateKey=` in the binary | a shipped key, which would be a key for everybody who downloads the app |
+| the helper passes `openvpn.exe`, `--config`, `--status` and `--windows-driver wintun` | the CLI contract silently changing, turning connect into a confusing runtime failure |
+| no `BEGIN PRIVATE KEY` in the binary | a shipped key, which would be a key for everybody who downloads the app |
 | every bridge method name present | a rename breaking the plugin at run time rather than at build time |
 
-**No workflow runs a tunnel.** None has a reachable WireGuard peer, so a green
-run says nothing about whether traffic routes, and none of them claims
-otherwise. Linux needs `CAP_NET_ADMIN`, Windows needs the WireGuard service and
-an administrator token, and Android needs a device — none of which a CI job
-should have.
+**No workflow runs a tunnel.** None has a reachable peer it is allowed to use, so
+a green run says nothing about whether traffic routes, and none of them claims
+otherwise. Linux needs `CAP_NET_ADMIN`, Windows needs the helper and an
+administrator token, and Android needs an engine before a device could help —
+none of which a CI job should have.
 
 Third-party actions are pinned to immutable commit SHAs, each resolved through
 the GitHub API and checked against the release commit it names
@@ -609,10 +546,10 @@ They are deliberately separate, because they have very different power:
 | Tier | Where it runs | Command | What it can prove | What it cannot |
 | --- | --- | --- | --- | --- |
 | **Unit / widget** | Host VM | `dart test`, `flutter test` | Protocol parsing, validation, scoring, the state machine, the verification gate, layout | Anything about the operating system |
-| **On-device engine** | Android 14 emulator | `gradlew :phantrix_platform:connectedAndroidTest` | The native `libwg-go.so` loads and executes, configurations reach the official engine, the interface comes up, unreachable peers report no handshake | That a real peer answers |
 | **On-device app** | Android 14 emulator | `flutter test integration_test/ -d <id>` | The real app starts, the first-run flow works, every screen lays out, and Connect never claims a false success | That a tunnel carries traffic |
 
-Only the last two touch the operating system. Neither can prove traffic
-routing, because that needs a reachable WireGuard peer, which this environment
-does not have. A test that asserted a successful handshake without a peer
-would be asserting something nobody checked.
+Only the on-device tier touches an operating system, and it cannot prove traffic
+routing. On Windows, the live tunnel recorded in `docs/evidence/openvpn/` is the
+one piece of evidence that a connection works; everything else is a claim about
+the code. A test that asserted a successful handshake without a peer would be
+asserting something nobody checked.

@@ -124,10 +124,10 @@ The layers, in order:
 		human-readable explanations.
 	- `requestPermission` — the OS's own consent flow. False on refusal,
 		never a crash.
-	- `startTunnel` — parse the request with the same strictness as
-		`TunnelRequestParser` (no defaults that could mean "allow", no
-		payload in error messages), bring up the tunnel, and remember that
-		reporting the interface as up is *not* reporting success.
+	- `startTunnel` — validate the request strictly (no defaults that could
+		mean "allow", no payload in error messages), bring up the tunnel,
+		and remember that reporting the interface as up is *not* reporting
+		success. A backend with no engine refuses with a reason instead.
 	- `stopTunnel` — always cleans up, even after a mid-connect crash.
 	- the event stream — including a replay of current state to late
 		subscribers, as `EventChannelListener` does.
@@ -136,8 +136,9 @@ The layers, in order:
 	traffic really leaves through the tunnel (see `LeakCheck` in
 	`lib/vpn/connection_controller.dart` and `VpnStateMachine.allows`). A
 	platform that cannot verify must not be able to claim connected.
-4. **Crypto stays native.** Embed a vetted engine (Android: the Apache-2.0
-	`com.wireguard.android:tunnel`); never hand-roll Noise, ChaCha20 or
+4. **Crypto stays native.** Embed a vetted engine (Windows: the official
+	OpenVPN 2 binaries; Linux: the kernel's own WireGuard through
+	`wg-quick`); never hand-roll Noise, ChaCha20 or
 	TLS.
 5. **Keys** are never written to logs, never passed through `Intent`
 	extras, and in this build never written to disk at all. When
@@ -154,7 +155,7 @@ This is the rule that keeps the project trustworthy, so it is a rule
 about *behaviour*, not just comments:
 
 - If the OS cannot enforce a strict kill switch, report `strict` as
-	unsupported (`RoutingPolicy.killSwitchStatus` is the reference
+	unsupported (the Windows backend's capability answers are the reference
 	implementation) — do not ship a switch that does nothing.
 - If IPv6 cannot be carried, block it and say so (`Ipv6Mode.block`).
 	"May leak" is a label, not a shrug: `allow` exists, and it is named

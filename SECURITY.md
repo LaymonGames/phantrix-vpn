@@ -18,7 +18,7 @@ points at the file that implements it.
 	from the tunnel.
 - A malicious or compromised *server list*: a feed fetched over the
 	network must only be able to offer servers that pass the same safety
-	rules a user import passes.
+	rules as any other profile.
 - Secret leakage through logs and diagnostics: keys, certificates,
 	credentials, full URLs and DNS names must not escape the process in
 	readable form.
@@ -35,9 +35,8 @@ points at the file that implements it.
 	implemented tunnel delivers your traffic to it faithfully. That is the
 	threat model transferred, not removed.
 - **Application-layer tracking** performed by sites and apps through
-	accounts, cookies, fingerprinting and WebRTC — the diagnostics screen
-	can report WebRTC exposure but nothing in this repository can prevent
-	it on every platform.
+	accounts, cookies and fingerprinting. Nothing in this repository can
+	prevent it on every platform.
 - **Device compromise** ( malware, a rooted phone with a hostile app).
 	A VPN cannot defend against an attacker who already runs code on the
 	same device.
@@ -46,22 +45,22 @@ points at the file that implements it.
 
 ## 2. What the protocols protect — and what they don't
 
-**WireGuard (primary).** Modern, minimal, fast. Protects confidentiality
-and integrity of packets inside the tunnel; authenticates peers by public
-key; hides traffic from the local network. Does not hide that you use a
-VPN (the flow itself is visible), provides no anonymity beyond the exit
-operator, and — in this repository — the protocol is performed by the
-official upstream engines on every platform that has a backend: see §6.
-What has never been demonstrated is a completed handshake, which is why
-`connected` requires observable evidence rather than a configured
-interface.
+**OpenVPN (the protocol this build runs).** Widely compatible, TLS-based,
+works on networks that block UDP. It protects confidentiality and integrity
+of packets inside the tunnel and authenticates the server by certificate; it
+does not hide that you use a VPN (the flow itself is visible) and it provides
+no anonymity beyond the exit operator. The protocol is performed by the
+official OpenVPN 2 binaries on Windows: see §6. Its configuration surface is
+enormous, which is exactly why the validator in §3 exists, and its security
+depends on the `ca` being pinned — a configuration without a CA is refused
+rather than "allowed and probably fine".
 
-**OpenVPN (secondary).** Widely compatible, TLS-based, works on networks
-that block UDP. Same discoverability caveat; additionally, its
-configuration surface is enormous, which is exactly why the validator in
-§3 exists. OpenVPN's security depends on the `ca` being pinned — a
-configuration without a CA is refused rather than "allowed and probably
-fine".
+**WireGuard (in the tree, on no path the app can take).** The domain library
+still parses and validates WireGuard configurations (§3.1), and the Linux and
+Apple platform sources still drive WireGuard engines, but the app never sends a
+WireGuard configuration and never reads a WireGuard capability: every build
+declines a WireGuard server by name. That code is kept because it is tested and
+inert, not because anything can reach it.
 
 **Both share the same structural limits:** they protect the wire, not the
 exit. Whichever server you choose, its operator sees your decrypted
@@ -73,7 +72,7 @@ split-tunnel configs and IPv6 is blocked by default.
 
 ## 3. Configuration validation rules
 
-Every configuration — imported, from the manifest, or from VPN Gate —
+Every configuration — from the manifest or from VPN Gate —
 passes the same two gates: a parser (`WgParser` / `OvpnParser`) and a
 policy validator (`WgValidator` / `OvpnValidator`). A `VpnConfiguration`
 can only be constructed through those validators, so an unchecked config
@@ -145,39 +144,39 @@ cannot acquire a checked type.
 	PEM private key.
 - Remote hostnames and ports are validated (syntax, 1–65535).
 
-### 3.3 Request parsing on Android
+### 3.3 Request validation at the backend
 
-`TunnelRequestParser.kt` re-validates everything the bridge hands over:
-no payload in error messages (it contains keys), missing IPv6 policy is
-an error rather than a silent "allow", two protocols at once is an
-error, both allow- and disallow-app lists is an error.
+The Windows plugin re-validates everything the bridge hands over: no payload in
+error messages (it can contain key material), a missing IPv6 policy is an error
+rather than a silent "allow", and a profile that asks for credentials is
+refused rather than passed through. The Android plugin does not parse a request
+at all — with no engine there, a start request is answered with the reason it
+cannot be served.
 
 ---
 
 ## 4. Key handling
 
-### 4.0 At rest: imported configurations are stored in plain text
+### 4.0 At rest: what the store holds, and what it does not
 
-This build **does** persist imported WireGuard configurations, and the file
-contains the private key in plain text. That is a deliberate trade and it needs
-stating plainly rather than burying.
+The app keeps one JSON file per user. It holds **settings and cached server
+directories** — the chosen country, kill-switch/DNS/IPv6 preferences, the last
+selected relay, and the public relay list the app last fetched. It holds **no
+key material**: this build neither imports nor stores a configuration of its
+own, so there is no private key on disk for anyone to find. The only
+configuration that reaches a file is the VPN Gate profile the feed published,
+and that is written by the engine path for the length of one tunnel and
+removed when the tunnel ends (see §4.1).
 
-The reason is that until this change, Phantrix could not connect to anything:
-the only bundled feed publishes OpenVPN servers, every native backend drives
-WireGuard, and there was no way to supply one. An application that can never
-establish a tunnel has no key to protect.
-
-What protects the stored key:
+What protects the file:
 
 | Control | Detail |
 | --- | --- |
 | Location | the platform's own private per-user directory — `filesDir` on Android, `%LOCALAPPDATA%\Phantrix` on Windows, `$XDG_CONFIG_HOME/phantrix` or `~/.config/phantrix` on Linux, Application Support inside the app container on Apple. Never a shared or world-readable path |
-| Permissions | POSIX `0700` on the directory and `0600` on the file — distinct modes, because an owner-executable bit on a JSON store is meaningless and a group-readable bit on either exposes a key. Applied explicitly after creation rather than inherited from the process umask |
+| Permissions | POSIX `0700` on the directory and `0600` on the file — distinct modes, because an owner-executable bit on a JSON store is meaningless and a group-readable bit on either is not wanted. Applied explicitly after creation rather than inherited from the process umask |
 | Windows | an explicit DACL for the current user and LocalSystem only, applied by the native backend on every directory creation and every file write, fail-closed. See §4.1. Deliberately **not** under `Program Files`, which is shared by every account on the machine |
 | Android | `filesDir`, UID-private by the kernel; backups disabled (`allowBackup="false"`); nothing ever written to shared storage. No `chmod` is attempted there: the binary is not reliably present in an app's execution environment, so spawning it would silently do nothing on exactly the platform where silence is dangerous |
-| Atomicity | written to a temporary sibling and renamed over the original, so a crash or a full disk leaves the previous file intact rather than a truncated one that fails to parse and loses the user's configurations. No `.tmp` sibling is left behind after a write |
-| Import bounds | at most 64 KiB of text (`import.too_large`), names truncated to 120 characters on a character boundary, at most 64 stored configurations (`import.too_many`, refusing rather than evicting). A paste is validated before it is stored, and a failed write rolls the in-memory list back so the screen never disagrees with the disk |
-| Scope | the file holds the configuration verbatim, because re-serialising it risks a round trip that differs from what the provider issued — and the verbatim text is what a user can check against what they were given |
+| Atomicity | written to a temporary sibling and renamed over the original, so a crash or a full disk leaves the previous file intact rather than a truncated one that fails to parse and loses the user's settings. No `.tmp` sibling is left behind after a write |
 
 What is **not** claimed:
 
@@ -190,7 +189,7 @@ What is **not** claimed:
   other standard users and services out; it cannot keep out an administrator,
   and it does not claim to.
 - **The web persists nothing.** `openDefaultStore` returns an in-memory store
-  when the platform reports no private directory, so an import there lives for
+  when the platform reports no private directory, so settings there live for
   the session only.
 
 #### Android Keystore assessment
@@ -205,11 +204,10 @@ assessed and deliberately not implemented, for these reasons:
    hardware-backed keys, and against nothing else.
 2. **Key-management risk is real.** A Keystore key that becomes unusable
    (hardware reset, verified-boot state change, key corruption) locks the user
-   out of every stored configuration at once, with recovery possible only by
-   re-importing — assuming they still have the configurations. A mechanism
-   that converts a recoverable failure into simultaneous loss of all
-   credentials needs the rest of the product (backup, export, recovery flows)
-   to exist first, and they do not.
+   out of every stored setting at once. A mechanism that converts a
+   recoverable failure into simultaneous loss of everything the app remembers
+   needs the rest of the product (backup, export, recovery flows) to exist
+   first, and they do not.
 3. **The failure mode must not be a silent downgrade.** An "encrypted store"
    that falls back to plain text when the Keystore is unavailable is worse
    than a plain store that says so, because it teaches the user a protection
@@ -222,7 +220,7 @@ plaintext are the honest posture — and the assessment is recorded here rather
 than left as an unasked question.
 
 **Release builds never embed a key.** `tools/check_windows_build.ps1` asserts
-that no `PrivateKey=` assignment appears in the built binary, because a key
+that no `BEGIN PRIVATE KEY` block appears in the built binary, because a key
 shipped in an artifact is a key given to everyone who downloads it.
 
 ### 4.1 In transit and in logs
@@ -370,11 +368,13 @@ CI in `.github/workflows/linux.yml`:
 	- `projectVerified` — run by this project and audited (none exist yet);
 	- `community` — reviewed operator;
 	- `publicRelay` — unknown volunteer; they can see your traffic;
-	- `imported` — you supplied it; nothing is verified;
+	- `imported` — the enum value for a configuration the user supplied; this
+		build has no import path, so nothing produces it, and it stays
+		described rather than deleted along with the code it belongs to;
 	- `unknown` — no information.
 - **Filtering under trust:** even a *signed* manifest cannot smuggle in a
 	dangerous configuration — every entry passes the identical
-	parse/validate/repair/re-validate path as a user import. Trust levels
+	parse/validate/repair/re-validate path, whatever its source. Trust levels
 	change what the app *says* about a server, never what it will *accept*.
 
 ---
@@ -412,7 +412,7 @@ CI in `.github/workflows/linux.yml`:
 
 	| Scenario | Android | Windows | Linux | Apple |
 	| --- | --- | --- | --- | --- |
-	| Tunnel up, full-tunnel routes | Routed by the engine; unit-tested route construction | Routed by the WireGuard service; untested live | Routed by wg-quick; untested live | Routed by WireGuardKit; untested (never built) |
+	| Tunnel up, full-tunnel routes | No engine in this build; unit-tested route construction | Routed by the OpenVPN engine; one live tunnel observed (`docs/evidence/openvpn/`) | Routed by wg-quick; untested live | Routed by WireGuardKit; untested (never built) |
 	| Tunnel drops unexpectedly | Traffic leaves via the normal network until reconnect, unless system lockdown is armed. Untested live | Traffic leaves via the normal network. Untested live | Traffic leaves via the normal network. Untested live | Untested (never built) |
 	| Peer becomes unreachable | Handshake timeout → failure → teardown. Engine-tested config paths only; no live peer | Service reports failure; teardown removes the tunnel. Untested live | `wg-quick down` + config removal run unconditionally on failed-up. Untested live | Untested (never built) |
 	| Network change / sleep-resume | Reconnect is attempted; the gap is unprotected without system lockdown. Untested live | Untested live | Untested live | Untested (never built) |
@@ -427,8 +427,8 @@ CI in `.github/workflows/linux.yml`:
 	configuration declares an IPv6 default route; `allow` is labelled "may
 	leak" in the settings UI. **Windows does not enforce the block policy:**
 	it reports `ipv6Block: false` and the limitation is shown, because the
-	WireGuard-for-Windows service applies the configuration's own addresses
-	and this backend does not rewrite them.
+	OpenVPN engine applies the profile's own addresses and this backend does
+	not rewrite them.
 - **Verification is the only door to "connected".** An external IP probe
 	compares against the pre-connection baseline; an unchanged address
 	means the tunnel is not carrying traffic, and the connection is failed
@@ -446,21 +446,20 @@ CI in `.github/workflows/linux.yml`:
 - **No anonymity, still.** Everything above protects the path, not the
 	destination. The exit operator — for public relays, a stranger — sees
 	your traffic.
-- **The protocol engine is real, and it is third-party.** Android uses the
-	official com.wireguard.android:tunnel (Apache-2.0), which performs the
-	Noise_IK handshake, ChaCha20-Poly1305, key exchange and packet routing in
-	libwg-go.so. Phantrix implements no WireGuard cryptography and never
-	will: reimplementing a VPN protocol is precisely the risk this project
-	refuses to take. The dependency is checksum-pinned, and the same applies
-	to the Windows backend, which drives the official WireGuard for Windows
-	service rather than bundling one.
-- **What is not implemented:** there is no tunnel for iOS, macOS or web,
-	and no reachable peer has ever been available in this environment, so
-	**no handshake has been observed on any platform**. Nothing here should
-	be read as a verified working VPN client. The security-critical surfaces
-	that do exist and are tested are the import bounds, the validators, the
-	redactor, the full-tunnel repair, the state machine, the selection
-	resolver and the verification gate.
+- **The protocol engine is real, and it is third-party.** Windows drives the
+	official OpenVPN 2 community binaries as a separate process, which perform
+	the TLS handshake, key exchange and packet routing; Linux drives the
+	kernel's own WireGuard through `wg-quick`. Phantrix implements no VPN
+	cryptography and never will: reimplementing a VPN protocol is precisely
+	the risk this project refuses to take. The Windows bundle is fetched from
+	the official source and pinned by SHA-256 before it is unpacked.
+- **What is not implemented:** there is no tunnel for Android, iOS, macOS or
+	web. The one live tunnel recorded here is Windows/OpenVPN
+	(`docs/evidence/openvpn/`), where the exit address changed and traffic
+	flowed for minutes; everything else in this document is a claim about the
+	code. The security-critical surfaces that do exist and are tested are the
+	validators, the redactor, the full-tunnel repair, the state machine, the
+	selection resolver and the verification gate.
 ---
 
 ## 7. Reporting a vulnerability

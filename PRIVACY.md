@@ -14,16 +14,12 @@ not yet implemented, it says so.
 	package. `AppSettings.diagnosticsOptIn` defaults to **false**.
 - **No browsing history.** The app never sees which sites you visit: it
 	moves packets; it does not proxy, inspect or log them.
-- **No DNS history.** DNS queries travel through the tunnel to the
-	resolver you selected (`DnsMode.vpn` is the default). Nothing is
-	recorded.
-- **No keys or credentials uploaded.** Imported configurations stay on your
-	device and are never transmitted anywhere except to the platform tunnel
-	at connect time. They **are** written to local storage — see §2 — in
-	plain text, protected only by file permissions. The previous claim that
-	keys are never stored dated from before configuration import existed;
-	keeping it would be the worst kind of privacy statement, one that was
-	true once and is not true now.
+- **No DNS history.** DNS queries travel through the tunnel to whatever
+	resolver the server's profile pushes. Nothing is recorded.
+- **No keys or credentials of yours.** The app has no account, no sign-in and
+	never asks for a secret. The OpenVPN profiles it downloads from the public
+	relay list carry the relay's own shared certificate, not anything of
+	yours; they are cached locally (see §2) and are public information.
 - **No advertising identifiers.** The app requests none.
 
 ## 2. What is stored, and where
@@ -33,22 +29,21 @@ copy of any of it, because there is no server side.
 
 | Data | What it is | Where it lives |
 | --- | --- | --- |
-| Settings (`AppSettings`, `settings/app_settings.dart`) | Kill-switch mode, DNS mode, IPv6 mode, auto-connect policy, favourites, theme, language (`en`/`ar`), onboarding flags | App-private local storage. Defaults: kill switch `automatic`, IPv6 `block`, diagnostics opt-in **false** |
+| Settings (`AppSettings`, `settings/app_settings.dart`) | Kill-switch mode, DNS mode, IPv6 mode, favourites, theme, language (`en`/`ar`), onboarding flags | App-private local storage. Defaults: kill switch `automatic`, IPv6 `block`, diagnostics opt-in **false** |
 | Cached server lists (`DirectoryCache`, `discovery/`) | Public server metadata from the last successful provider response, so the list can still render when the feed is unreachable | App-private local storage; versioned metadata cache |
-| Imported configurations (`ConfigurationRepository`, `lib/config/`) | The WireGuard text you pasted, **including its private key, in plain text**, plus its label. At most 64 KiB per import, names truncated to 120 characters, at most 64 stored | App-private local storage (`filesDir` on Android, `%LOCALAPPDATA%\Phantrix` on Windows, `$XDG_CONFIG_HOME/phantrix` on Linux); file `0600` / directory `0700` on POSIX, explicit user+SYSTEM DACL on Windows. Never uploaded. See SECURITY.md §4.0 for exactly what that does and does not protect |
 | Recent connections (`recentServers`, `favoriteServers`) | Server ids, most-recent-first, local only | Settings storage |
-| VPN Gate profile cache (`vpn-gate-profiles-cache.json`) | Base64 OpenVPN profile payloads published by VPN Gate, so previously listed relays can still be attempted during a feed outage | Separate, bounded file in app-private storage; profiles are untrusted and are parsed and security-validated again before every tunnel use. User-imported configurations are not written here; the file is not encrypted by Phantrix itself |
+| VPN Gate profile cache (`vpn-gate-profiles-cache.json`) | Base64 OpenVPN profile payloads published by VPN Gate, so previously listed relays can still be attempted during a feed outage | Separate, bounded file in app-private storage; profiles are untrusted and are parsed and security-validated again before every tunnel use. The file is not encrypted by Phantrix itself |
 | Connection log (`Logger`, `logging/logger.dart`) | A bounded ring buffer of what the app did, for the in-app viewer | Memory only (512 records); every line passes through `Redactor` |
 | Diagnostics results (`diagnostics/`) | The outcome of checks you ran on demand, including the public IP an external service saw | Memory, shown in the app; stored only if the host persists it (it does not today) |
 
 `Redactor` runs over every log line before it is kept or displayed:
-WireGuard keys, PEM blocks, credential assignments, full URLs
+PEM blocks, credential assignments, full URLs
 (collapsed to `scheme://host/…`) and IPv6 addresses (truncated to /48) are
-removed. A log line is never a way for a key to escape — and because that
+removed. A log line is never a way for a secret to escape — and because that
 claim once failed silently (see SECURITY.md §6, "The redactor once leaked"),
 the tests assert the secret's *absence*, not just the marker's presence.
 
-## 3. The one unavoidable disclosure — the leak check (design, not yet live)
+## 3. The one unavoidable disclosure — the leak check
 
 To answer "is my tunnel actually working?", the app must ask an external
 service what IP address it sees, and compare it to the address seen
@@ -57,29 +52,28 @@ public IP address (which, while connected, is the VPN server's address —
 not yours) to that one service. That is the only unavoidable disclosure
 in a leak check, and it is the only one the design permits.
 
-- The intended endpoint is a well-known echo service (the design sketch
-	uses `https://api.ipify.org`) and is **configurable** so you can point
-	it at a service you trust.
-- It is one request, with no path and no query string, made when you
+- The endpoints are well-known echo services (the first is
+	`https://api.ipify.org`), tried in order until one answers, and the
+	list is **configurable** so you can point it at a service you trust
+	(`LeakCheck` in `lib/vpn/leak_check.dart`).
+- Each is one request, with no path and no query string, made when you
 	connect and when you ask the diagnostics screen to run it — never in
-	the background, never on a timer.
+	the background, never on a timer. A pre-tunnel baseline probe is capped
+	at three seconds so it can never hold up a connection.
 - The diagnostics model says so in its own field documentation: "This is
 	the only honest way to check whether an IP is exposed, and it does leak
 	the IP to that one service, which the UI states."
 
-Honest status: `LeakCheck.currentIp()` in
-`lib/vpn/connection_controller.dart` is currently a stub that returns
-`null` — deliberately, on the principle that "could not measure" is not
-"no leak". Until the probe is implemented the leak check cannot pass, so
-the app cannot claim a verified tunnel. The endpoint, the configurability
-and the disclosure wording above describe the design that the
-implementation must meet; no request is made by the code today.
+The app treats a failed probe as **no evidence, not as safety**: without a
+changed address and a recent engine handshake the tunnel is never reported
+as connected. That is the same principle stated the other way round — "could
+not measure" is not "no leak".
 
 ## 4. Optional, opt-in diagnostics
 
 `diagnosticsOptIn` defaults to **false**. When (and only when) you turn it
 on, the intent is defined as: **minimal and anonymous** — error category
-and machine-stable error codes (for example `wg.handshake_timeout`), OS
+and machine-stable error codes (for example `permission.denied`), OS
 and app version, and never personal data, keys, URLs with paths, IP
 addresses or server identifiers that could single you out. Anything
 collected is aggregated to answer "does the app work for people", not
@@ -104,10 +98,6 @@ that lists volunteer relays cannot also promise you confidentiality from
 those volunteers; the only honest thing to do is say so, everywhere, and
 make trust labels impossible to miss.
 
-Imported configurations are the same story with the extra step that you
-chose the file: "You supplied this configuration. Nothing about it has
-been verified."
-
 ## 6. Deleting your local data
 
 All of it is on your device, and you can remove it:
@@ -117,15 +107,11 @@ All of it is on your device, and you can remove it:
 	`lib/settings/settings_controller.dart`) that resets settings to
 	defaults; `AppSettings.clearedHistoryAt` records when you last
 	cleared history.
-- **Remove imports:** delete a configuration in the import list
-	(`ConfigurationRepository.remove`) — the text, the label and the derived
-	fingerprint leave device storage. Removal rolls back if the write fails,
-	so the list never shows an entry the disk still holds.
 - **Clear the connection log:** the `Logger` ring buffer is memory-only;
 	it dies with the process (`Logger.clear()` empties it for the in-app
 	viewer).
 - **Nuclear option:** uninstalling the app removes its entire private
-	storage directory (settings, cached lists, imports). Verified on Android
+	storage directory (settings, cached lists, cached profiles). Verified on Android
 	14 by uninstalling and confirming the package directory is gone, not
 	merely inaccessible. Expected on the other platforms by OS convention
 	but not verified there. There is nothing on any server to delete, and no
