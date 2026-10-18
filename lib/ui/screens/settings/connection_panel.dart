@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:phantrix_core/phantrix_core.dart';
@@ -17,6 +19,7 @@ class ConnectionPanel extends StatelessWidget {
     required this.platform,
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
+    required this.onStartOnBootChanged,
     super.key,
   });
 
@@ -24,6 +27,10 @@ class ConnectionPanel extends StatelessWidget {
   final PlatformCapabilities platform;
   final VoidCallback onOpenSystemVpnSettings;
   final Future<bool> Function() systemLockdownActive;
+
+  /// Asks the platform to start (or to stop starting) the app at sign-in,
+  /// answering whether the machine accepted the choice.
+  final Future<bool> Function(bool) onStartOnBootChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -76,10 +83,32 @@ class ConnectionPanel extends StatelessWidget {
             value: d.startOnBoot,
             enabled: platform.supportsBootStart,
             disabledReason: l10n.get('settingsBootStartUnsupported'),
-            onChanged: (v) => settings.update((s) => s.copyWith(startOnBoot: v)),
+            onChanged: (v) {
+              unawaited(_setStartOnBoot(context, v));
+            },
           ),
         ],
       ),
+    );
+  }
+
+  /// Records the choice only after the platform has accepted it.
+  ///
+  /// The switch shows the stored preference, so a refusal must leave the
+  /// preference alone — otherwise the screen shows a start-up that the
+  /// machine never agreed to. A refusal is rare enough to deserve a
+  /// sentence, not a screen.
+  Future<void> _setStartOnBoot(BuildContext context, bool value) async {
+    final applied = await onStartOnBootChanged(value);
+    if (applied) {
+      settings.update((s) => s.copyWith(startOnBoot: value));
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.get('settingsBootStartFailed'))),
     );
   }
 }

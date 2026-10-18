@@ -96,6 +96,9 @@ const Map<String, String> _stringsValuesEn = {
   'startOnBoot': 'Start on system boot',
   'settingsBootStartUnsupported':
       'This platform cannot start the app on system boot.',
+  'settingsBootStartFailed':
+      'The start-up entry could not be written, so the app will not start '
+      'on boot.',
   'theme': 'Theme',
   'themeLight': 'Light',
   'themeDark': 'Dark',

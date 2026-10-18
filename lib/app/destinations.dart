@@ -58,6 +58,7 @@ List<Destination> _destinations(
         onOpenSystemVpnSettings: () =>
             unawaited(scope.connection.openSystemVpnSettings()),
         systemLockdownActive: scope.connection.systemLockdownActive,
+        onStartOnBootChanged: scope.connection.setStartOnBoot,
         onClearLocalData: scope.settingsController.clearLocalData,
       ),
     ),

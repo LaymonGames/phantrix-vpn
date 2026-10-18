@@ -34,6 +34,7 @@ class SettingsScreen extends StatelessWidget {
     required this.onClearLocalData,
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
+    required this.onStartOnBootChanged,
     super.key,
   });
 
@@ -60,6 +61,10 @@ class SettingsScreen extends StatelessWidget {
   /// VPN, live rather than cached.
   final Future<bool> Function() systemLockdownActive;
 
+  /// Asks the platform to start (or to stop starting) the app at sign-in,
+  /// answering whether the machine accepted the choice.
+  final Future<bool> Function(bool) onStartOnBootChanged;
+
   /// Resets every local preference, keeping the onboarding flags.
   final VoidCallback onClearLocalData;
 
@@ -85,6 +90,7 @@ class SettingsScreen extends StatelessWidget {
                 platform: platform,
                 onOpenSystemVpnSettings: onOpenSystemVpnSettings,
                 systemLockdownActive: systemLockdownActive,
+                onStartOnBootChanged: onStartOnBootChanged,
               ),
               const SizedBox(height: VgSpace.lg),
               PrivacyPanel(settings: settings),

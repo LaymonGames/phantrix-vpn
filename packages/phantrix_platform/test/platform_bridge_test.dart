@@ -310,4 +310,59 @@ void main() {
       expect(await PhantrixPlatform().systemLockdownActive(), isFalse);
     });
   });
+
+  group('start on boot over the channel', () {
+    const channelName = 'dev.phantrix.phantrix/tunnel';
+
+    void mock(Object? Function(MethodCall call) handler) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel(channelName),
+            (MethodCall call) async => handler(call),
+          );
+    }
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel(channelName), null);
+    });
+
+    test('carries the choice to the platform and reports acceptance', () async {
+      final calls = <MethodCall>[];
+      mock((call) {
+        calls.add(call);
+        return true;
+      });
+      expect(await PhantrixPlatform().setStartOnBoot(true), isTrue);
+      expect(calls.single.method, 'setBootStart');
+      expect(calls.single.arguments, isTrue);
+    });
+
+    test('turning it off is carried as an explicit false', () async {
+      final calls = <MethodCall>[];
+      mock((call) {
+        calls.add(call);
+        return true;
+      });
+      expect(await PhantrixPlatform().setStartOnBoot(false), isTrue);
+      expect(calls.single.method, 'setBootStart');
+      expect(calls.single.arguments, isFalse);
+    });
+
+    test('a refusal reaches the caller as false, not as a throw', () async {
+      // The settings screen treats `true` as "the machine agreed". An
+      // exception here would take the screen down instead of putting the
+      // switch back where it was.
+      mock(
+        (call) => throw PlatformException(code: 'boot.registry_failed'),
+      );
+      expect(await PhantrixPlatform().setStartOnBoot(true), isFalse);
+    });
+
+    test('a platform without the method reports false', () async {
+      // No mock handler at all: MissingPluginException. Reporting the
+      // preference as saved would promise a start-up that cannot happen.
+      expect(await PhantrixPlatform().setStartOnBoot(true), isFalse);
+    });
+  });
 }

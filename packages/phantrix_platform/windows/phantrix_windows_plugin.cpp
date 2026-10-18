@@ -593,11 +593,82 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			map[EncodableValue("lanBypass")] = EncodableValue(false);
 			map[EncodableValue("alwaysOn")] = EncodableValue(false);
 			map[EncodableValue("tray")] = EncodableValue(false);
-			map[EncodableValue("bootStart")] = EncodableValue(false);
+			// Start-on-boot is real here: a per-user entry in the shell's own
+			// start-up list needs no administrator and no installer, which is
+			// the whole cost of it.
+			map[EncodableValue("bootStart")] = EncodableValue(true);
 			map[EncodableValue("openVpn")] = EncodableValue(openVpnPresent);
 			map[EncodableValue("engine")] = EncodableValue(engineName);
 			map[EncodableValue("limitations")] = EncodableValue(limitations);
 			result->Success(EncodableValue(map));
+			return;
+		}
+
+		if (method == "setBootStart") {
+			// Start-on-boot on Windows is one per-user value under the
+			// shell's own start-up key — not a scheduled task and not a
+			// service. It needs no administrator and it leaves no trace
+			// once removed, which is exactly the amount of the system this
+			// app is willing to touch.
+			//
+			// The stored command points at the executable that is running
+			// right now rather than at an assumed install directory: that is
+			// the copy of the app the user actually uses, wherever they
+			// keep it.
+			const bool* enabled = std::get_if<bool>(call.arguments());
+			if (enabled == nullptr) {
+				result->Error("boot.argument_missing",
+				              "The start-up request said neither on nor off.",
+				              nullptr);
+				return;
+			}
+			HKEY key = nullptr;
+			const LSTATUS opened = RegCreateKeyExW(
+			    HKEY_CURRENT_USER,
+			    L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0,
+			    nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr);
+			if (opened != ERROR_SUCCESS) {
+				result->Error(
+				    "boot.registry_failed",
+				    "Windows would not open the start-up list for this account.",
+				    nullptr);
+				return;
+			}
+			LSTATUS written = ERROR_SUCCESS;
+			if (*enabled) {
+				std::vector<wchar_t> path(32768, L'\0');
+				const DWORD length =
+				    GetModuleFileNameW(nullptr, path.data(),
+				                       static_cast<DWORD>(path.size()));
+				if (length == 0 || length == path.size()) {
+					written = ERROR_FILE_INVALID;
+				} else {
+					// Quoted: the installation directory may contain
+					// spaces, which the shell would otherwise read as
+					// argument separators.
+					const std::wstring command =
+					    L"\"" + std::wstring(path.data(), length) + L"\"";
+					written = RegSetValueExW(
+					    key, L"Phantrix", 0, REG_SZ,
+					    reinterpret_cast<const BYTE*>(command.c_str()),
+					    static_cast<DWORD>((command.size() + 1) *
+					                       sizeof(wchar_t)));
+				}
+			} else {
+				written = RegDeleteValueW(key, L"Phantrix");
+				if (written == ERROR_FILE_NOT_FOUND) {
+					// Nothing to remove is the state that was asked for.
+					written = ERROR_SUCCESS;
+				}
+			}
+			RegCloseKey(key);
+			if (written != ERROR_SUCCESS) {
+				result->Error("boot.registry_failed",
+				              "Windows would not record the start-up entry.",
+				              nullptr);
+				return;
+			}
+			result->Success(EncodableValue(true));
 			return;
 		}
 

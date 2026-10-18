@@ -115,6 +115,11 @@ class AppScope {
     final directory = await _privateDirectory(bridge);
     final store = await openDefaultStore(directory);
     final settings = await PersistentSettingsController.loadFrom(store);
+    // The stored preference is the truth about starting at sign-in, and the
+    // entry in the shell's start-up list is only its mechanism: stating it
+    // again on every launch repairs an installation that has moved and
+    // removes an entry left behind by a switch that was turned off.
+    unawaited(bridge.setStartOnBoot(settings.startOnBoot));
     return AppScope._(
       store: store,
       providers: providers,

@@ -190,6 +190,13 @@ class ConnectionController {
   /// Opens the operating system's own VPN settings screen.
   Future<void> openSystemVpnSettings() => platform.openSystemVpnSettings();
 
+  /// Records (or removes) the app's start-at-sign-in entry.
+  ///
+  /// A pass-through to the platform; false means the machine refused, and
+  /// the settings screen puts the switch back rather than keeping a promise
+  /// the machine would not make.
+  Future<bool> setStartOnBoot(bool enabled) => platform.setStartOnBoot(enabled);
+
   VpnState _current = VpnState.disconnected;
   ConnectionSession _session = ConnectionSession.none;
   String _statusMessage = 'Not connected.';

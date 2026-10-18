@@ -32,6 +32,7 @@ class PhantrixPlatform {
   static const String _methodOpenSettings = 'openVpnSettings';
   static const String _methodDataDirectory = 'appDataDirectory';
   static const String _methodSystemLockdown = 'systemLockdown';
+  static const String _methodSetBootStart = 'setBootStart';
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
@@ -213,6 +214,27 @@ class PhantrixPlatform {
   Future<bool> systemLockdownActive() async {
     try {
       return await _channel.invokeMethod<bool>(_methodSystemLockdown) ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  /// Registers or removes the app's start-at-sign-in entry.
+  ///
+  /// On Windows this is one per-user value under the shell's own start-up
+  /// key: no administrator and no installer take part. Returns true only
+  /// when the platform recorded the choice — false means the switch belongs
+  /// back where it was, because a preference the machine refused is not a
+  /// preference in effect.
+  Future<bool> setStartOnBoot(bool enabled) async {
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        _methodSetBootStart,
+        enabled,
+      );
+      return result ?? false;
     } on PlatformException {
       return false;
     } on MissingPluginException {

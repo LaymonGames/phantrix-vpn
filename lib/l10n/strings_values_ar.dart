@@ -90,6 +90,8 @@ const Map<String, String> _stringsValuesAr = {
   'startOnBoot': 'التشغيل مع إقلاع النظام',
   'settingsBootStartUnsupported':
       'لا تستطيع هذه المنصة تشغيل التطبيق عند إقلاع النظام.',
+  'settingsBootStartFailed':
+      'تعذّر كتابة إدخال بدء التشغيل، لذا لن يبدأ التطبيق عند إقلاع النظام.',
   'theme': 'السمة',
   'themeLight': 'فاتحة',
   'themeDark': 'داكنة',
