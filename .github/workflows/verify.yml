@@ -45,6 +45,11 @@ concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FLUTTER_VERSION: 3.47.0
+  FLUTTER_CHANNEL: stable
+  FLUTTER_SHA256: 26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296
+
 jobs:
   analyze:
     name: Static analysis
@@ -110,7 +115,7 @@ jobs:
 
       - name: Core package
         working-directory: packages/phantrix_core
-        run: dart test --reporter expanded
+        run: ../../.flutter/bin/dart test --reporter expanded
 
       - name: Platform bridge package
         working-directory: packages/phantrix_platform
