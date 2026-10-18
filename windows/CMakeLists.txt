@@ -106,3 +106,57 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# === Licences ===
+#
+# A shipped Windows build carries the licence of the program, the licence of
+# the engine it launches and the notice for the driver that engine needs, all
+# in `licenses/` beside the executable.
+#
+# Before this, a release build carried exactly one licence file: OpenVPN's own,
+# copied to the root of the bundle by the plugin's bundle list, where nothing
+# identified it as OpenVPN's rather than the application's. The application's
+# own GPL grant, the copyright notice, the third-party inventory and the wintun
+# notice were in the repository and in the installer's absence, on no machine
+# that ran the app.
+#
+# The OpenVPN and wintun texts come from `tools/attribution/`, which keeps the
+# checked-in copy of the fetched bundle's notices. That is what makes this rule
+# work without network access and on a machine where the engine bundle has not
+# been fetched at all.
+set(PHANTRIX_LICENCE_DIR "${CMAKE_INSTALL_PREFIX}/licenses")
+
+# The licence that came with the fetched engine wins over the checked-in copy,
+# so the text installed is the one for the bytes that ship. This mirrors the
+# generator, which prefers the bundle's own copy for the same reason. The
+# checked-in copy stays as the fallback, because a configure without the bundle
+# still has to install a notice.
+set(PHANTRIX_OPENVPN_LICENCE
+  "${CMAKE_CURRENT_SOURCE_DIR}/../tools/attribution/openvpn-copying.txt")
+set(PHANTRIX_BUNDLE_LICENCE
+  "${CMAKE_CURRENT_SOURCE_DIR}/../packages/phantrix_platform/windows/bundle/openvpn/LICENSE.txt")
+if(EXISTS "${PHANTRIX_BUNDLE_LICENCE}")
+  set(PHANTRIX_OPENVPN_LICENCE "${PHANTRIX_BUNDLE_LICENCE}")
+endif()
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "phantrix-LICENSE.txt"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../COPYRIGHT"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "phantrix-COPYRIGHT.txt"
+  COMPONENT Runtime)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../THIRD_PARTY_LICENSES.md"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "phantrix-THIRD_PARTY_LICENSES.md"
+  COMPONENT Runtime)
+install(FILES "${PHANTRIX_OPENVPN_LICENCE}"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "openvpn-LICENSE.txt"
+  COMPONENT Runtime)
+install(
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/../tools/attribution/wintun-prebuilt-license.txt"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "wintun-LICENSE.txt"
+  COMPONENT Runtime)

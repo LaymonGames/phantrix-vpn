@@ -62,6 +62,17 @@ from the fetched bundle when present, and `tools/fetch_openvpn_bundle.ps1` pins
 and verifies the downloaded archive and every extracted file by SHA-256, so the
 notice reflects the bytes that ship rather than a checked-in placeholder.
 
+A Windows release build now installs a `licenses/` directory beside
+`phantrix.exe` holding this project's `LICENSE` and `COPYRIGHT`, the generated
+`THIRD_PARTY_LICENSES.md`, OpenVPN's own `LICENSE.txt` and the wintun
+prebuilt-binaries notice. OpenVPN's text is taken from the fetched bundle when
+it is present — the licence for the bytes that ship — and from the checked-in
+`tools/attribution/` copy otherwise, so the rule needs no network access and
+applies even when the engine bundle has not been fetched. Before this, the
+bundle carried one licence file, OpenVPN's, at the root next to
+`phantrix.exe`, with nothing saying whose it was; the project's own licence and
+the wintun notice were shipped nowhere.
+
 ## Before you publish
 
 1. Confirm you own, or may redistribute, `assets/icon.png` and the launcher
@@ -70,8 +81,10 @@ notice reflects the bytes that ship rather than a checked-in placeholder.
 3. Put the real copyright holder's name in `COPYRIGHT` (and regenerate the
    in-app notices) if you want more than "Laymon Games". Do not edit the
    `LICENSE` text itself.
-4. If you ship Windows binaries, include `openvpn/LICENSE.txt` from the fetched
-   bundle and provide, or point to, the matching OpenVPN source.
+4. If you ship Windows binaries, confirm `licenses/` in the built package
+   contains OpenVPN's own `LICENSE.txt` and the wintun notice (the install rule
+   in `windows/CMakeLists.txt` copies both), and provide, or point to, the
+   matching OpenVPN source.
 5. Check the final APK and Windows package contents, not only Git. The Windows
    bundle is fetched by script and is not committed, so check the files actually
    fetched for that release, and make sure the in-app notices screen and

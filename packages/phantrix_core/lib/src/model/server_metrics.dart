@@ -1,4 +1,3 @@
-
 class ServerMetrics {
   const ServerMetrics({
     this.latencyMs,

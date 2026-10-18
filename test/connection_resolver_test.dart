@@ -478,34 +478,37 @@ Endpoint = 192.0.2.1:51820
       expect(result.message, contains('ZZ'));
     });
 
-    test('a country whose relays are all marked offline is still dialled', () async {
-      // The status column is the provider's measurement, not this network's:
-      // a relay whose ping could not be measured is listed offline while its
-      // OpenVPN process may be answering fine. A named country's relays are
-      // therefore offered to the walk even when the directory has given up
-      // on all of them — the walk is the test, and the failure that follows
-      // a dead relay names the country that was tried.
-      final resolver = await resolverOverProviders([
-        FakeResolverProvider(
-          id: 'test',
-          servers: [
-            server(id: 's1', country: 'DE', status: ServerStatus.offline),
-          ],
-          config: realOvpnConfig(),
-        ),
-      ]);
+    test(
+      'a country whose relays are all marked offline is still dialled',
+      () async {
+        // The status column is the provider's measurement, not this network's:
+        // a relay whose ping could not be measured is listed offline while its
+        // OpenVPN process may be answering fine. A named country's relays are
+        // therefore offered to the walk even when the directory has given up
+        // on all of them — the walk is the test, and the failure that follows
+        // a dead relay names the country that was tried.
+        final resolver = await resolverOverProviders([
+          FakeResolverProvider(
+            id: 'test',
+            servers: [
+              server(id: 's1', country: 'DE', status: ServerStatus.offline),
+            ],
+            config: realOvpnConfig(),
+          ),
+        ]);
 
-      final result = await resolver.resolve(
-        const SelectionRequest(countryCode: 'DE'),
-        capabilities: openVpnCapable,
-      );
+        final result = await resolver.resolve(
+          const SelectionRequest(countryCode: 'DE'),
+          capabilities: openVpnCapable,
+        );
 
-      expect(result, isA<ResolveSuccess>());
-      final success = result as ResolveSuccess;
-      expect(success.target.server.id, 's1');
-      expect(success.target.selection.fellBack, isFalse);
-      expect(success.notice, isNull);
-    });
+        expect(result, isA<ResolveSuccess>());
+        final success = result as ResolveSuccess;
+        expect(success.target.server.id, 's1');
+        expect(success.target.selection.fellBack, isFalse);
+        expect(success.notice, isNull);
+      },
+    );
 
     test('a provider that cannot supply a config fails cleanly', () async {
       final resolver = await resolverOverProviders([

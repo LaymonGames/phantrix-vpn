@@ -156,6 +156,15 @@ result:
 dart run tools/generate_third_party_notices.dart
 ```
 
+`--check` builds the same inventory and compares it with the committed file
+without writing, and fails if they differ. That is the form CI runs, so a
+dependency change that forgets the regeneration is caught there rather than
+silently leaving the credits screen listing versions the build does not use.
+
+```bash
+dart run tools/generate_third_party_notices.dart --check
+```
+
 Layout: `lib/` (Flutter UI), `packages/phantrix_core/` (protocol parsing,
 validation, discovery, state machine), `packages/phantrix_platform/` (native
 tunnel code per platform). See [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -199,6 +208,12 @@ authored code; third-party and adapted code keeps its own license, listed in
   work. The wintun driver is under WireGuard LLC's prebuilt-binaries license and
   must stay unmodified and paired with OpenVPN. Neither is committed to this
   repository; they are downloaded by `tools/fetch_openvpn_bundle.ps1`.
+- **A Windows release build** installs `licenses/` beside `phantrix.exe`,
+  containing this project's `LICENSE` and `COPYRIGHT`, the generated
+  `THIRD_PARTY_LICENSES.md`, and the OpenVPN and wintun texts. Every one of them
+  is committed in this repository, so the rule needs no network access. The app
+  itself shows the same inventory under **Settings → About, licenses and
+  credits**.
 - **Android:** there is no OpenVPN engine, because the only available one
   (ics-openvpn) is GPL-2.0-only and cannot be combined with GPL-3.0 code. Do
   not add it, or other GPL-2.0-only code, to the Android build.

@@ -353,9 +353,7 @@ void main() {
       // The settings screen treats `true` as "the machine agreed". An
       // exception here would take the screen down instead of putting the
       // switch back where it was.
-      mock(
-        (call) => throw PlatformException(code: 'boot.registry_failed'),
-      );
+      mock((call) => throw PlatformException(code: 'boot.registry_failed'));
       expect(await PhantrixPlatform().setStartOnBoot(true), isFalse);
     });
 

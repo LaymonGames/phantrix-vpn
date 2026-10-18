@@ -53,7 +53,8 @@ class WalkProvider implements ServerProvider {
       configs[serverId];
 }
 
-int _octetFor(String id) => (id.codeUnits.fold<int>(0, (sum, c) => sum + c) % 200) + 2;
+int _octetFor(String id) =>
+    (id.codeUnits.fold<int>(0, (sum, c) => sum + c) % 200) + 2;
 
 VpnServer walkServer({
   required String id,
@@ -307,11 +308,13 @@ void main() {
     int serverCount = 3,
     List<VpnServer>? servers,
   }) async {
-    final resolvedServers = servers ?? [
-      walkServer(id: 'a', latencyMs: 5),
-      walkServer(id: 'b', latencyMs: 20),
-      walkServer(id: 'c', latencyMs: 90),
-    ].take(serverCount).toList();
+    final resolvedServers =
+        servers ??
+        [
+          walkServer(id: 'a', latencyMs: 5),
+          walkServer(id: 'b', latencyMs: 20),
+          walkServer(id: 'c', latencyMs: 90),
+        ].take(serverCount).toList();
     final bridge = WalkBridge()..script.addAll(script);
     addTearDown(bridge.dispose);
     // The exit address is the tunnel's while the scripted tunnel is up,
@@ -495,7 +498,9 @@ void main() {
       // change on a retry — and a live walk on the real feed has shown one
       // US relay refusing while its neighbour completed the handshake. The
       // walk must keep the refusal visible as progress, not as terminus.
-      final harness = await build(script: ['authFailed', 'silent', 'handshake']);
+      final harness = await build(
+        script: ['authFailed', 'silent', 'handshake'],
+      );
 
       await harness.resolver.resolveAndConnect(
         const SelectionRequest(mode: SelectionMode.recommended),

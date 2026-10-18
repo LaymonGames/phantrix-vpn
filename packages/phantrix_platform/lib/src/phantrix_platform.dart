@@ -335,7 +335,7 @@ String _messageFor(String code, String? raw) {
       'Another VPN is currently active on this device.',
     'ovpn.auth_failed' =>
       'This relay refused the session. Volunteer relays sometimes reject '
-      'connections when they are overloaded or blocked.',
+          'connections when they are overloaded or blocked.',
     'ovpn.tls_failed' => 'The TLS handshake failed.',
     'ovpn.driver_failed' =>
       'The VPN tunnel driver could not be set up on this computer.',

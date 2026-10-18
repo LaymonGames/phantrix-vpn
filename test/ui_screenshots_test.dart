@@ -182,6 +182,27 @@ void main() {
       await _capture(tester, '06-settings-desktop');
     });
 
+    testWidgets('licences and credits at desktop size', (tester) async {
+      // Reached the way a user reaches it: the credits screen is a secondary
+      // destination, opened from the row in Settings that links to it rather
+      // than from the primary navigation.
+      await _boot(tester, size: const Size(1440, 900), destination: 'Settings');
+      final row = find.text('About, licenses and credits');
+      await tester.scrollUntilVisible(
+        row,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await _capture(tester, '09-licences-desktop');
+    });
+
     testWidgets('dashboard at a large accessibility text scale', (
       tester,
     ) async {

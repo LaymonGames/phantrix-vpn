@@ -112,6 +112,7 @@ const Map<String, String> _stringsValuesEn = {
   'clearDataAction': 'Clear',
   'clearDataDone': 'Local data cleared.',
   'aboutVersion': 'Version',
+  'aboutVersionUnknown': 'Unknown',
   'aboutCreator': 'Creator',
   'aboutPortfolio': 'Portfolio',
   'portfolioOpenFailed':
@@ -122,6 +123,24 @@ const Map<String, String> _stringsValuesEn = {
       'network policies, and the terms of the networks and services you '
       'use.',
   'licensesTitle': 'Licenses & credits',
+  'licensesIntro':
+      'Phantrix is free software: you can redistribute it and/or modify '
+      'it under the terms of the GNU General Public License as published '
+      'by the Free Software Foundation, version 3 only. It comes with '
+      'absolutely no warranty, to the extent permitted by law. This page '
+      'lists that licence and every component this build is made from.',
+  'licensesAppHeading': 'This application',
+  'licensesSearchHint': 'Search components, versions or licences',
+  'licensesSearchClear': 'Clear the search',
+  'licensesEmptyTitle': 'Nothing matches',
+  'licensesEmptyBody':
+      'No component, version or licence contains \u201C{query}\u201D.',
+  'licensesOpenLink': 'Open in the browser',
+  'licensesOpenFailed': 'Could not open the link.',
+  'licensesFrameworkTitle': 'Flutter and the Dart SDK',
+  'licensesFrameworkHint':
+      'The notices bundled with the engine and framework this app is '
+      'built on',
   'settingsLicenses': 'About, licenses and credits',
   'settingsLicensesHint':
       'Which components this app is built from, and under which '

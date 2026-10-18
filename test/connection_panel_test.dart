@@ -29,9 +29,7 @@ Widget harness({
   required Future<bool> Function(bool enabled) onStartOnBootChanged,
 }) {
   return MaterialApp(
-    theme: AppTheme.dark(
-      animationLevel: AppSettings.defaults.animationLevel,
-    ),
+    theme: AppTheme.dark(animationLevel: AppSettings.defaults.animationLevel),
     home: Scaffold(
       body: SingleChildScrollView(
         child: ConnectionPanel(
@@ -87,24 +85,25 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a platform without start-on-boot disables the switch with a reason', (
-    tester,
-  ) async {
-    final settings = SettingsController();
-    await tester.pumpWidget(
-      harness(
-        settings: settings,
-        platform: windowsCapabilities(bootStart: false),
-        onStartOnBootChanged: (enabled) async => false,
-      ),
-    );
-    final toggle = tester.widget<Switch>(find.byType(Switch));
-    expect(toggle.onChanged, isNull);
-    expect(
-      find.text('This platform cannot start the app on system boot.'),
-      findsOneWidget,
-    );
-  });
+  testWidgets(
+    'a platform without start-on-boot disables the switch with a reason',
+    (tester) async {
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        harness(
+          settings: settings,
+          platform: windowsCapabilities(bootStart: false),
+          onStartOnBootChanged: (enabled) async => false,
+        ),
+      );
+      final toggle = tester.widget<Switch>(find.byType(Switch));
+      expect(toggle.onChanged, isNull);
+      expect(
+        find.text('This platform cannot start the app on system boot.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('a platform with start-on-boot leaves the switch live', (
     tester,

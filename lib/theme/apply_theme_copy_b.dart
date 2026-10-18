@@ -10,7 +10,8 @@ ThemeData applyThemeCopyB(
   Color tint,
   String animationLevel,
 ) {
-  return base.copyWith(    chipTheme: ChipThemeData(
+  return base.copyWith(
+    chipTheme: ChipThemeData(
       backgroundColor: scheme.surfaceContainerHigh,
       side: BorderSide(color: line),
       shape: RoundedRectangleBorder(
@@ -126,9 +127,7 @@ ThemeData applyThemeCopyB(
       backgroundColor: scheme.surfaceContainerLow,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(VgRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(VgRadius.xl)),
       ),
     ),
     snackBarTheme: SnackBarThemeData(

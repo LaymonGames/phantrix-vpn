@@ -31,6 +31,7 @@ class SettingsScreen extends StatelessWidget {
     required this.settings,
     required this.platform,
     required this.onOpenDiagnostics,
+    required this.onOpenLicenses,
     required this.onClearLocalData,
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
@@ -48,6 +49,13 @@ class SettingsScreen extends StatelessWidget {
   /// instead, which is the screen a user is already in when they want them —
   /// so removing them from the bar costs one tap rather than the feature.
   final VoidCallback onOpenDiagnostics;
+
+  /// Opens the licences and credits screen.
+  ///
+  /// Linked rather than tabbed for the same reason diagnostics is: it is a
+  /// screen a user visits deliberately, and keeping the bottom bar at three
+  /// labels is what stops those labels ellipsising at a large text scale.
+  final VoidCallback onOpenLicenses;
 
   /// Opens the operating system's own VPN settings.
   ///
@@ -100,9 +108,7 @@ class SettingsScreen extends StatelessWidget {
               // The screens that are not in the phone bottom bar. Linked
               // from here so that trimming the bar to three labels does
               // not make them unreachable on a phone.
-              AdvancedPanel(
-                onOpenDiagnostics: onOpenDiagnostics,
-              ),
+              AdvancedPanel(onOpenDiagnostics: onOpenDiagnostics),
               const SizedBox(height: VgSpace.lg),
               ClearDataSurface(onClear: onClearLocalData),
               const SizedBox(height: VgSpace.md),
@@ -111,7 +117,7 @@ class SettingsScreen extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: VgSpace.lg),
-              AboutPanel(),
+              AboutPanel(onOpenLicenses: onOpenLicenses),
             ],
           ),
         );

@@ -44,9 +44,7 @@ class L10n {
   /// the sentence.
   String get(String key, [Map<String, String>? params]) {
     var value =
-        _stringsValues[languageCode]?[key] ??
-        _stringsValues['en']![key] ??
-        key;
+        _stringsValues[languageCode]?[key] ?? _stringsValues['en']![key] ?? key;
     if (params == null || params.isEmpty) {
       return value;
     }
@@ -66,8 +64,7 @@ class L10n {
   /// The connection layer falls back to the native message for those.
   String? problem(String code, [Map<String, String>? params]) {
     final value =
-        _problemValues[languageCode]?[code] ??
-        _problemValues['en']?[code];
+        _problemValues[languageCode]?[code] ?? _problemValues['en']?[code];
     if (value == null) {
       return null;
     }

@@ -1,7 +1,7 @@
 part of 'strings.dart';
 
 const Map<String, String> _stringsValuesAr = {
-  'appTitle': 'فيلجيت',
+  'appTitle': 'Phantrix',
   'home': 'الرئيسية',
   'server': 'الخادم',
   'actions': 'الإجراءات',
@@ -48,7 +48,7 @@ const Map<String, String> _stringsValuesAr = {
   'amIProtected': 'هل أنا محمي؟',
   'leakExplanation':
       'فحص العنوان العام يُرسل طلبًا واحدًا لخدمة تعرف بعدها العنوان '
-      'الذي تظهر حركة بياناتك منه. لا يُرسل فيلجيت شيئًا آخر.',
+      'الذي تظهر حركة بياناتك منه. لا يُرسل Phantrix شيئًا آخر.',
   'notTested': 'لم يتم الاختبار',
   'notSupported': 'غير مدعوم هنا',
   'checkPassed': 'محمي',
@@ -72,7 +72,7 @@ const Map<String, String> _stringsValuesAr = {
   'settingsSystemLockdownOn': 'مفعّل',
   'settingsSystemLockdownOff': 'معطّل',
   'settingsSystemLockdownOnHint':
-      'يحجب أندرويد نفسه حركة البيانات خارج VPN. يُضبط ذلك في إعدادات '
+      'يحجب Android نفسه حركة البيانات خارج VPN. يُضبط ذلك في إعدادات '
       'النظام ويبقى ساريًا حتى لو أُغلق هذا التطبيق.',
   'settingsSystemLockdownOffHint':
       'إذا سقط النفق، قد تخرج البيانات عبر الشبكة العادية حتى يعيد '
@@ -105,6 +105,7 @@ const Map<String, String> _stringsValuesAr = {
   'clearDataAction': 'مسح',
   'clearDataDone': 'تم مسح البيانات المحلية.',
   'aboutVersion': 'الإصدار',
+  'aboutVersionUnknown': 'غير معروف',
   'aboutCreator': 'المنشئ',
   'aboutPortfolio': 'معرض الأعمال',
   'portfolioOpenFailed':
@@ -114,6 +115,22 @@ const Map<String, String> _stringsValuesAr = {
       'تبقى مسؤولية الالتزام بالقوانين المعمول بها وسياسات الشبكات '
       'وشروط الخدمات التي تستخدمها عليك.',
   'licensesTitle': 'التراخيص والإشادات',
+  'licensesIntro':
+      'Phantrix برنامج حر: يمكنك إعادة توزيعه و/أو تعديله وفق شروط '
+      'GNU General Public License كما نشرتها مؤسسة البرمجيات الحرة، '
+      'النسخة 3 فقط. ويأتي دون أي ضمان، إلى الحد الذي يسمح به القانون. '
+      'وتعرض هذه الصفحة نص تلك الرخصة وكل مكوّن دخل في بناء هذا الإصدار.',
+  'licensesAppHeading': 'هذا التطبيق',
+  'licensesSearchHint': 'ابحث عن مكوّن أو إصدار أو ترخيص',
+  'licensesSearchClear': 'امسح البحث',
+  'licensesEmptyTitle': 'لا نتائج مطابقة',
+  'licensesEmptyBody':
+      'لم يُعثر على أي مكوّن أو إصدار أو ترخيص يطابق «{query}».',
+  'licensesOpenLink': 'افتح في المتصفح',
+  'licensesOpenFailed': 'تعذّر فتح الرابط.',
+  'licensesFrameworkTitle': 'Flutter وDart SDK',
+  'licensesFrameworkHint':
+      'الإشادات المرفقة بالمحرك وإطار العمل اللذين بُني عليهما هذا التطبيق',
   'settingsLicenses': 'حول التطبيق والتراخيص والإشادات',
   'settingsLicensesHint':
       'المكوّنات التي بُني منها هذا التطبيق، والتراخيص التي تخضع لها',
@@ -131,8 +148,8 @@ const Map<String, String> _stringsValuesAr = {
       'عبر tools/generate_third_party_notices.dart. لا تُعدَّل '
       'يدويًا، وكل سطر يذكر مصدر معلومته.',
   'licensesSectionDart': 'حزم Dart وFlutter',
-  'licensesSectionAndroid': 'مكتبات أندرويد',
-  'licensesSectionWindows': 'مكوّنات ويندوز',
+  'licensesSectionAndroid': 'مكتبات Android',
+  'licensesSectionWindows': 'مكوّنات Windows',
   'licensesSectionAttribution': 'مكوّنات مقتبسة ومُرفقة',
   'licensesVpnGateTitle': 'VPN Gate',
   'licensesVpnGateBody':
@@ -171,7 +188,7 @@ const Map<String, String> _stringsValuesAr = {
       'اسم الترخيص معروف، لكن نصه الكامل غير مرفق بهذا التطبيق.',
   'welcomeTitle': 'خصوصية وبساطة، بلا حساب.',
   'welcomeBody':
-      'يوجّه فيلجيت حركة بيانات هذا الجهاز عبر شبكة افتراضية بلا '
+      'يوجّه Phantrix حركة بيانات هذا الجهاز عبر شبكة افتراضية بلا '
       'حساب ولا بريد إلكتروني ولا اشتراك.',
   'privacyNoticeTitle': 'ما تفعله الشبكة الافتراضية وما لا تفعله',
   'privacyNoticeBody':
@@ -368,9 +385,9 @@ const Map<String, String> _stringsValuesAr = {
   'diagIpv6BlockedValue': 'محجوب أثناء الاتصال',
   'diagIpv6BlockedDetail': 'واجهة النفق لا تحمل عنوان IPv6، فلا طريق أمام IPv6 للهرب. هذا يخفي العنوان عن المواقع التي تزورها ولا يجعل الاتصال مجهولاً.',
   'diagIpv6NotSupportedDetail': 'لا تستطيع هذه المنصة حجب IPv6، فقد تبقى IPv4 محمية بينما IPv6 ليست كذلك.',
-  'diagDnsDetail': 'الملف الذي يرسله الخادم هو من يحدد المُحلِّل، ولا تستطيع هذه الشاشة قراءة المُحلِّل الذي يستخدمه ويندوز فعلياً، لذا تُبلِغ بذلك بدل أن تدّعي واحداً.',
+  'diagDnsDetail': 'الملف الذي يرسله الخادم هو من يحدد المُحلِّل، ولا تستطيع هذه الشاشة قراءة المُحلِّل الذي يستخدمه Windows فعلياً، لذا تُبلِغ بذلك بدل أن تدّعي واحداً.',
   'diagTunnelVerifiedDetail': 'تم التحقق من النفق بعد قيامه.',
   'diagTunnelNoTunnelDetail': 'لا نفق قائماً، فلا شيء للتحقق منه.',
   'diagKillSwitchVerifiedDetail': 'تُسقط الحركة عندما يغيب النفق.',
-  'diagKillSwitchNotSupportedDetail': 'لا تضمن هذه المنصة مفتاح إيقاف صارماً. عندما يسقط النفق تخرج الحركة عبر الاتصال العادي حتى يعاد بناؤه، ويُبلِغ فانتريكس بذلك بدل أن يدّعي حماية لا يملكها.',
+  'diagKillSwitchNotSupportedDetail': 'لا تضمن هذه المنصة مفتاح إيقاف صارماً. عندما يسقط النفق تخرج الحركة عبر الاتصال العادي حتى يعاد بناؤه، ويُبلِغ Phantrix بذلك بدل أن يدّعي حماية لا يملكها.',
 };

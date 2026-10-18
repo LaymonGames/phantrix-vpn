@@ -123,8 +123,14 @@ set(OPENVPN_BUNDLE_FILES
   "${OPENVPN_BUNDLE_DIR}/libpkcs11-helper-1.dll"
   "${OPENVPN_BUNDLE_DIR}/vcruntime140.dll"
   "${OPENVPN_BUNDLE_DIR}/wintun.dll"
-  "${OPENVPN_BUNDLE_DIR}/LICENSE.txt"
 )
+
+# The engine's `LICENSE.txt` is deliberately not in the list. These files are
+# installed flat beside the executable, which put a file called `LICENSE.txt`
+# next to `phantrix.exe` with nothing saying whose licence it was. It is
+# installed as `licenses/openvpn-LICENSE.txt` by the application's own
+# `windows/CMakeLists.txt` instead, which is the only place that can also
+# install the application's licence and the notices for the other components.
 
 # A build without the bundle still succeeds. The plugin reports the engine as
 # missing and the Dart layer refuses an OpenVPN server with an explanation, so a

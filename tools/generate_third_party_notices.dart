@@ -16,6 +16,12 @@
 // Output: `lib/notices/generated_third_party_notices.dart`, which the
 // licences screen renders. The output is deterministic: two runs over the
 // same inputs produce a byte-identical file.
+//
+// Run it with `--check` to build the same inventory and compare it with the
+// file on disk, writing nothing: that is the mode the verify workflow uses,
+// so an outdated inventory fails the build instead of being regenerated
+// silently. The comparison ignores layout, so reformatting the generated file
+// is not mistaken for a dependency change.
 
 import 'dart:io';
 
@@ -167,7 +173,13 @@ String? readIfExists(String path) {
     return null;
   }
   try {
-    return file.readAsStringSync();
+    // Every input is read with its line endings normalised to `\n`. A Git
+    // checkout rewrites text files to the platform's endings (`core.autocrlf`
+    // on Windows), and the parsers below match on `\n`. Without this a
+    // Windows checkout silently parsed nothing out of `pubspec.lock` and
+    // wrote a near-empty inventory, so the same commit produced different
+    // notices on different machines.
+    return file.readAsStringSync().replaceAll('\r\n', '\n');
   } catch (_) {
     return null;
   }
@@ -744,17 +756,37 @@ String appVersion() {
   return match?.group(1)?.trim() ?? 'unknown';
 }
 
-/// The repository URL, from git's own record of the origin.
+/// The canonical repository URL of this project.
+///
+/// Deliberately a constant, with `pubspec.yaml`'s `repository:` field as the
+/// one place it is edited. It used to be read out of the local Git
+/// configuration, which meant the attribution a build carried depended on
+/// whichever remote the developer's clone happened to have: a stale clone
+/// silently produced the URL of a repository that does not exist.
+/// Attribution is a fact about the project, not about a clone, so it is
+/// pinned here.
+const String canonicalRepositoryUrl =
+    'https://github.com/LaymonGames/phantrix-vpn';
+
+/// The repository URL, from this repository's own `pubspec.yaml`.
+///
+/// The `repository:` field is the canonical declaration, and
+/// [canonicalRepositoryUrl] is the fallback for a checkout where the field is
+/// missing, so the tool can never emit a URL derived from local Git
+/// configuration.
 String repositoryUrl() {
-  final text = readIfExists('.git/config');
+  final text = readIfExists('pubspec.yaml');
   if (text != null) {
-    final match = RegExp(r'\[remote "origin"\]\s*\n\s*url\s*=\s*(\S+)')
-        .firstMatch(text);
-    if (match != null) {
-      return match.group(1)!;
+    final match = RegExp(
+      r'^repository:\s*"?([^"\s]+)"?',
+      multiLine: true,
+    ).firstMatch(text);
+    final value = match?.group(1)?.trim();
+    if (value != null && value.isNotEmpty) {
+      return value;
     }
   }
-  return 'unknown';
+  return canonicalRepositoryUrl;
 }
 
 List<Entry> dartEntries(List<LicenceText> texts) {
@@ -1129,7 +1161,12 @@ String emitEntry(Entry entry) {
   return buffer.toString();
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  // `--check` renders the inventory and compares it with the file on disk,
+  // exiting unsuccessfully when it differs. It never writes, so a stale file
+  // is a failure a build can gate on rather than something a check quietly
+  // repairs before validating itself.
+  final check = args.contains('--check');
   final texts = <LicenceText>[];
   final entries = <Entry>[
     appEntry(texts),
@@ -1147,6 +1184,105 @@ Future<void> main() async {
     uniqueTexts.putIfAbsent(text.key, () => text);
   }
 
+  final output = renderInventory(entries, uniqueTexts);
+
+  final file = File(generatedPath);
+  if (check) {
+    final current = file.existsSync() ? await file.readAsString() : null;
+    if (current != null && sameInventory(current, output)) {
+      stdout.writeln(
+        'third-party notices: ${entries.length} entries, '
+        '${uniqueTexts.length} licence texts - $generatedPath is up to date',
+      );
+      return;
+    }
+    stderr.writeln(
+      'third-party notices: $generatedPath is out of date. Run '
+      '`dart run tools/generate_third_party_notices.dart` and commit the '
+      'result.',
+    );
+    exitCode = 1;
+    return;
+  }
+
+  await file.parent.create(recursive: true);
+  await file.writeAsString(output);
+
+  // Formatted in place, so that the committed file is the one `dart format`
+  // would produce and running the formatter over `lib/` does not create a
+  // diff. Without this the documented command wrote a file that the
+  // repository's own formatter immediately rewrote, which made "regenerate
+  // and commit" a two-step instruction that looked finished after one step.
+  final formatted = await formatInPlace(file);
+  if (!formatted) {
+    exitCode = 1;
+    return;
+  }
+
+  stdout.writeln(
+    'third-party notices: ${entries.length} entries, '
+    '${uniqueTexts.length} licence texts -> $generatedPath',
+  );
+  final unknown = entries.where((e) => e.licenseId == 'unknown').length;
+  if (unknown > 0) {
+    stdout.writeln(
+      'third-party notices: $unknown entries have no readable licence id',
+    );
+  }
+}
+
+/// Whether [a] and [b] describe the same inventory.
+///
+/// The comparison ignores whitespace. That is deliberate and it is the one
+/// thing that makes the freshness gate usable: the generator writes the
+/// entries in a layout of its own, the formatter writes some of the long
+/// lines differently, and a contributor who runs `dart format lib` — which
+/// the repository's own instructions do — would otherwise turn a current file
+/// into a failing one by reformatting a string. Every fact in the inventory
+/// (a name, a resolved version, a licence identifier, a URL, a licence text)
+/// survives without a byte of layout, so nothing that matters can hide behind
+/// the normalisation.
+bool sameInventory(String a, String b) =>
+    _withoutLayout(a) == _withoutLayout(b);
+
+String _withoutLayout(String source) =>
+    source.replaceAll(RegExp(r'\s+'), '');
+
+/// Runs `dart format` over [file], reporting a failure rather than ignoring it.
+Future<bool> formatInPlace(File file) async {
+  final ProcessResult result;
+  try {
+    result = await Process.run(Platform.resolvedExecutable, [
+      'format',
+      file.path,
+    ]);
+  } on ProcessException catch (error) {
+    stderr.writeln(
+      'third-party notices: could not run `dart format` over '
+      '${file.path}: $error',
+    );
+    return false;
+  }
+  if (result.exitCode != 0) {
+    stderr.writeln(
+      'third-party notices: `dart format` failed over ${file.path}\n'
+      '${result.stdout}\n${result.stderr}',
+    );
+    return false;
+  }
+  return true;
+}
+
+/// Renders the inventory as the contents of [generatedPath].
+///
+/// Split out of [main] so `--check` can build the same inventory and compare
+/// it without writing anything, which is what makes the freshness gate a
+/// check rather than a rewrite that always "passes". The bytes here are
+/// pre-formatter; [main] formats the file after writing it.
+String renderInventory(
+  List<Entry> entries,
+  Map<String, LicenceText> uniqueTexts,
+) {
   final buffer = StringBuffer();
   buffer.writeln('// GENERATED FILE. DO NOT EDIT BY HAND.');
   buffer.writeln('//');
@@ -1192,19 +1328,5 @@ Future<void> main() async {
     buffer.writeln("\t${quoted(text.key)}: ${dartLiteral(text.text)},");
   }
   buffer.writeln('};');
-
-  final output = File(generatedPath);
-  await output.parent.create(recursive: true);
-  await output.writeAsString(buffer.toString());
-
-  stdout.writeln(
-    'third-party notices: ${entries.length} entries, '
-    '${uniqueTexts.length} licence texts -> $generatedPath',
-  );
-  final unknown = entries.where((e) => e.licenseId == 'unknown').length;
-  if (unknown > 0) {
-    stdout.writeln(
-      'third-party notices: $unknown entries have no readable licence id',
-    );
-  }
+  return buffer.toString();
 }

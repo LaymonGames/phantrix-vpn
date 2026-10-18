@@ -359,10 +359,7 @@ class ConnectionController {
         await _verifyAndPromote();
       case PlatformTunnelState.reconnecting:
         if (_current.isConnected) {
-          _apply(
-            VpnEvent.networkChanged(),
-            _tr('flowNetworkChanged'),
-          );
+          _apply(VpnEvent.networkChanged(), _tr('flowNetworkChanged'));
           // Recovery is an attempt like any other: bounded, or the
           // app would claim "Reconnecting…" long after the network
           // is never coming back.
@@ -1024,10 +1021,7 @@ class ConnectionController {
   /// attempt the user has abandoned and both outcomes are dropped without
   /// writing anything into the view.
   Future<bool> _ensurePermission(int epoch) async {
-    _apply(
-      const VpnEvent.permissionRequested(),
-      _tr('flowPermissionWaiting'),
-    );
+    _apply(const VpnEvent.permissionRequested(), _tr('flowPermissionWaiting'));
     final granted = await platform.requestPermission();
     if (epoch != _attemptEpoch) {
       return false;

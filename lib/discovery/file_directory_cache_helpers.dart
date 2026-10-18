@@ -120,11 +120,7 @@ VpnServer _decodeServer(Map<dynamic, dynamic> raw) {
   );
 }
 
-T _enumValue<T extends Enum>(
-  List<T> values,
-  Object? value,
-  T fallback,
-) {
+T _enumValue<T extends Enum>(List<T> values, Object? value, T fallback) {
   for (final candidate in values) {
     if (candidate.name == value) {
       return candidate;
@@ -141,8 +137,7 @@ int? _intOrNull(Object? value) =>
 
 int _intOrZero(Object? value) => _intOrNull(value) ?? 0;
 
-double? _doubleOrNull(Object? value) =>
-    value is num ? value.toDouble() : null;
+double? _doubleOrNull(Object? value) => value is num ? value.toDouble() : null;
 
 DateTime? _dateOrNull(Object? value) =>
     value is String ? DateTime.tryParse(value)?.toLocal() : null;

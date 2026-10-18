@@ -6,10 +6,7 @@ import '../../components/surfaces.dart';
 import '../../shell.dart';
 
 class AdvancedPanel extends StatelessWidget {
-  const AdvancedPanel({
-    required this.onOpenDiagnostics,
-    super.key,
-  });
+  const AdvancedPanel({required this.onOpenDiagnostics, super.key});
 
   final VoidCallback onOpenDiagnostics;
 

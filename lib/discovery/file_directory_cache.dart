@@ -121,5 +121,4 @@ class FileDirectoryCache extends DirectoryCache {
       // Clearing optional metadata must not stop the application.
     }
   }
-
 }

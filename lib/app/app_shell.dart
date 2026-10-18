@@ -12,6 +12,7 @@ import '../ui/components/navigation.dart';
 import '../ui/components/status_style.dart';
 import '../ui/screens/diagnostics_screen.dart';
 import '../ui/screens/home_screen.dart';
+import '../ui/screens/licenses_screen.dart';
 import '../ui/screens/settings/settings_screen.dart';
 import '../ui/shell.dart';
 import '../vpn/connection_controller.dart';

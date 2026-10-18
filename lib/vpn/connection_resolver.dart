@@ -104,9 +104,7 @@ class ConnectionResolver {
   /// not delay the dial by its own slowness. Whatever has not answered by
   /// this budget is treated as never having been asked — it keeps the
   /// ranking's order, and the walk still reaches it.
-  static const Duration probeAnswerBudget = Duration(
-    milliseconds: 2500,
-  );
+  static const Duration probeAnswerBudget = Duration(milliseconds: 2500);
 
   /// The default for [probeTimeout].
   static const Duration defaultProbeTimeout = Duration(seconds: 5);
@@ -198,10 +196,8 @@ class ConnectionResolver {
   /// slightly repetitive.
   String _remedyFor(Set<ProtocolKind> kinds) {
     final remedies = <String>[
-      if (kinds.contains(ProtocolKind.wireGuard))
-        _tr('selRemedyWireGuard'),
-      if (kinds.contains(ProtocolKind.openVpn))
-        _tr('selRemedyOpenVpn'),
+      if (kinds.contains(ProtocolKind.wireGuard)) _tr('selRemedyWireGuard'),
+      if (kinds.contains(ProtocolKind.openVpn)) _tr('selRemedyOpenVpn'),
     ];
     return '${remedies.join('. ')}.';
   }
@@ -270,12 +266,7 @@ class ConnectionResolver {
     if (country != null &&
         country.isNotEmpty &&
         (selection == null || leftTheCountry)) {
-      final own = _countryAsLastResort(
-        servers,
-        country,
-        request,
-        capabilities,
-      );
+      final own = _countryAsLastResort(servers, country, request, capabilities);
       if (own != null) {
         selection = own;
       }
@@ -732,7 +723,9 @@ class ConnectionResolver {
     return Selection(
       server: server,
       mode: selected.mode,
-      explanation: _tr('selCachedDirectoryNote', {'note': selected.explanation}),
+      explanation: _tr('selCachedDirectoryNote', {
+        'note': selected.explanation,
+      }),
       fellBack: true,
       fallbackCause: 'cached_directory',
     );
@@ -955,7 +948,10 @@ class ConnectionResolver {
   /// freshly refreshed list each one is a network read, and a window of
   /// them one after another cost seconds before the first dial even
   /// started — the dial latency this sweep exists to shorten, not add to.
-  ({Future<ResolvedTarget?> dialPick, Future<({List<VpnServer> ordered, Set<String> silent})> settled})
+  ({
+    Future<ResolvedTarget?> dialPick,
+    Future<({List<VpnServer> ordered, Set<String> silent})> settled,
+  })
   _beginReachabilitySweep(
     ConnectionController connection,
     List<VpnServer> ranked,
@@ -990,10 +986,11 @@ class ConnectionResolver {
           // been. Outlasting the budget answers null, the same as an
           // unasked relay: it stays in the ranking's order and the walk
           // still reaches it.
-          probed.add((target, _probeRelay(target.config).timeout(
-            probeAnswerBudget,
-            onTimeout: () => null,
-          )));
+          probed.add((
+            target,
+            _probeRelay(target.config)
+                .timeout(probeAnswerBudget, onTimeout: () => null),
+          ));
         } on Object {
           // The ask itself failing proves nothing about the relay.
           probed.add((target, Future<bool?>.value(null)));
@@ -1029,7 +1026,10 @@ class ConnectionResolver {
           alive.add(target.server);
         }
       }
-      return (ordered: <VpnServer>[...alive, ...dead, ...beyond], silent: silent);
+      return (
+        ordered: <VpnServer>[...alive, ...dead, ...beyond],
+        silent: silent,
+      );
     }
 
     return (dialPick: dialPick(), settled: full());

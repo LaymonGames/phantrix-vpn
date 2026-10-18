@@ -81,18 +81,19 @@ jobs:
 
       - name: Check formatting
         run: |
-          # Only the files this project owns. Generated sources and the
-          # vendored upstream Apple bridge are formatted by their upstream and
-          # are not reformatted here.
+          # Only the files this project owns. The vendored upstream Apple
+          # bridge is formatted by its upstream and is not reformatted here.
           #
-          # `lib/notices/generated_third_party_notices.dart` is the one
-          # generated source inside `lib/`, so it is named and excluded: the
-          # generator emits tab indentation and the formatter would rewrite
-          # every entry, which would make the file churn on every regeneration
-          # without changing what it says.
+          # `lib/notices/generated_third_party_notices.dart` used to be named
+          # and excluded here, because the generator emitted its own tab
+          # indentation and the formatter rewrote the whole file. The generator
+          # now formats its own output, so the generated file is checked like
+          # every other file the project owns: if the generator ever stops
+          # emitting formatter output, that is a failure here rather than a
+          # silent diff for the next person to run `dart format`.
           files=$(find lib test packages/phantrix_core/lib packages/phantrix_core/test \
             packages/phantrix_platform/lib packages/phantrix_platform/test \
-            -name '*.dart' ! -name 'generated_third_party_notices.dart')
+            -name '*.dart')
           unformatted=$(.flutter/bin/dart format --output=none --set-exit-if-changed \
             $files 2>&1 || true)
           if echo "$unformatted" | grep -q 'Changed '; then
@@ -123,6 +124,27 @@ jobs:
 
       - name: Application
         run: .flutter/bin/flutter test --reporter expanded
+
+      - name: Third-party notices are up to date
+        # The generated inventory is what the credits screen renders and what
+        # the About panel reads the version from. It is derived from the
+        # lockfiles, the Gradle files and the bundled-binary notices, so a
+        # dependency change that is committed without regenerating it leaves
+        # the app attributing the wrong versions — or missing a component
+        # entirely — while every other check stays green.
+        #
+        # `--check` renders the inventory and compares it with the committed
+        # file without writing anything, so an outdated file fails here
+        # rather than being silently repaired and then validated.
+        #
+        # `FLUTTER_ROOT` is set explicitly because the SDK aggregate notice is
+        # read from `$FLUTTER_ROOT/LICENSE`; the tool finds it from the Dart
+        # VM's location otherwise, and a CI layout that defeats that guess
+        # would produce a different inventory and a false failure.
+        env:
+          FLUTTER_ROOT: ${{ github.workspace }}/.flutter
+        run: |
+          .flutter/bin/dart run tools/generate_third_party_notices.dart --check
 
       - name: Upload the rendered interface
         # The screenshot suite writes real renders of the real widget tree to

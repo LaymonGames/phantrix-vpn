@@ -927,12 +927,12 @@ B has the reasoning.
 Engine::Start (helper-side phantrix_ovpn_engine.cpp) now appends two data-path
 flags after the path arguments:
 
-* --sndbuf 524288 --rcvbuf 524288 — the engine's own defaults are 64KB, which
+* --sndbuf 524288 --rcvbuf 524288 ï¿½ the engine's own defaults are 64KB, which
   every session log confirms (Socket Buffers: R=[65536->65536]
   S=[65536->65536]). A cross-continent volunteer relay with even mild packet
   loss stalls on that send window long before the path is filled; half a
   megabyte each way is the conventional remedy.
-* --socket-flags TCP_NODELAY — only for profiles whose proto line starts
+* --socket-flags TCP_NODELAY ï¿½ only for profiles whose proto line starts
   with 	cp. Nagle batching delays exactly the traffic a tunnel carries
   (keystrokes, DNS, voice). ProfileIsTcp reads the profile with the same
   capped budget and comment rules as ProfileHasAuthUserPass, because the flag
@@ -941,5 +941,56 @@ flags after the path arguments:
 Verified against a live relay the same way the handshake was verified above:
 the flags parse, the socket log shows Socket Buffers: R=[65536->524288]
 S=[65536->524288], and the TLS negotiation proceeds unchanged. The flag being
-conditional is load-bearing, not cosmetic — see lagtest3.log for the
+conditional is load-bearing, not cosmetic ï¿½ see lagtest3.log for the
 udp-link shape the guard avoids.
+
+## Addendum 2026-10-18: the credits screen is reachable again, and Windows ships its licences
+
+Two things recorded above had stopped being true, and one of them was a
+licensing gap rather than a documentation one.
+
+**The in-app notices screen was gone.** `lib/ui/screens/licenses_screen.dart`
+and `test/licenses_test.dart` were deleted after the round this report
+describes, while `lib/notices/` and roughly thirty translation strings for the
+page stayed in the tree â€” a generated inventory that nothing rendered. The
+screen is restored, with the additions that the deletion made worth having:
+
+| File | What |
+| --- | --- |
+| `lib/ui/screens/licenses_screen.dart` | The page again: a search field that narrows the inventory by name, version, licence or component; one expandable row per component with its version, licence, copyright, provenance, caveats and full text; the application's own licence open at the top rather than behind a tap; tappable source links with a visible failure when they cannot be opened; and a row that opens Flutter's own notices for the engine and framework |
+| `lib/app/destinations.dart`, `lib/ui/screens/settings/about_panel.dart`, `lib/ui/screens/settings/settings_screen.dart` | The `licenses` destination, opened over Settings, and the "About, licenses and credits" row that reaches it |
+| `lib/notices/third_party_notices.dart` | `app()`, `search()` and `identity`, so the page cannot reorder the inventory or lose which row is open when the search changes |
+| `test/licenses_test.dart` | The inventory invariants (every locked package listed, no licence text orphaned, no label its own text contradicts, the app under its own grant) plus the page's behaviour, including Arabic and a 2Ã— text scale |
+| `lib/l10n/strings_values_en.dart`, `strings_values_ar.dart` | The page's own strings in both languages |
+
+**The About panel read its version from a hardcoded `'1.0.0'`** while the
+package version is `1.0.0+1`. It now reads the version and the copyright from
+the generated inventory, which reads them from `pubspec.yaml`, and a test
+asserts the two agree.
+
+**Windows shipped one licence file, and it was not this project's.** The
+plugin's bundle list copied OpenVPN's `LICENSE.txt` flat beside
+`phantrix.exe`, where nothing said whose it was; the project's own `LICENSE`,
+`COPYRIGHT`, `THIRD_PARTY_LICENSES.md` and the wintun notice were in the
+repository and on no machine that ran the app. `windows/CMakeLists.txt` now
+installs a `licenses/` directory containing all five, sourced from committed
+files so the rule does not depend on the fetched engine bundle.
+
+**Two generator defects were found while regenerating.** The lockfile parser
+matched `\n` literally, so a Windows checkout â€” where Git rewrites text files
+to CRLF â€” parsed *nothing* and wrote a seven-entry inventory in place of the
+ninety-six it should have. Inputs are now read with their line endings
+normalised. Separately, the repository URL was read from the developer's local
+Git configuration, so a clone with a stale `origin` stamped
+`https://github.com/ParalloxDev/VPN.git` into every shipped build; it now comes
+from `pubspec.yaml`, with a test that fails if the generator consults local Git
+state again.
+
+Finally, the file counts stated above are historical. Regenerated against the
+current lockfiles the inventory holds **96 entries and 86 bundled licence
+texts**, and two entries (`phantrix_core`, `phantrix_platform`) had been
+ordered as though they came after `platform`. `dart run
+tools/generate_third_party_notices.dart --check` now compares the committed
+file with the current inputs and fails when they differ; `verify.yml` runs it
+after the package dependency resolutions, so an unregenerated inventory can no
+longer reach `main`.

@@ -47,6 +47,18 @@ List<Destination> _destinations(
       ),
     ),
     Destination(
+      id: 'licenses',
+      label: l10n.get('licensesTitle'),
+      icon: Icons.gavel_outlined,
+      selectedIcon: Icons.gavel_rounded,
+      // Secondary for the same reason as diagnostics: it is a screen a user
+      // visits deliberately, and Settings is where they look for it. It was
+      // missing entirely — the notice inventory had no screen consuming it —
+      // so the credits this project owes went unshown.
+      parentId: 'settings',
+      builder: (context) => LicensesScreen(reducedMotion: reducedMotion),
+    ),
+    Destination(
       id: 'settings',
       label: l10n.get('settings'),
       icon: Icons.settings_outlined,
@@ -55,6 +67,7 @@ List<Destination> _destinations(
         settings: scope.settingsController,
         platform: scope.connection.capabilities,
         onOpenDiagnostics: () => navigation.go('diagnostics'),
+        onOpenLicenses: () => navigation.go('licenses'),
         onOpenSystemVpnSettings: () =>
             unawaited(scope.connection.openSystemVpnSettings()),
         systemLockdownActive: scope.connection.systemLockdownActive,

@@ -83,7 +83,16 @@ ThemeData applyThemeData(ThemeData base, String animationLevel) {
       .apply(fontFamily: 'Inter', fontFamilyFallback: VgType.sans);
 
   final themed = applyThemeCopyA(base, text, scheme, ink, muted, line);
-  return applyThemeCopyB(themed, text, scheme, ink, muted, line, tint, animationLevel);
+  return applyThemeCopyB(
+    themed,
+    text,
+    scheme,
+    ink,
+    muted,
+    line,
+    tint,
+    animationLevel,
+  );
 }
 
 TextStyle _themeStyle(

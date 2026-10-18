@@ -9,7 +9,7 @@
 /// the text is unidentified or missing rather than inventing a grant.
 ///
 /// The fields that describe *this project* are read from this repository:
-/// version and URL from `pubspec.yaml`/Git metadata, its SPDX grant and
+/// version and repository URL from `pubspec.yaml`, its SPDX grant and
 /// copyright from `COPYRIGHT`, and the full licence text from `LICENSE`.
 /// Those are not third-party facts, and the generator reads them rather than
 /// guessing the grant from generic GPL boilerplate.
@@ -97,6 +97,16 @@ class ThirdPartyNoticeData {
 
   /// Whether a full licence text was bundled for this entry.
   bool get hasLicenseText => licenseKey != null;
+
+  /// A stable key for this line: the component, the name and the resolved
+  /// version.
+  ///
+  /// Matches the identity the generator groups by, so it stays stable across
+  /// regenerations. The licences screen uses it to remember which rows the
+  /// user opened: keying that by list position would attach one component's
+  /// expanded licence to another component's header the moment the list is
+  /// reordered by a search.
+  String get identity => '$component|$name|${version ?? ''}';
 }
 
 /// Helpers shared by the licences screen and its tests.
@@ -122,6 +132,45 @@ class ThirdPartyNotices {
   static List<String> noteKeys(ThirdPartyNoticeData notice) => [
     for (final code in notice.noteCodes) 'licensesNote_$code',
   ];
+
+  /// The entry describing Phantrix itself, or null when the inventory has
+  /// none.
+  ///
+  /// The About panel reads its version from here rather than from a
+  /// hardcoded string, so the number the app reports is the one the
+  /// generator read out of `pubspec.yaml` — and the freshness gate is what
+  /// keeps that in step with the build.
+  static ThirdPartyNoticeData? app(List<ThirdPartyNoticeData> notices) {
+    for (final notice in notices) {
+      if (notice.component == 'app') {
+        return notice;
+      }
+    }
+    return null;
+  }
+
+  /// The notices matching [query], in display order.
+  ///
+  /// Matching is case-insensitive and covers the fields a user would type:
+  /// the name, the version, the licence identifier and the component. An
+  /// empty query matches everything, so the search field starts on the whole
+  /// inventory rather than on an empty list.
+  static List<ThirdPartyNoticeData> search(
+    List<ThirdPartyNoticeData> notices,
+    String query,
+  ) {
+    final needle = query.trim().toLowerCase();
+    if (needle.isEmpty) {
+      return sorted(notices);
+    }
+    return sorted(notices.where((notice) => _matches(notice, needle)).toList());
+  }
+
+  static bool _matches(ThirdPartyNoticeData notice, String needle) =>
+      notice.name.toLowerCase().contains(needle) ||
+      (notice.version ?? '').toLowerCase().contains(needle) ||
+      notice.licenseId.toLowerCase().contains(needle) ||
+      notice.component.toLowerCase().contains(needle);
 
   static int _compare(ThirdPartyNoticeData a, ThirdPartyNoticeData b) {
     final component = componentOrder

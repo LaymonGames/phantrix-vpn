@@ -196,17 +196,22 @@ class LeakCheck {
   /// `_readFrom` swallows its own errors, so the list completes when every
   /// ask has finished or [timeout] passes, whichever is first.
   Future<List<String?>> _readAll(Duration timeout) {
-    return Future.wait(_endpoints.map((endpoint) async {
-      try {
-        return await _readFrom(endpoint).timeout(timeout);
-      } on TimeoutException {
-        return null;
-      }
-    })).timeout(timeout, onTimeout: () {
-      // A provider that neither answered nor errored within the budget
-      // reads as unavailable — the ask was made, but no answer arrived.
-      return List.filled(_endpoints.length, null);
-    });
+    return Future.wait(
+      _endpoints.map((endpoint) async {
+        try {
+          return await _readFrom(endpoint).timeout(timeout);
+        } on TimeoutException {
+          return null;
+        }
+      }),
+    ).timeout(
+      timeout,
+      onTimeout: () {
+        // A provider that neither answered nor errored within the budget
+        // reads as unavailable — the ask was made, but no answer arrived.
+        return List.filled(_endpoints.length, null);
+      },
+    );
   }
 
   Future<String?> _readFrom(Uri endpoint) async {
@@ -279,10 +284,7 @@ class LeakCheck {
       return VerificationOutcome(
         verified: false,
         handshakeObserved: true,
-        message: l10n.get(
-          'flowHandshakeStale',
-          {'minutes': '$age'},
-        ),
+        message: l10n.get('flowHandshakeStale', {'minutes': '$age'}),
       );
     }
 

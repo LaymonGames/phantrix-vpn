@@ -10,7 +10,8 @@ ThemeData applyThemeCopyA(
 ) {
   return base.copyWith(
     textTheme: text,
-    primaryTextTheme: text,    cardTheme: CardThemeData(
+    primaryTextTheme: text,
+    cardTheme: CardThemeData(
       color: scheme.surfaceContainerLow,
       elevation: 0,
       margin: EdgeInsets.zero,

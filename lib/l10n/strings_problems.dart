@@ -41,7 +41,7 @@ const Map<String, String> _problemsEn = {
 
 const Map<String, String> _problemsAr = {
   'permission.denied': 'لم يمنح نظام التشغيل إذن VPN.',
-  'permission.revoked': 'سُحب إذن VPN، وأوقف فيلجيت النفق.',
+  'permission.revoked': 'سُحب إذن VPN، وأوقف Phantrix النفق.',
   'permission.always_on_conflict':
       'تعمل شبكة افتراضية أخرى على هذا الجهاز حاليًا.',
   'ovpn.auth_failed':

@@ -25,9 +25,8 @@ class _SidebarStatus extends StatelessWidget {
           VgTone.connected =>
             view.selectedLabel ?? l10n.get('sidebarTunnelEstablished'),
           VgTone.working => l10n.get('sidebarNegotiating'),
-          VgTone.failed => view.canRetry
-              ? l10n.get('sidebarTapToTryAgain')
-              : null,
+          VgTone.failed =>
+            view.canRetry ? l10n.get('sidebarTapToTryAgain') : null,
           VgTone.blocked => l10n.get('sidebarNeedsAttention'),
           VgTone.idle => l10n.get('sidebarNotProtected'),
         };

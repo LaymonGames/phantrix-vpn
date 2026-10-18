@@ -247,6 +247,49 @@ against it. The output is deterministic: re-running over unchanged inputs
 produces a byte-identical file. Re-run it after any dependency change, as
 described in README.md.
 
+Two facts in the generated file are about this project rather than about a
+dependency, and both come from `pubspec.yaml`: the version the About panel
+shows, and the repository URL. The URL used to be read out of the developer's
+local Git configuration, which meant a clone with a stale `origin` stamped a
+repository that no longer exists into a shipped build; it is now the
+`repository:` field, with the canonical URL as a fallback in the generator.
+
+`--check` builds the same inventory and compares it with the committed file
+without writing, exiting unsuccessfully when they differ. CI runs that form,
+so an inventory that no longer matches the lockfiles fails the build instead
+of being regenerated and then validated. The comparison ignores layout, so
+reformatting the generated file is not mistaken for a dependency change; the
+write path formats the file itself, so the committed artifact is the one
+`dart format` would produce.
+
 An entry whose licence cannot be read reports `unknown` and names the file
 it looked for, and the UI says so. There is deliberately no fallback that
 guesses a licence from a package name.
+
+## 8. What a Windows release build ships
+
+`windows/CMakeLists.txt` installs a `licenses/` directory beside
+`phantrix.exe`. It contains:
+
+- `phantrix-LICENSE.txt` — this project's GPL-3.0-only text, unmodified;
+- `phantrix-COPYRIGHT.txt` — the project copyright notice, which is where the
+  scope limitation on the GPL grant is stated;
+- `phantrix-THIRD_PARTY_LICENSES.md` — this document;
+- `openvpn-LICENSE.txt` — OpenVPN 2's own `LICENSE.txt`: the fetched bundle's
+  copy when the engine bundle is present, and the checked-in
+  `tools/attribution/openvpn-copying.txt` otherwise;
+- `wintun-LICENSE.txt` — WireGuard LLC's prebuilt-binaries licence, from
+  `tools/attribution/wintun-prebuilt-license.txt`.
+
+Before this, a Windows build shipped one licence file: OpenVPN's, copied to
+the root of the bundle next to `phantrix.exe`, where nothing identified it as
+OpenVPN's rather than the application's. The application's own licence, the
+copyright notice and the wintun notice were in the repository and on no
+machine that ran the app. The engine's `LICENSE.txt` is still fetched with the
+bundle but is no longer copied flat into the build directory, so the app
+directory does not carry an unattributed `LICENSE.txt`.
+
+The Android build ships no licence files of its own. The credits screen is the
+delivery: the inventory is compiled into the application, so every install of
+every platform carries it, and a second copy under `assets/` would be the same
+data maintained in two places.
