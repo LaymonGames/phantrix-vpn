@@ -38,6 +38,7 @@
 #include <flutter/event_sink.h>
 #include <flutter/method_call.h>
 #include <flutter/method_channel.h>
+#include <flutter/method_result.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 #include <flutter/event_stream_handler.h>
@@ -51,8 +52,13 @@
 
 #include <cstdlib>
 #include <algorithm>
+#include <condition_variable>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include "phantrix_ovpn_support.h"
@@ -128,9 +134,6 @@ struct OpenVpnSession {
 	HANDLE helper = INVALID_HANDLE_VALUE;
 	// The thread reading the pipe.
 	HANDLE reader = nullptr;
-	// A message-only window the reader thread posts to, so events reach the
-	// Flutter event sink on the platform thread.
-	HWND messageWindow = nullptr;
 	// Token the helper must echo. Generated here, passed on its command line.
 	std::wstring token;
 	// The session directory holding the profile, the status file and the log.
@@ -183,6 +186,31 @@ struct PendingEvent {
 	int64_t rxBytes = 0;
 	int64_t txBytes = 0;
 	int64_t handshakeAtMillis = 0;
+	// When set, the platform thread completes this method result (with the
+	// error above, if one was reported) and then deletes it. The method
+	// handler releases its unique_ptr into the job that runs on the worker,
+	// and only the platform thread may answer the Flutter messenger.
+	flutter::MethodResult<EncodableValue>* result = nullptr;
+	// "stopped" only: whether a `disconnected` state should follow the
+	// completed reply. A stop during an attempt that already reported `failed`
+	// must not claim that a tunnel came down.
+	bool publishDisconnected = false;
+};
+
+// One unit of work for the tunnel worker thread.
+//
+// Everything that can wait on the helper or the engine — launching, the pipe
+// handshake, tearing down — belongs to the worker. The platform thread is the
+// thread Windows sends window messages to; a plugin method that blocks there
+// is a window that stops repainting and earns the "(Not Responding)" title
+// while a slow tunnel is torn down. Dart still gets its reply: the worker
+// posts it back through the message window.
+struct TunnelJob {
+	enum class Kind { start, stop, teardownOnly };
+	Kind kind = Kind::teardownOnly;
+	std::string profile;
+	flutter::MethodResult<EncodableValue>* result = nullptr;
+	bool publishDisconnected = false;
 };
 
 // The directory the plugin's own module lives in.
@@ -311,14 +339,149 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 		registrar->AddPlugin(std::move(plugin));
 	}
 
+	// The plugin's message-only window and its tunnel worker are created here,
+	// on the platform thread, and live as long as the plugin. The window is
+	// created once rather than per session because the worker posts method
+	// replies through it even when no session was ever started; and it stays on
+	// this thread because that is where the Flutter messenger expects its
+	// answers.
+	PhantrixWindowsPlugin() {
+		WNDCLASSEXW windowClass = {0};
+		windowClass.cbSize = sizeof(windowClass);
+		windowClass.lpfnWndProc = MessageWindowProc;
+		windowClass.hInstance = GetModuleHandleW(nullptr);
+		windowClass.lpszClassName = kMessageWindowClass;
+		RegisterClassExW(&windowClass);
+		messageWindow_ =
+		    CreateWindowExW(0, kMessageWindowClass, L"", 0, 0, 0, 0, 0,
+		                    HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr),
+		                    nullptr);
+		if (messageWindow_ != nullptr) {
+			SetWindowLongPtrW(messageWindow_, GWLP_USERDATA,
+			                  reinterpret_cast<LONG_PTR>(this));
+		}
+		tunnelWorker_ = std::thread(&PhantrixWindowsPlugin::TunnelWorkerMain,
+		                            this);
+	}
+
 	// Releases the engine's resources when the plugin is torn down. Without
 	// this the reader thread would outlive its owner, holding a thread and a
 	// message window that can no longer report.
 	~PhantrixWindowsPlugin() {
+		// The worker is asked to stop before anything is joined or destroyed:
+		// a job that would wait on a helper with no audience has nothing left
+		// to report to.
+		{
+			std::lock_guard<std::mutex> lock(queueMutex_);
+			stopping_ = true;
+			queue_.clear();
+		}
+		queueSignal_.notify_all();
+		if (tunnelWorker_.joinable()) {
+			tunnelWorker_.join();
+		}
+		// Nothing else can touch the session now, so the last teardown runs
+		// here: blocking while the application is closing is fine, and leaving
+		// an elevated helper behind is not.
 		TeardownOpenVpn();
+		if (messageWindow_ != nullptr) {
+			SetWindowLongPtrW(messageWindow_, GWLP_USERDATA, 0);
+			DestroyWindow(messageWindow_);
+			messageWindow_ = nullptr;
+		}
 	}
 
  private:
+	// Queues a job for the tunnel worker. Called from the platform thread.
+	void EnqueueJob(TunnelJob job) {
+		{
+			std::lock_guard<std::mutex> lock(queueMutex_);
+			if (stopping_) {
+				delete job.result;
+				return;
+			}
+			queue_.push_back(std::move(job));
+		}
+		queueSignal_.notify_one();
+	}
+
+	// Posts a heap PendingEvent to the plugin's message window, where the
+	// platform thread consumes and deletes it. Safe from any thread.
+	void PostEvent(PendingEvent* pending) {
+		if (messageWindow_ == nullptr) {
+			delete pending->result;
+			delete pending;
+			return;
+		}
+		PostMessageW(messageWindow_, kTunnelMessageId, 0,
+		             reinterpret_cast<LPARAM>(pending));
+	}
+
+	// Reports a failure the way the helper's own failures arrive: through the
+	// window, so the state bookkeeping happens on the platform thread.
+	void PostFailure(const std::string& code, const std::string& message) {
+		auto* pending = new PendingEvent();
+		pending->state = "failed";
+		pending->errorCode = code;
+		pending->message = message;
+		PostEvent(pending);
+	}
+
+	// The tunnel worker's loop. Every job that can wait on the helper — and
+	// only those — runs here, one at a time, so starts and stops cannot race
+	// each other for the engine.
+	void TunnelWorkerMain() {
+		for (;;) {
+			TunnelJob job;
+			{
+				std::unique_lock<std::mutex> lock(queueMutex_);
+				queueSignal_.wait(lock, [this] {
+					return stopping_ || !queue_.empty();
+				});
+				if (stopping_) {
+					// Shutdown: a job that would wait on the helper has no
+					// audience any more. The replies in the dropped jobs
+					// belong to the closing application.
+					return;
+				}
+				job = std::move(queue_.front());
+				queue_.pop_front();
+			}
+			switch (job.kind) {
+				case TunnelJob::Kind::start: {
+					std::string code;
+					std::string message;
+					const bool started = StartOpenVpn(job.profile, &code, &message);
+					if (!started) {
+						// The same failure the helper would have reported,
+						// through the same path, so Dart sees one shape.
+						PostFailure(code, message);
+						TeardownOpenVpn();
+					}
+					auto* pending = new PendingEvent();
+					pending->state = "start-finished";
+					pending->errorCode = code;
+					pending->message = message;
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
+				case TunnelJob::Kind::stop: {
+					TeardownOpenVpn();
+					auto* pending = new PendingEvent();
+					pending->state = "stopped";
+					pending->result = job.result;
+					pending->publishDisconnected = job.publishDisconnected;
+					PostEvent(pending);
+					break;
+				}
+				case TunnelJob::Kind::teardownOnly:
+					TeardownOpenVpn();
+					break;
+			}
+		}
+	}
+
 	void Publish(const std::string& state) {
 		if (!events_) {
 			return;
@@ -338,10 +501,6 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 		map[EncodableValue("message")] = EncodableValue(message);
 		events_->Success(EncodableValue(map));
 	}
-
-	// OpenVPN: reports the engine's state and counters, then tears the session
-	// down so nothing is left holding a handle.
-	void FailOpenVpn(const std::string& code, const std::string& message);
 
 	// Reports the counters the engine wrote to its own status file.
 	//
@@ -466,30 +625,32 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				result->Error("ovpn.config_invalid", message);
 				return;
 			}
-			std::string code;
-			std::string error;
-			if (!StartOpenVpn(ovpnConfig, &code, &error)) {
-				FailOpenVpn(code, error);
-				result->Error(code, error);
-			} else {
-				result->Success();
-			}
+			// The launch — the elevation prompt, the pipe handshake, the
+			// profile write — waits on the system, sometimes for a long time.
+			// It runs on the tunnel worker; the reply is posted back and
+			// completed on this thread when the launch has actually resolved.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::start;
+			job.profile = ovpnConfig;
+			job.result = result.release();
+			EnqueueJob(std::move(job));
 			return;
 		}
 
 		if (method == "stopTunnel") {
 			// There is one engine, and stopping it when it is not up is a
-			// bounded no-op.
-			TeardownOpenVpn();
-			// Only reported once. A stop during a failed attempt has already
-			// published `failed` from the reader thread, and a `disconnected`
-			// after it would tell the user that a tunnel came down which never
-			// came up.
-			if (!openVpnReportedFailure_) {
-				Publish("disconnected");
-			}
-			openVpnReportedFailure_ = false;
-			result->Success();
+			// bounded no-op — but the bound is the helper's own shutdown time,
+			// which is not this thread's to spend. The worker tears the
+			// session down and the reply follows it.
+			//
+			// Only reported once: a stop during a failed attempt has already
+			// published `failed`, and a `disconnected` after it would tell the
+			// user that a tunnel came down which never came up.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::stop;
+			job.result = result.release();
+			job.publishDisconnected = !openVpnReportedFailure_;
+			EnqueueJob(std::move(job));
 			return;
 		}
 
@@ -549,6 +710,17 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 	OpenVpnSession openVpn_;
 	bool openVpnReportedFailure_ = false;
 
+	// The message-only window every cross-thread report lands on. Created once
+	// on the platform thread and never destroyed until the plugin is.
+	HWND messageWindow_ = nullptr;
+
+	// The tunnel worker: a thread and a queue, because everything that waits
+	// on the helper must not wait on the platform thread.
+	std::thread tunnelWorker_;
+	std::mutex queueMutex_;
+	std::condition_variable queueSignal_;
+	std::deque<TunnelJob> queue_;
+	bool stopping_ = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -571,6 +743,35 @@ LRESULT CALLBACK PhantrixWindowsPlugin::MessageWindowProc(HWND window,
 	if (plugin == nullptr) {
 		// The window outlived the plugin, which can only happen during teardown.
 		// The event is dropped rather than answered from a stale pointer.
+		delete pending;
+		return 0;
+	}
+	if (pending->state == "stopped") {
+		// The worker has finished tearing the session down. The method reply
+		// is completed now, on the platform thread, and the state follows.
+		if (pending->result != nullptr) {
+			pending->result->Success();
+			delete pending->result;
+		}
+		if (pending->publishDisconnected && !plugin->openVpnReportedFailure_) {
+			plugin->Publish("disconnected");
+		}
+		plugin->openVpnReportedFailure_ = false;
+		delete pending;
+		return 0;
+	}
+	if (pending->state == "start-finished") {
+		// The engine launch resolved on the worker. A code means the launch
+		// itself refused; otherwise the tunnel is merely starting, and whether
+		// it connects is the helper's report to make, not this reply's.
+		if (pending->result != nullptr) {
+			if (pending->errorCode.empty()) {
+				pending->result->Success();
+			} else {
+				pending->result->Error(pending->errorCode, pending->message);
+			}
+			delete pending->result;
+		}
 		delete pending;
 		return 0;
 	}
@@ -603,11 +804,11 @@ LRESULT CALLBACK PhantrixWindowsPlugin::MessageWindowProc(HWND window,
 	}
 	if (plugin->openVpn_.disconnected || plugin->openVpnReportedFailure_) {
 		// Nothing further is expected from the helper for this attempt: it has
-		// either torn the tunnel down or reported that it failed. The session is
-		// released here rather than waiting for the app to call stop, because a
-		// failed tunnel that is not cleaned up is a leaked handle and a leaked
-		// session directory.
-		plugin->TeardownOpenVpn();
+		// either torn the tunnel down or reported that it failed. The session
+		// is released, but by the worker: the teardown waits on the helper's
+		// exit, and waiting here would be the window hanging on its own
+		// thread — the freeze that made a failed attempt feel like a crash.
+		plugin->EnqueueJob(TunnelJob{TunnelJob::Kind::teardownOnly});
 	}
 	delete pending;
 	return 0;
@@ -622,6 +823,10 @@ DWORD WINAPI PhantrixWindowsPlugin::OpenVpnReaderThread(LPVOID context) {
 	// would deadlock on.
 	HANDLE pipe = plugin->openVpn_.pipe;
 	std::vector<uint8_t> carry;
+	// Whether the helper itself has already said how this attempt ended. The
+	// end of the stream after such a word is not a helper that vanished
+	// without reporting — it is the quiet that follows the report.
+	bool reported = false;
 	uint8_t buffer[4096] = {0};
 	OVERLAPPED overlap = {0};
 	overlap.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -653,8 +858,11 @@ DWORD WINAPI PhantrixWindowsPlugin::OpenVpnReaderThread(LPVOID context) {
 			}
 			auto* pending = new PendingEvent();
 			plugin->OnHelperMessage(message, pending);
-			PostMessageW(plugin->openVpn_.messageWindow, kTunnelMessageId, 0,
-			             reinterpret_cast<LPARAM>(pending));
+			if (pending->state == "failed" ||
+			    pending->state == "disconnected") {
+				reported = true;
+			}
+			plugin->PostEvent(pending);
 		}
 		if (plugin->openVpn_.stopping) {
 			break;
@@ -662,20 +870,28 @@ DWORD WINAPI PhantrixWindowsPlugin::OpenVpnReaderThread(LPVOID context) {
 	}
 	CancelIo(pipe);
 	CloseHandle(overlap.hEvent);
-	// End of stream. If the helper went away without tearing anything down, the
-	// engine may still be running; that is reported as a failure rather than
-	// left as silence.
+	if (plugin->openVpn_.stopping || reported) {
+		// The end of the stream was asked for, or already answered. A stop is
+		// waiting on this reader, or the helper has said how the attempt
+		// ended. Posting `helper_lost` on top of that told the user "The
+		// tunnel helper stopped without reporting a result" about a helper
+		// that had just reported one — which is how every deliberate
+		// disconnect read.
+		return 0;
+	}
+	// End of stream without a word. If the helper went away without tearing
+	// anything down, the engine may still be running; that is reported as a
+	// failure rather than left as silence.
 	auto* pending = new PendingEvent();
 	pending->state = "failed";
 	pending->errorCode = "ovpn.helper_lost";
 	pending->message = "The tunnel helper stopped without reporting a result.";
-	PostMessageW(plugin->openVpn_.messageWindow, kTunnelMessageId, 0,
-	             reinterpret_cast<LPARAM>(pending));
+	plugin->PostEvent(pending);
 	return 0;
 }
 void PhantrixWindowsPlugin::TeardownOpenVpn() {
 	if (openVpn_.pipe == nullptr && openVpn_.helper == nullptr &&
-	    openVpn_.reader == nullptr && openVpn_.messageWindow == nullptr) {
+	    openVpn_.reader == nullptr) {
 		// Nothing was ever started. Cheap out rather than doing the I/O below.
 		if (!openVpn_.session.empty()) {
 			(void)phantrix::ovpn::RemoveTree(openVpn_.session);
@@ -736,12 +952,6 @@ void PhantrixWindowsPlugin::TeardownOpenVpn() {
 		openVpn_.session.clear();
 	}
 
-	if (openVpn_.messageWindow != nullptr) {
-		SetWindowLongPtrW(openVpn_.messageWindow, GWLP_USERDATA, 0);
-		DestroyWindow(openVpn_.messageWindow);
-		openVpn_.messageWindow = nullptr;
-	}
-
 	openVpn_.started = false;
 	openVpn_.stopping = false;
 	openVpn_.token.clear();
@@ -753,12 +963,6 @@ void PhantrixWindowsPlugin::TeardownOpenVpn() {
 	openVpn_.txBytes = 0;
 	openVpn_.handshakeAtMillis = 0;
 	openVpn_.disconnected = false;
-}
-
-void PhantrixWindowsPlugin::FailOpenVpn(const std::string& code,
-                                        const std::string& message) {
-	Fail(code, message);
-	TeardownOpenVpn();
 }
 
 void PhantrixWindowsPlugin::OnHelperMessage(
@@ -983,28 +1187,8 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 		return false;
 	}
 
-	// The message window is created on the platform thread, which is where the
-	// app's message loop runs and therefore where its messages are dispatched.
-	WNDCLASSEXW windowClass = {0};
-	windowClass.cbSize = sizeof(windowClass);
-	windowClass.lpfnWndProc = MessageWindowProc;
-	windowClass.hInstance = GetModuleHandleW(nullptr);
-	windowClass.lpszClassName = kMessageWindowClass;
-	RegisterClassExW(&windowClass);
-	openVpn_.messageWindow =
-	    CreateWindowExW(0, kMessageWindowClass, L"", 0, 0, 0, 0, 0, HWND_MESSAGE,
-	                    nullptr, GetModuleHandleW(nullptr), nullptr);
-	if (openVpn_.messageWindow == nullptr) {
-		CloseHandle(openVpn_.pipe);
-		openVpn_.pipe = nullptr;
-		(void)phantrix::ovpn::RemoveTree(openVpn_.session);
-		openVpn_.session.clear();
-		*errorCode = "backend.launch_failed";
-		*errorMessage = "The tunnel's message window could not be created.";
-		return false;
-	}
-	SetWindowLongPtrW(openVpn_.messageWindow, GWLP_USERDATA,
-	                  reinterpret_cast<LONG_PTR>(this));
+	// The message window belongs to the plugin, created once on the platform
+	// thread when the plugin was; nothing to create per session.
 
 	if (!LaunchHelper(directory, pipeName, token, GetCurrentProcessId(),
 	                  &openVpn_.helper, errorCode, errorMessage)) {
@@ -1021,9 +1205,10 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 	// answered. Writing the hello message before the connection therefore fails
 	// silently, and the helper never authenticates.
 	//
-	// The wait is overlapped and bounded: an unbounded hold on the platform
-	// thread would be a connect button that does nothing, and the user cannot
-	// tell that apart from a crash.
+	// The wait is overlapped and bounded — up to `kHelperStartTimeoutMillis`,
+	// long enough to cover the consent dialog — and it is the tunnel worker's
+	// wait, not the platform thread's: a window that cannot repaint for ninety
+	// seconds is indistinguishable from a crash.
 	HANDLE connected = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 	if (connected == nullptr) {
 		TeardownOpenVpn();
@@ -1086,6 +1271,20 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 		return false;
 	}
 
+	// The engine is starting. Whether it ever connects is not known here, and is
+	// not claimed: the helper reports that when the engine says so.
+	//
+	// Posted before the reader thread starts, so the two arrive in the order
+	// they always have — the reader's own reports queue up behind them — and
+	// posted rather than published because this now runs on the tunnel worker,
+	// and the Flutter event sink is only safe on the platform thread.
+	auto* preparing = new PendingEvent();
+	preparing->state = "preparing";
+	PostEvent(preparing);
+	auto* connecting = new PendingEvent();
+	connecting->state = "connecting";
+	PostEvent(connecting);
+
 	openVpn_.reader = CreateThread(nullptr, 0, OpenVpnReaderThread, this, 0, nullptr);
 	if (openVpn_.reader == nullptr) {
 		*errorCode = "backend.launch_failed";
@@ -1093,11 +1292,6 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 		TeardownOpenVpn();
 		return false;
 	}
-
-	// The engine is starting. Whether it ever connects is not known here, and is
-	// not claimed: the helper reports that when the engine says so.
-	Publish("preparing");
-	Publish("connecting");
 	return true;
 }
 

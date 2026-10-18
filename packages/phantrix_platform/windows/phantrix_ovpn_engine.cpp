@@ -16,6 +16,16 @@ namespace {
 // cannot leave the user pressing Disconnect forever.
 constexpr DWORD kGracefulStopMillis = 10000;
 
+// The same window for an engine that never completed a handshake. There is
+// nothing to unwind politely at that point — no routes were installed and no
+// pushed configuration was applied — while the state most likely to be left
+// behind is an engine retrying a dead relay, where the graceful path does not
+// land. Waiting the full ten seconds there is not safety; it is ten seconds of
+// a dead relay's life charged to the user before the walk can offer the next
+// one. The console event is still sent first: when it works, the engine exits
+// in well under this window.
+constexpr DWORD kDialingStopMillis = 2000;
+
 // How often the statistics file is read, and how often the loop wakes.
 constexpr int64_t kTrafficPollMillis = 1000;
 constexpr DWORD kLoopWakeMillis = 200;
@@ -324,6 +334,14 @@ bool Engine::Start(const EnginePaths& paths, std::string* errorCode,
 	// each way is the conventional fix; it costs the handshake nothing and is
 	// bounded memory the engine already holds reserved.
 	commandLine += L" --sndbuf 524288 --rcvbuf 524288";
+	// A relay whose TCP port accepts the handshake but never answers the TLS
+	// negotiation — a blocked port, a dead volunteer host — otherwise stalls
+	// the engine for OpenVPN's 120-second default, far past the app's own
+	// ten-second step budget, so every dead relay is torn down by the app
+	// instead of failing on its own. Eight seconds makes the engine the one
+	// that gives up first, with its own reason, and the walk moves on
+	// without waiting for a kill.
+	commandLine += L" --connect-timeout 8";
 	// Nagle's algorithm batches small writes, which is exactly what a tunnel
 	// carries: keystrokes, DNS, voice frames. TCP_NODELAY on the tunnel
 	// sockets removes that per-packet wait. The flag is only valid on a TCP
@@ -363,22 +381,15 @@ bool Engine::Start(const EnginePaths& paths, std::string* errorCode,
 	process_ = process.hProcess;
 	CloseHandle(process.hThread);
 
-	// The engine's console exists so that it can be asked to stop through a
-	// console control event rather than only through a kill. It is hidden: an
-	// always-visible console window during a VPN session looks like a bug, and
-	// the window is not what makes the event work.
-	for (int attempt = 0; attempt < 20; ++attempt) {
-		if (AttachConsole(process.dwProcessId) == FALSE) {
-			Sleep(100);
-			continue;
-		}
-		HWND consoleWindow = GetConsoleWindow();
-		if (consoleWindow != nullptr) {
-			ShowWindow(consoleWindow, SW_HIDE);
-		}
-		FreeConsole();
-		break;
-	}
+	// The engine's console is this process's own hidden one, inherited at
+	// creation (`EnsureHiddenConsole` ran just before `Start`): the console
+	// control event that asks the engine to stop goes straight to its process
+	// group, so there is nothing to attach to and nothing to hide here. The
+	// old attach-and-hide loop could never succeed — a process already
+	// attached to a console cannot attach to another — and slept through
+	// twenty failed attempts before moving on: two seconds of delay on the
+	// way to every `kStarted`, while the inherited window sat hidden the
+	// whole time.
 
 paths_ = paths;
 	running_ = true;
@@ -428,6 +439,15 @@ DWORD Engine::Stop() {
 	running_ = false;
 	stopRequested_ = true;
 
+	// Whether a handshake ever completed decides how long the engine is given
+	// to leave politely: a tunnel that carried traffic has routes and a
+	// notified peer to unwind, while an engine still retrying a relay that
+	// never answered has nothing to unwind at all. The flag is written by the
+	// monitor thread and read here the same way the engine reads its other
+	// cross-thread flags: as a plain boolean whose stale value can only
+	// change how long the bounded grace period is.
+	const bool everConnected = everConnected_;
+
 	if (process_ != nullptr && outputWrite_ != nullptr) {
 		// Closing the engine's stdout is what unblocks the reader thread at the
 		// end of the tunnel. It is done before the graceful-stop dance, and only
@@ -440,25 +460,34 @@ DWORD Engine::Stop() {
 	if (process_ != nullptr) {
 		// Ask the engine to exit the way its own code asks it to: a console
 		// control event, which OpenVPN translates into a signal and handles by
-		// closing the tunnel and notifying the peer. Three steps, in order:
+		// closing the tunnel and notifying the peer.
 		//
-		//   1. `SetConsoleCtrlHandler(NULL, TRUE)` — this process must not react
-		//      to the event it is about to generate.
-		//   2. `AttachConsole(child)` — join the console the engine was given.
-		//   3. `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, child)` — Ctrl+Break
-		//      reaches a process group created with CREATE_NEW_PROCESS_GROUP,
-		//      and unlike Ctrl+C it is not filtered out by that flag.
-		//
-		// The event is addressed to the engine's process group, which is its
-		// own pid, so nothing else in the session receives it.
+		// The engine inherited this process's hidden console (see the spawn
+		// above), so the event is generated directly. It is addressed to the
+		// engine's process group — its own pid, thanks to
+		// `CREATE_NEW_PROCESS_GROUP` — so nothing else in the session hears
+		// it. Attaching is not possible from here: a process already attached
+		// to a console cannot attach to another, so the old attach-first
+		// dance silently sent nothing, and every stop waited out its full
+		// grace period before killing an engine that had never been asked to
+		// leave. The attach survives as a fallback for a process that somehow
+		// ended up without a console.
 		SetConsoleCtrlHandler(nullptr, TRUE);
-		DWORD childPid = GetProcessId(process_);
-		if (AttachConsole(childPid) != FALSE) {
-			GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, childPid);
+		const DWORD childPid = GetProcessId(process_);
+		bool asked =
+		    GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, childPid) != FALSE;
+		if (!asked && AttachConsole(childPid) != FALSE) {
+			asked = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, childPid) != FALSE;
 			FreeConsole();
 		}
 
-		const int64_t deadline = NowMillis() + kGracefulStopMillis;
+		// A request that never reached the engine has nothing to be polite
+		// about: the grace period covers a polite exit, and none is under way.
+		// The kill happens now rather than after a deadline spent in silence.
+		const int64_t deadline =
+		    NowMillis() + (asked ? (everConnected ? kGracefulStopMillis
+		                                          : kDialingStopMillis)
+		                         : 0);
 		while (NowMillis() < deadline) {
 			if (WaitForSingleObject(process_, 100) == WAIT_OBJECT_0) {
 				break;
