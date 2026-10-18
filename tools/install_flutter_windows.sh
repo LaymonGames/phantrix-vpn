@@ -27,7 +27,7 @@ fi
 
 target="$1"
 archive="flutter_windows_${FLUTTER_VERSION}-${FLUTTER_CHANNEL}.zip"
-url="https://storage.googleapis.com/flutter_infra_release/releases/${FLUTTER_CHANNEL}/windows/x64/${archive}"
+url="https://storage.googleapis.com/flutter_infra_release/releases/${FLUTTER_CHANNEL}/windows/${archive}"
 tmp="./.flutter-install-tmp"
 
 echo "Fetching ${url}"
