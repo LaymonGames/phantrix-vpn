@@ -6,7 +6,7 @@
 ///  * the pluggable server-provider system and the discovery layer;
 ///  * server scoring and selection;
 ///  * the connection state machine;
-///  * settings, diagnostics and the secret-redacting logger.
+///  * settings and the secret-redacting logger.
 ///
 /// Everything that touches an operating system lives in
 /// `package:phantrix_platform`.
@@ -15,7 +15,6 @@ library;
 export 'src/core/app_error.dart';
 export 'src/core/result.dart';
 export 'src/core/selection_reason.dart';
-export 'src/diagnostics/diagnostics.dart';
 export 'src/discovery/directory_cache.dart';
 export 'src/discovery/memory_directory_cache.dart';
 export 'src/discovery/server_directory.dart';
@@ -25,6 +24,7 @@ export 'src/logging/fingerprint.dart';
 export 'src/logging/logger.dart';
 export 'src/logging/redactor.dart';
 export 'src/model/logging_policy.dart';
+export 'src/model/server_metrics.dart';
 export 'src/model/server_status.dart';
 export 'src/model/trust_level.dart';
 export 'src/model/vpn_server.dart';
