@@ -137,6 +137,11 @@ jobs:
         run: |
           flutter config --no-analytics --no-cli-animations >/dev/null
           flutter pub get
+          # dart analyze never resolves a package; the two package analyses
+          # below need their own resolution, and dart test would do it only
+          # for itself.
+          (cd packages/phantrix_core && dart pub get)
+          (cd packages/phantrix_platform && flutter pub get)
 
       - name: Analyse every package
         run: |
@@ -148,7 +153,7 @@ jobs:
 
       - name: Run unit and widget tests
         run: |
-          dart test --reporter expanded | tee tests-app.txt
+          flutter test --reporter expanded | tee tests-app.txt
           (cd packages/phantrix_core && dart test --reporter expanded) | tee tests-core.txt
 
       - name: Build the Linux application and plugin
@@ -221,7 +226,7 @@ jobs:
 
       - name: Upload logs and build artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75d540449e92b4886f43607fa02
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: linux-build-${{ github.run_id }}
           path: |
@@ -231,7 +236,7 @@ jobs:
 
       - name: Upload diagnostic logs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75d540449e92b4886f43607fa02
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: linux-logs-${{ github.run_id }}
           path: |
