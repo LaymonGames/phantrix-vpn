@@ -13,9 +13,6 @@
 #     intent; reading the binary shows what shipped.
 #   * The registrant export is what makes the plugin load at all. A rename
 #     breaks it silently at run time and not at link time on every toolchain.
-#   * The WireGuard service arguments are the contract with
-#     WireGuard for Windows. Losing them turns a working connect into a
-#     confusing failure with no build error.
 #
 # A comment saying "do not do this" is not a check. This is the check.
 #
@@ -54,7 +51,7 @@ function Assert-True {
 }
 
 # Reads a file as both ASCII and UTF-16. The backend's literals are wide
-# (`L"wireguard.exe"`), so an ASCII-only scan would miss exactly the strings
+# (`L"openvpn.exe"`), so an ASCII-only scan would miss exactly the strings
 # most worth checking.
 function Get-TextViews {
 	param([string]$Path)
@@ -196,39 +193,23 @@ foreach ($joiner in @('&&', '||', '2>&1', '| tee')) {
 }
 
 Write-Host ''
-Write-Host 'WireGuard for Windows contract'
-
-foreach ($argument in @('wireguard.exe', '/installtunnelservice', '/uninstalltunnelservice')) {
-	Assert-True "the '$argument' argument is passed" `
-		$views[1].Contains($argument) `
-		'the official CLI must be invoked with this exact argument or the service is not controlled'
-}
-
-# The handshake monitor is the only thing that turns the engine's own answer
-# into a source of truth. Without `wg.exe show <interface> dump` the backend
-# installs the tunnel and then hears nothing, so a working tunnel and a silent
-# one are indistinguishable and the app times out on a connection that is up.
-foreach ($argument in @('wg.exe', ' dump')) {
-	Assert-True "the '$argument' argument is passed" `
-		$views[1].Contains($argument) `
-		'the WireGuard handshake monitor must poll the official client through its dump command'
-}
+Write-Host 'The profile and the private directory'
 
 Assert-True 'the per-user data directory is used' `
 	$views[1].Contains('LOCALAPPDATA') `
-	'a configuration file holds a private key and must not live beside the executable'
+	'a profile holds what the server sent and must not live beside the executable'
 
-# The fail-closed message from writeConfiguration. Its presence proves the
-# binary refuses to leave a key file behind when the restrictive DACL cannot
+# The fail-closed message from the profile writer. Its presence proves the
+# binary refuses to leave a profile behind when the restrictive DACL cannot
 # be applied, rather than connecting anyway with unknown permissions. A
 # future edit that deleted the hardening but kept the directory would still
 # pass the check above and fail this one.
-Assert-True 'an unsecurable key file is refused, not left behind' `
+Assert-True 'an unsecurable profile is refused, not left behind' `
 	($all.Contains('could not be secured')) `
-	'the backend must delete a configuration it cannot restrict'
+	'the backend must delete a profile it cannot restrict'
 
 Assert-True 'no private key is embedded in the binary' `
-	(-not (Test-StringDataContains $dll 'PrivateKey=')) `
+	(-not (Test-StringDataContains $dll 'BEGIN PRIVATE KEY')) `
 	'a shipped private key would be a key for everybody who downloads the app'
 
 Write-Host ''
@@ -240,7 +221,7 @@ Write-Host 'OpenVPN helper'
 # 1. It must ask for administrator rights, and it must ask in the binary rather
 #    than in a comment. A manifest that lives only in the source tree is a
 #    manifest that can be forgotten at link time, and the failure then looks like
-#    a tunnel that simply will not start on a machine with no WireGuard.
+#    a tunnel that simply will not start.
 $helper = Join-Path $BundlePath 'phantrix_ovpn_helper.exe'
 Assert-True 'the elevated helper is installed' (Test-Path -LiteralPath $helper) `
 	"expected $helper"
@@ -398,5 +379,5 @@ Write-Host ''
 Write-Host 'This proves the bundle was built and that its contents match the'
 Write-Host 'invariants above. It does not prove a tunnel can be created: that'
 Write-Host 'needs an administrator token and a reachable server.'
-Write-Host 'See tools/windows_check.ps1 and docs/BUILDING.md.'
+Write-Host 'See docs/BUILDING.md.'
 exit 0
