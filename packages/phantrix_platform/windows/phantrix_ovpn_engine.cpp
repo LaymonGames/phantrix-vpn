@@ -36,6 +36,171 @@ std::wstring QuoteArgument(const std::wstring& value) {
 	return quoted;
 }
 
+// Whether the profile already asks the engine for username authentication.
+// Only the directive itself counts: VPN Gate's own sample comments it out
+// (`#auth-user-pass`), and lines with a leading `;` or `#` are comments to
+// OpenVPN. <inline> blocks carry PEM text that cannot start the name.
+//
+// The file is read capped like every other profile read in this plugin — the
+// helper applies the same budget before an elevated process ever sees it — and
+// a read that fails answers "yes", so the engine adds nothing to a profile it
+// cannot see.
+bool ProfileHasAuthUserPass(const std::wstring& path) {
+	HANDLE file =
+	    CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+	                OPEN_EXISTING, 0, nullptr);
+	if (file == INVALID_HANDLE_VALUE) {
+		return true;
+	}
+	char buffer[64 * 1024];
+	DWORD read = 0;
+	const BOOL ok =
+	    ReadFile(file, buffer, sizeof(buffer) - 1, &read, nullptr);
+	CloseHandle(file);
+	if (ok == FALSE) {
+		return true;
+	}
+	const char* cursor = buffer;
+	const char* end = buffer + read;
+	constexpr char kName[] = "auth-user-pass";
+	constexpr size_t kNameLength = sizeof(kName) - 1;
+	bool atLineStart = true;
+	while (cursor < end) {
+		const char c = *cursor;
+		if (c == '\n') {
+			atLineStart = true;
+			++cursor;
+			continue;
+		}
+		if (c == ' ' || c == '\t' || c == '\r') {
+			++cursor;
+			continue;
+		}
+		if (atLineStart) {
+			if (c == ';' || c == '#') {
+				// Skip the commented line. Comparing the directive against it
+				// would turn the VPN Gate sample's own comment into a match.
+				while (cursor < end && *cursor != '\n') {
+					++cursor;
+				}
+				continue;
+			}
+			if (static_cast<size_t>(end - cursor) >= kNameLength &&
+			    std::memcmp(cursor, kName, kNameLength) == 0) {
+				const char after = cursor + kNameLength < end
+				                       ? cursor[kNameLength]
+				                       : '\n';
+				if (after == ' ' || after == '\t' || after == '\r' ||
+				    after == '\n') {
+					return true;
+				}
+			}
+		}
+		atLineStart = false;
+		++cursor;
+	}
+	return false;
+}
+
+// Whether the profile places the link on TCP. The only thing this decides is
+// whether `--socket-flags TCP_NODELAY` may be added: OpenVPN refuses to start
+// when a TCP-only socket flag reaches a UDP link, and the flag pays for its
+// own question by removing Nagle's wait from every packet the tunnel sends.
+//
+// Reads like `ProfileHasAuthUserPass` because it reads the same file with the
+// same budget and comment rules, and is held to the same honesty about a read
+// that fails: a profile the engine cannot see answers "not TCP", so no flag
+// is added — the relay's own configuration already carries its transport.
+bool ProfileIsTcp(const std::wstring& path) {
+	HANDLE file =
+	    CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+	                OPEN_EXISTING, 0, nullptr);
+	if (file == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	char buffer[64 * 1024];
+	DWORD read = 0;
+	const BOOL ok = ReadFile(file, buffer, sizeof(buffer) - 1, &read, nullptr);
+	CloseHandle(file);
+	if (ok == FALSE) {
+		return false;
+	}
+	const char* cursor = buffer;
+	const char* end = buffer + read;
+	constexpr char kName[] = "proto";
+	constexpr size_t kNameLength = sizeof(kName) - 1;
+	constexpr char kValue[] = "tcp";
+	constexpr size_t kValueLength = sizeof(kValue) - 1;
+	bool atLineStart = true;
+	while (cursor < end) {
+		const char c = *cursor;
+		if (c == '\n') {
+			atLineStart = true;
+			++cursor;
+			continue;
+		}
+		if (c == ' ' || c == '\t' || c == '\r') {
+			++cursor;
+			continue;
+		}
+		if (atLineStart) {
+			if (c == ';' || c == '#') {
+				while (cursor < end && *cursor != '\n') {
+					++cursor;
+				}
+				continue;
+			}
+			if (static_cast<size_t>(end - cursor) >= kNameLength &&
+			    std::memcmp(cursor, kName, kNameLength) == 0) {
+				const char after = cursor + kNameLength < end
+				                       ? cursor[kNameLength]
+				                       : '\n';
+				if (after == ' ' || after == '\t' || after == '\r' ||
+				    after == '\n') {
+					// The directive stands; skip past it and ask what
+					// follows. `proto tcp` is the only shape this answer is
+					// about — `tcp4`, `tcp6`, `tcp-client`, `tcp-server` all
+					// start with the same three letters and all open a TCP
+					// socket, which is the fact the flag cares about.
+					const char* value = cursor + kNameLength;
+					while (value < end && (*value == ' ' || *value == '\t' ||
+					                       *value == '\r')) {
+						++value;
+					}
+					if (static_cast<size_t>(end - value) >= kValueLength &&
+					    std::memcmp(value, kValue, kValueLength) == 0) {
+						return true;
+					}
+					if (value < end && *value != '\n') {
+						// A directive whose value did not match still owns
+						// its whole line: a profile carrying "proto udp6"
+						// says so, and another directive further on remains
+						// the one that decides.
+						while (cursor < end && *cursor != '\n') {
+							++cursor;
+						}
+						continue;
+					}
+				}
+			}
+		}
+		atLineStart = false;
+		++cursor;
+	}
+	return false;
+}
+
+// The directory one level above a path. The engine writes nothing itself, so
+// this only names a sibling file inside the same restricted session
+// directory — the one the helper already verifies is the app's.
+std::wstring SiblingFile(const std::wstring& path, const wchar_t* name) {
+	const size_t separator = path.find_last_of(L'\\');
+	if (separator == std::wstring::npos) {
+		return path + L"\\" + name;
+	}
+	return path.substr(0, separator) + L"\\" + name;
+}
+
 }  // namespace
 
 Engine::Engine(StateCallback onState, TrafficCallback onTraffic,
@@ -132,9 +297,41 @@ bool Engine::Start(const EnginePaths& paths, std::string* errorCode,
 	// a value in it cannot end an argument or start a new one.
 	std::wstring commandLine = QuoteArgument(executable);
 	commandLine += L" --config " + QuoteArgument(paths.profile);
+	// A relay whose SoftEther layer demands username authentication answers the
+	// OpenVPN negotiation with AUTH_FAILED and exits otherwise. The profile the
+	// app carries never asks for credentials (VPN Gate's sample comments the
+	// directive out), so the challenge would kill the session on relays that
+	// challenge and be pointless on the ones that do not. The credential file
+	// sits next to the profile in the same restricted directory, and it holds
+	// the anonymous pair VPN Gate documents — any value is accepted, "vpn" is
+	// simply what its own client sends. Answering costs nothing on relays that
+	// never issue the challenge: a profile without the directive is left
+	// exactly as the app wrote it.
+	const std::wstring authFile =
+	    SiblingFile(paths.profile, L"phantrix.auth");
+	if (!ProfileHasAuthUserPass(paths.profile) &&
+	    GetFileAttributesW(authFile.c_str()) != INVALID_FILE_ATTRIBUTES) {
+		commandLine += L" --auth-user-pass " + QuoteArgument(authFile);
+	}
 	commandLine += L" --windows-driver wintun";
 	if (!paths.deviceNode.empty()) {
 		commandLine += L" --dev-node " + QuoteArgument(paths.deviceNode);
+	}
+	// The data path. OpenVPN's own buffers default to 64KB — every session's
+	// log opens with `Socket Buffers: R=[65536->65536] S=[65536->65536]` — and
+	// a long-distance volunteer relay that drops occasional packets stalls on
+	// that window long before the path behind it is filled. Half a megabyte
+	// each way is the conventional fix; it costs the handshake nothing and is
+	// bounded memory the engine already holds reserved.
+	commandLine += L" --sndbuf 524288 --rcvbuf 524288";
+	// Nagle's algorithm batches small writes, which is exactly what a tunnel
+	// carries: keystrokes, DNS, voice frames. TCP_NODELAY on the tunnel
+	// sockets removes that per-packet wait. The flag is only valid on a TCP
+	// link — OpenVPN fails to start when it reaches a UDP socket — so it is
+	// asked of the profile, whose `proto` line is the one opinion that
+	// matters.
+	if (ProfileIsTcp(paths.profile)) {
+		commandLine += L" --socket-flags TCP_NODELAY";
 	}
 	commandLine += L" --status " + QuoteArgument(paths.status) + L" 1";
 	commandLine += L" --log " + QuoteArgument(paths.log);
@@ -516,11 +713,13 @@ void Engine::OnOutputLine(const std::string& line) {
 	}
 	if (line.find("AUTH: Received control message: AUTH_FAILED") !=
 	    std::string::npos) {
-		// Terminal by construction: OpenVPN exits after this rather than
-		// retrying, because retrying the same credentials cannot help.
+		// Terminal for the engine process — OpenVPN exits rather than
+		// retrying — but not for the walk: a relay-side refusal says nothing
+		// about the next relay, which carries the same anonymous profile.
 		failureReported_ = true;
 		onFailure_("ovpn.auth_failed",
-		           "The server rejected the username and password.");
+		           "This relay refused the session. Volunteer relays sometimes "
+		           "reject connections when they are overloaded or blocked.");
 		return;
 	}
 	if (line.find("Options error") != std::string::npos ||
