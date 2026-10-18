@@ -41,9 +41,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: 3.47.0
+  FLUTTER_VERSION: 3.47.5
   FLUTTER_CHANNEL: stable
-  FLUTTER_SHA256: 9f96d393cdfad05bea0b4b42c603ffda027af11adadc8e4cf3ac87e49110c1ca
+  FLUTTER_SHA256: 0ccd71931f49c2fbe394b1eeb6d79af3d624058a043ea0d03d34160581624fb8
 
 jobs:
   build:
