@@ -566,6 +566,29 @@ bool EnsureAdapter(const std::wstring& moduleDirectory, std::string* reason,
 // `moduleDirectory` is the directory the helper's own executable lives in. The
 // engine is resolved from it, which is what keeps a poisoned PATH or a request
 // from choosing the binary:
+// The console-subsystem engine expects an attached console: its internal
+// signal machinery delivers restarts and shutdowns through the console input
+// queue, and without a console the first soft restart fails as
+// `win_trigger_event: WriteConsoleInput: The handle is invalid` and kills the
+// process mid-walk (observed live). Spawning it with `CREATE_NEW_CONSOLE`
+// keeps that machinery but flashes a black window on the user's screen at
+// every attempt, which reads as something breaking. So the helper owns one
+// console, created here and hidden immediately: engines inherit it, the
+// signal machinery works, and nothing ever appears on screen.
+void EnsureHiddenConsole() {
+	const HWND existing = GetConsoleWindow();
+	if (existing != nullptr) {
+		ShowWindow(existing, SW_HIDE);
+		return;
+	}
+	if (AllocConsole()) {
+		ShowWindow(GetConsoleWindow(), SW_HIDE);
+	}
+	// Losing the race for a console (already attached, or denied by the
+	// session) is harmless: an inherited console stays hidden, and a visible
+	// flash is the same behaviour this existed to replace.
+}
+
 void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirectory,
                  const std::wstring& sessionDirectory, const std::wstring& profile,
                  const std::wstring& status, const std::wstring& log) {
@@ -622,6 +645,17 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 	paths.engineDirectory = moduleDirectory;
 	std::string code;
 	std::string reason;
+	// The console-subsystem engine needs an attached console for its internal
+	// signal machinery: without one, its first soft restart cannot deliver a
+	// console event and the process dies hard at exactly the relays that need
+	// a retry (`win_trigger_event: WriteConsoleInput: The handle is invalid`,
+	// seen live). `CREATE_NEW_CONSOLE` kept that machinery but painted a
+	// black window on every attempt; `CREATE_NO_WINDOW` removes the console
+	// outright and breaks the machinery. The answer is an inherited console
+	// allocated here, once, and hidden immediately: the engine gets a real
+	// console to write its signals at, and nothing appears on the user's
+	// screen.
+	EnsureHiddenConsole();
 	if (!engine.Start(paths, &code, &reason)) {
 		ReleaseAdapter();
 		Reject(pipe, code.c_str(), reason);

@@ -147,9 +147,14 @@ bool Engine::Start(const EnginePaths& paths, std::string* errorCode,
 	startup.hStdError = outputWrite_;
 
 	PROCESS_INFORMATION process = {0};
+	// No console-creation flag: the child inherits the helper's own console,
+	// which the helper allocates and hides (see `EnsureHiddenConsole` there).
+	// A fresh console here would flash a black window per attempt, and creating
+	// the process without any console breaks the engine's console-based signal
+	// machinery — both observed; inherited is correct.
 	const BOOL created = CreateProcessW(
 	    nullptr, commandLine.data(), nullptr, nullptr, TRUE,
-	    CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT,
+	    CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT,
 	    nullptr, paths.engineDirectory.c_str(), &startup, &process);
 	if (created == FALSE) {
 		*errorCode = "backend.launch_failed";
