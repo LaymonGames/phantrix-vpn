@@ -47,11 +47,13 @@
 #include <glib/gstdio.h>
 
 #include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
+#include <spawn.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -66,6 +68,21 @@
 extern char** environ;
 
 namespace {
+
+// flutter_linux's constructors return the concrete subtype
+// (FlMethodSuccessResponse and friends) while the method and event channels
+// take the base FlMethodResponse and FlMethodCodec. Those structs are only
+// forward declared, so C++ sees no relationship between them and the
+// conversion has to be written out.
+template <typename T>
+FlMethodResponse* asResponse(T* response) {
+	return reinterpret_cast<FlMethodResponse*>(response);
+}
+
+template <typename T>
+FlMethodCodec* asCodec(T* codec) {
+	return reinterpret_cast<FlMethodCodec*>(codec);
+}
 
 constexpr char kMethodChannelName[] = "dev.phantrix.phantrix/tunnel";
 constexpr char kEventChannelName[] = "dev.phantrix.phantrix/tunnelEvents";
@@ -127,7 +144,7 @@ ToolAvailability probe() {
 	if (g_file_test("/sys/module/wireguard/version", G_FILE_TEST_EXISTS)) {
 		result.kernelSupport = true;
 	} else {
-		g_autoptr(FILE) crypto = g_fopen("/proc/crypto", "r");
+		FILE* crypto = g_fopen("/proc/crypto", "r");
 		if (crypto != nullptr) {
 			char line[512];
 			while (fgets(line, sizeof(line), crypto) != nullptr) {
@@ -136,6 +153,7 @@ ToolAvailability probe() {
 					break;
 				}
 			}
+			fclose(crypto);
 		}
 	}
 	return result;
@@ -263,10 +281,10 @@ std::string getString(FlValue* map, const char* key) {
 
 int getInt(FlValue* map, const char* key) {
 	FlValue* value = mapGet(map, key);
-	if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_INT64) {
+	if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_INT) {
 		return 0;
 	}
-	return static_cast<int>(fl_value_get_int64(value));
+	return static_cast<int>(fl_value_get_int(value));
 }
 
 std::vector<std::string> getStringList(FlValue* map, const char* key) {
@@ -275,9 +293,8 @@ std::vector<std::string> getStringList(FlValue* map, const char* key) {
 	if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_LIST) {
 		return out;
 	}
-	FlValue* list = fl_value_get_list(value);
-	for (size_t i = 0; i < fl_value_get_list_length(list); ++i) {
-		FlValue* entry = fl_value_get_list_child(list, i);
+	for (size_t i = 0; i < fl_value_get_length(value); ++i) {
+		FlValue* entry = fl_value_get_list_value(value, i);
 		if (fl_value_get_type(entry) == FL_VALUE_TYPE_STRING) {
 			const char* text = fl_value_get_string(entry);
 			if (text != nullptr) {
@@ -317,14 +334,13 @@ bool parseRequest(FlValue* args, WireGuardInterface* wgInterface,
 		*errorMessage = "The tunnel needs at least one peer, and none was supplied.";
 		return false;
 	}
-	FlValue* list = fl_value_get_list(peersValue);
-	if (fl_value_get_list_length(list) == 0) {
+	if (fl_value_get_length(peersValue) == 0) {
 		*errorMessage = "The tunnel needs at least one peer, and none was supplied.";
 		return false;
 	}
 
-	for (size_t i = 0; i < fl_value_get_list_length(list); ++i) {
-		FlValue* entry = fl_value_get_list_child(list, i);
+	for (size_t i = 0; i < fl_value_get_length(peersValue); ++i) {
+		FlValue* entry = fl_value_get_list_value(peersValue, i);
 		if (fl_value_get_type(entry) != FL_VALUE_TYPE_MAP) {
 			*errorMessage = "A peer in the tunnel configuration is malformed.";
 			return false;
@@ -417,12 +433,15 @@ int runElevated(const std::vector<std::string>& argv) {
 	}
 
 	// posix_spawn requires a null-terminated array of C strings that stay
-	// alive for the duration of the call.
-	const char* execArgv[storage.size() + 1];
-	for (size_t i = 0; i < storage.size(); ++i) {
-		execArgv[i] = storage[i].c_str();
+	// alive for the duration of the call. A std::vector rather than a
+	// variable-length array: that extension is not standard C++ and the
+	// build rejects it.
+	std::vector<const char*> execArgv;
+	execArgv.reserve(storage.size() + 1);
+	for (const auto& arg : storage) {
+		execArgv.push_back(arg.c_str());
 	}
-	execArgv[storage.size()] = nullptr;
+	execArgv.push_back(nullptr);
 
 	// Silence the child's output by pointing both descriptors at /dev/null
 	// rather than by closing them, so a tool that writes a lot does not fill
@@ -439,7 +458,7 @@ int runElevated(const std::vector<std::string>& argv) {
 
 	pid_t pid = -1;
 	const int spawned = posix_spawnp(&pid, "pkexec", &actions, nullptr,
-	                                const_cast<char**>(execArgv), environ);
+	                                const_cast<char**>(execArgv.data()), environ);
 	posix_spawn_file_actions_destroy(&actions);
 	close(devNull);
 
@@ -533,34 +552,34 @@ bool writeConfigElevated(const std::string& contents, std::string* errorMessage)
 /// user's own configuration tree 0700, and a file inside it that holds a
 /// private key should not be group- or world-readable even by accident.
 static FlMethodResponse* dataDirectoryResponse() {
-	gchar* base = g_getenv("XDG_CONFIG_HOME");
+	const gchar* base = g_getenv("XDG_CONFIG_HOME");
 	std::string directory;
 	if (base != nullptr && base[0] != '\0') {
 		directory = std::string(base) + "/phantrix";
 	} else {
-		gchar* home = g_getenv("HOME");
+		const gchar* home = g_getenv("HOME");
 		if (home != nullptr && home[0] != '\0') {
 			directory = std::string(home) + "/.config/phantrix";
 		}
 	}
 	if (directory.empty()) {
-		return FL_METHOD_RESPONSE_ERROR(
+		return asResponse(fl_method_error_response_new(
 		    "app_directory",
 		    "No private application directory is available: neither "
 		    "XDG_CONFIG_HOME nor HOME is set.",
-		    nullptr);
+		    nullptr));
 	}
 
 	g_autofree gchar* path = g_build_filename(directory.c_str(), nullptr);
 	if (path == nullptr) {
-		return FL_METHOD_RESPONSE_ERROR(
-		    "app_directory", "The application directory path could not be built.", nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "app_directory", "The application directory path could not be built.", nullptr));
 	}
 	if (g_mkdir_with_parents(path, S_IRWXU) != 0) {
 		// A directory that already exists is a success, not a failure.
 		if (errno != EEXIST) {
-			return FL_METHOD_RESPONSE_ERROR(
-			    "app_directory", "The application directory could not be created.", nullptr);
+			return asResponse(fl_method_error_response_new(
+			    "app_directory", "The application directory could not be created.", nullptr));
 		}
 	}
 	// Re-applied whether the directory was just created or already existed:
@@ -574,9 +593,7 @@ static FlMethodResponse* dataDirectoryResponse() {
 	(void)chmod(path, S_IRWXU);
 
 	g_autoptr(FlValue) value = fl_value_new_string(path);
-	FlMethodResponse* response = FL_METHOD_RESPONSE_SUCCESS();
-	g_object_set(response, "value", value, nullptr);
-	return response;
+	return asResponse(fl_method_success_response_new(value));
 }
 
 // The plugin object
@@ -591,7 +608,7 @@ struct _PhantrixPlatformLinux {
 	GObject parent_instance;
 	FlMethodChannel* methodChannel;
 	FlEventChannel* eventChannel;
-	FlEventSink* eventSink;
+	gboolean listening;
 	gboolean running;
 	gchar* pendingInterface;
 };
@@ -602,7 +619,6 @@ static void phantrix_platform_linux_dispose(GObject* object) {
 	PhantrixPlatformLinux* self = PHANTRIX_PLATFORM_LINUX(object);
 	g_clear_object(&self->methodChannel);
 	g_clear_object(&self->eventChannel);
-	g_clear_object(&self->eventSink);
 	g_clear_pointer(&self->pendingInterface, g_free);
 	G_OBJECT_CLASS(phantrix_platform_linux_parent_class)->dispose(object);
 }
@@ -614,23 +630,26 @@ static void phantrix_platform_linux_class_init(PhantrixPlatformLinuxClass* klass
 static void phantrix_platform_linux_init(PhantrixPlatformLinux* self) {
 	self->methodChannel = nullptr;
 	self->eventChannel = nullptr;
-	self->eventSink = nullptr;
+	self->listening = FALSE;
 	self->running = FALSE;
 	self->pendingInterface = nullptr;
 }
 
 static void publishState(PhantrixPlatformLinux* self, FlValue* state) {
-	if (self->eventSink == nullptr) {
+	// Nothing to publish to until Dart has listened, and sending with no
+	// listener is an error the channel reports against this call.
+	if (self->eventChannel == nullptr || !self->listening) {
 		return;
 	}
 	g_autoptr(FlValue) message = fl_value_new_map();
-	fl_value_set_string_take(message, "state", fl_value_copy(state));
-	fl_event_sink_success(self->eventSink, message);
+	fl_value_set_string_take(message, "state", fl_value_ref(state));
+	g_autoptr(GError) error = nullptr;
+	fl_event_channel_send(self->eventChannel, message, nullptr, &error);
 }
 
 static void publishFailure(PhantrixPlatformLinux* self, const char* code,
                            const std::string& message) {
-	if (self->eventSink == nullptr) {
+	if (self->eventChannel == nullptr || !self->listening) {
 		return;
 	}
 	g_autoptr(FlValue) state = fl_value_new_string("failed");
@@ -639,7 +658,8 @@ static void publishFailure(PhantrixPlatformLinux* self, const char* code,
 	fl_value_set_string_take(detail, "state", fl_value_new_string("failed"));
 	fl_value_set_string_take(detail, "errorCode", fl_value_new_string(code));
 	fl_value_set_string_take(detail, "message", fl_value_new_string(message.c_str()));
-	fl_event_sink_success(self->eventSink, detail);
+	g_autoptr(GError) error = nullptr;
+	fl_event_channel_send(self->eventChannel, detail, nullptr, &error);
 }
 
 static FlMethodResponse* capabilitiesResponse() {
@@ -664,9 +684,7 @@ static FlMethodResponse* capabilitiesResponse() {
 	    "traffic returns to the physical interface."));
 	fl_value_set_string_take(result, "limitations", fl_value_ref(limits));
 
-	FlMethodResponse* response = FL_METHOD_RESPONSE_SUCCESS();
-	g_object_set(response, "value", result, nullptr);
-	return response;
+	return asResponse(fl_method_success_response_new(result));
 }
 
 static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args) {
@@ -674,7 +692,7 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 	if (self->running) {
 		g_autoptr(FlValue) state = fl_value_new_string("connecting");
 		publishState(self, state);
-		return FL_METHOD_RESPONSE_SUCCESS();
+		return asResponse(fl_method_success_response_new(nullptr));
 	}
 
 	const ToolAvailability tools = probe();
@@ -682,15 +700,15 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 		publishFailure(self, "backend.missing_tools",
 		               "This system does not have the WireGuard tools installed "
 		               "(the wireguard-tools package), so no tunnel can be created.");
-		return FL_METHOD_RESPONSE_ERROR("backend.missing_tools",
-		                                 "WireGuard tools are not installed.", nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "backend.missing_tools", "WireGuard tools are not installed.", nullptr));
 	}
 	if (!tools.kernelSupport) {
 		publishFailure(self, "backend.no_kernel_support",
 		               "This kernel has no WireGuard support. Kernels from Linux 5.6 "
 		               "include it; older kernels need the wireguard module.");
-		return FL_METHOD_RESPONSE_ERROR("backend.no_kernel_support",
-		                                 "The kernel has no WireGuard support.", nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "backend.no_kernel_support", "The kernel has no WireGuard support.", nullptr));
 	}
 
 	WireGuardInterface wgInterface;
@@ -698,7 +716,8 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 	std::string error;
 	if (!parseRequest(args, &wgInterface, &peers, &error)) {
 		publishFailure(self, "wg.config_invalid", error);
-		return FL_METHOD_RESPONSE_ERROR("wg.config_invalid", error.c_str(), nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "wg.config_invalid", error.c_str(), nullptr));
 	}
 
 	// A peer with no usable endpoint is refused here, before anything is
@@ -712,19 +731,22 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 			error = "Peer " + std::to_string(i + 1) +
 			        " has no usable endpoint, so it could never be reached.";
 			publishFailure(self, "wg.peer.endpoint_invalid", error);
-			return FL_METHOD_RESPONSE_ERROR("wg.peer.endpoint_invalid", error.c_str(), nullptr);
+			return asResponse(fl_method_error_response_new(
+			    "wg.peer.endpoint_invalid", error.c_str(), nullptr));
 		}
 	}
 
 	const std::string contents = renderConfig(wgInterface, peers, &error);
 	if (contents.empty()) {
 		publishFailure(self, "wg.config_invalid", error);
-		return FL_METHOD_RESPONSE_ERROR("wg.config_invalid", error.c_str(), nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "wg.config_invalid", error.c_str(), nullptr));
 	}
 
 	if (!writeConfigElevated(contents, &error)) {
 		publishFailure(self, "permission.denied", error);
-		return FL_METHOD_RESPONSE_ERROR("permission.denied", error.c_str(), nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "permission.denied", error.c_str(), nullptr));
 	}
 
 	// One elevated command brings the tunnel up. A refusal here is either the
@@ -746,14 +768,16 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 			    "Administrator permission was not granted, so the tunnel was not "
 			    "created. Creating a network interface requires it.";
 			publishFailure(self, "permission.denied", message);
-			return FL_METHOD_RESPONSE_ERROR("permission.denied", message.c_str(), nullptr);
+			return asResponse(fl_method_error_response_new(
+			    "permission.denied", message.c_str(), nullptr));
 		}
 		const std::string message =
 		    "WireGuard could not bring the tunnel up. The server may be "
 		    "unreachable or the configuration may be rejected. Run "
 		    "`sudo wg-quick up " + configPath() + "` for the full error.";
 		publishFailure(self, "tunnel.failed", message);
-		return FL_METHOD_RESPONSE_ERROR("tunnel.failed", message.c_str(), nullptr);
+		return asResponse(fl_method_error_response_new(
+		    "tunnel.failed", message.c_str(), nullptr));
 	}
 
 	self->running = TRUE;
@@ -764,7 +788,7 @@ static FlMethodResponse* startTunnel(PhantrixPlatformLinux* self, FlValue* args)
 	// question, answered by the statistics poll, and is not claimed here.
 	g_autoptr(FlValue) state = fl_value_new_string("established");
 	publishState(self, state);
-	return FL_METHOD_RESPONSE_SUCCESS();
+	return asResponse(fl_method_success_response_new(nullptr));
 }
 
 static FlMethodResponse* stopTunnel(PhantrixPlatformLinux* self) {
@@ -783,7 +807,7 @@ static FlMethodResponse* stopTunnel(PhantrixPlatformLinux* self) {
 	g_clear_pointer(&self->pendingInterface, g_free);
 	g_autoptr(FlValue) state = fl_value_new_string("disconnected");
 	publishState(self, state);
-	return FL_METHOD_RESPONSE_SUCCESS();
+	return asResponse(fl_method_success_response_new(nullptr));
 }
 
 static void methodCallHandler(FlMethodChannel* channel, FlMethodCall* methodCall,
@@ -804,8 +828,8 @@ static void methodCallHandler(FlMethodChannel* channel, FlMethodCall* methodCall
 		// is present at all.
 		const ToolAvailability tools = probe();
 		g_autoptr(FlValue) result = fl_value_new_bool(tools.wg && tools.wgQuick);
-		g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE_SUCCESS();
-		g_object_set(response, "value", result, nullptr);
+		g_autoptr(FlMethodResponse) response =
+		    asResponse(fl_method_success_response_new(result));
 		g_autoptr(GError) error = nullptr;
 		fl_method_call_respond(methodCall, response, &error);
 		return;
@@ -827,7 +851,8 @@ static void methodCallHandler(FlMethodChannel* channel, FlMethodCall* methodCall
 		// one would be worse than saying so.
 		publishFailure(self, "unsupported",
 		               "Linux has no single VPN settings page to open.");
-		g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE_SUCCESS();
+		g_autoptr(FlMethodResponse) response =
+		    asResponse(fl_method_success_response_new(nullptr));
 		g_autoptr(GError) error = nullptr;
 		fl_method_call_respond(methodCall, response, &error);
 		return;
@@ -839,7 +864,8 @@ static void methodCallHandler(FlMethodChannel* channel, FlMethodCall* methodCall
 		return;
 	}
 
-	g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE_NOT_IMPLEMENTED();
+	g_autoptr(FlMethodResponse) response =
+	    asResponse(fl_method_not_implemented_response_new());
 	g_autoptr(GError) error = nullptr;
 	fl_method_call_respond(methodCall, response, &error);
 }
@@ -847,19 +873,22 @@ static void methodCallHandler(FlMethodChannel* channel, FlMethodCall* methodCall
 static FlMethodErrorResponse* eventListen(FlEventChannel* channel, FlValue* args,
                                           gpointer userData) {
 	PhantrixPlatformLinux* self = PHANTRIX_PLATFORM_LINUX(userData);
-	// The messenger is not retained across the channel's lifetime in the same
-	// way as the method channel, so the sink is created here and cleared in
-	// eventCancel.
-	self->eventSink = fl_event_channel_get_fl_event_sink(channel);
-	g_object_ref(self->eventSink);
-	return FL_METHOD_ERROR_RESPONSE_SUCCESS();
+	// Accepting the listen is what allows state to be published; returning an
+	// error response here would refuse it. There is no per-listener state to
+	// set up, so the callback only records that someone is listening.
+	(void)channel;
+	(void)args;
+	self->listening = TRUE;
+	return nullptr;
 }
 
 static FlMethodErrorResponse* eventCancel(FlEventChannel* channel, FlValue* args,
                                           gpointer userData) {
 	PhantrixPlatformLinux* self = PHANTRIX_PLATFORM_LINUX(userData);
-	g_clear_object(&self->eventSink);
-	return FL_METHOD_ERROR_RESPONSE_SUCCESS();
+	(void)channel;
+	(void)args;
+	self->listening = FALSE;
+	return nullptr;
 }
 
 void phantrix_platform_linux_new(FlPluginRegistrar* registrar) {
@@ -869,14 +898,14 @@ void phantrix_platform_linux_new(FlPluginRegistrar* registrar) {
 	g_autoptr(FlStandardMethodCodec) methodCodec = fl_standard_method_codec_new();
 	plugin->methodChannel = fl_method_channel_new(
 	    fl_plugin_registrar_get_messenger(registrar), kMethodChannelName,
-	    FL_METHOD_CODEC(methodCodec));
+	    asCodec(methodCodec));
 	fl_method_channel_set_method_call_handler(
 	    plugin->methodChannel, methodCallHandler, g_object_ref(plugin), g_object_unref);
 
 	g_autoptr(FlStandardMessageCodec) messageCodec = fl_standard_message_codec_new();
 	plugin->eventChannel = fl_event_channel_new(
 	    fl_plugin_registrar_get_messenger(registrar), kEventChannelName,
-	    FL_METHOD_CODEC(messageCodec));
+	    asCodec(messageCodec));
 	fl_event_channel_set_stream_handlers(plugin->eventChannel, eventListen, eventCancel,
 	                                     g_object_ref(plugin), g_object_unref);
 
