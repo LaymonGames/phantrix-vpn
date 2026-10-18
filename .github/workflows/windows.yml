@@ -44,6 +44,14 @@ env:
   FLUTTER_VERSION: 3.47.5
   FLUTTER_CHANNEL: stable
   FLUTTER_SHA256: 0ccd71931f49c2fbe394b1eeb6d79af3d624058a043ea0d03d34160581624fb8
+  # The archive above is unpacked, not cloned, so this SDK is not a git
+  # checkout and `bin/internal/update_engine_version.ps1` cannot read
+  # `bin/internal/engine.version` from it or fall back to
+  # `content_aware_hash.ps1`; both ask git. This is the hook Flutter
+  # documents for CI, and it takes precedence over every other source of the
+  # engine version. The value is the engine revision pinned in
+  # `bin/internal/engine.version` for Flutter 3.47.5.
+  FLUTTER_PREBUILT_ENGINE_VERSION: af7e796e161ae0bb1ff0758c71a7105418bd9ded
 
 jobs:
   build:
