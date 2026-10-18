@@ -10,11 +10,10 @@
 #
 # The only dependency beyond the Flutter C++ client wrapper is the Windows API,
 # which arrives with the Windows SDK the Flutter Windows toolchain already
-# requires. Nothing here builds a tunnel engine: WireGuard is the user's own
-# installation, and OpenVPN is the official community binaries fetched by
-# `tools/fetch_openvpn_bundle.ps1` into `bundle/openvpn/` with a pinned
-# SHA-256. A VPN data path nobody else has audited is the one thing a VPN
-# client must not ship.
+# requires. Nothing here builds a tunnel engine: OpenVPN is the official
+# community binaries fetched by `tools/fetch_openvpn_bundle.ps1` with a pinned
+# hash rather than written here, because a VPN data path nobody else has audited
+# is the one thing a VPN client must not ship.
 cmake_minimum_required(VERSION 3.14)
 set(PROJECT_NAME "phantrix_platform")
 project(${PROJECT_NAME} LANGUAGES CXX)
@@ -128,17 +127,20 @@ set(OPENVPN_BUNDLE_FILES
 )
 
 # A build without the bundle still succeeds. The plugin reports the engine as
-# missing, the Dart layer refuses an OpenVPN server with an explanation, and
-# WireGuard keeps working — so a missing bundle is a documented configuration
-# state rather than a build failure. Only the files that are actually present
-# are listed for installation, because `install(FILES)` on a path that does not
-# exist is a configure error.
+# missing and the Dart layer refuses an OpenVPN server with an explanation, so a
+# missing bundle is a documented configuration state rather than a build
+# failure. Only the files that are actually present are listed for installation,
+# because `install(FILES)` on a path that does not exist is a configure error.
 set(phantrix_platform_bundled_libraries "")
 foreach(bundle_file IN LISTS OPENVPN_BUNDLE_FILES)
   if(EXISTS "${bundle_file}")
     list(APPEND phantrix_platform_bundled_libraries "${bundle_file}")
   endif()
 endforeach()
+
+# ---------------------------------------------------------------------------
+# What the application bundle carries
+# ---------------------------------------------------------------------------
 
 # The helper is a build product, so its path is a generator expression rather
 # than a literal. The application's generated-plugin rule already installs
