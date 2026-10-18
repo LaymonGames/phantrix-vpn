@@ -10,10 +10,9 @@ name: windows
 # project cares about. The checks below exist because each one has been a real
 # bug here, and a comment saying "do not do this" is not a check.
 #
-# It does **not** run the tunnel. Creating one needs the WireGuard for Windows
-# service, which needs an administrator token, and it needs a reachable peer.
-# See docs/BUILDING.md and tools/windows_check.ps1 for the procedure on a
-# machine that has both.
+# It does **not** run the tunnel. Creating one needs an administrator token and
+# a reachable relay. See docs/BUILDING.md for the procedure on a machine that
+# has both.
 #
 # ## Third-party actions
 #

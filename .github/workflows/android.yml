@@ -4,17 +4,21 @@ name: android
 #
 # ## What this workflow does and does not do
 #
-# It compiles the Kotlin backend and the real WireGuard tunnel engine, runs the
-# JVM unit tests, and produces the signed APK and App Bundle. That is a real
-# build of the real engine: the `libwg-go.so` inside the APK is compiled here,
-# not fetched prebuilt from somewhere else.
+# It compiles the Kotlin plugin — a channel handler, a capability reporter and a
+# settings helper, with no tunnel engine and no third-party dependencies — and
+# produces the signed APK and App Bundle. The app installs and runs; it cannot
+# connect to anything, because Android has no engine in this build, and it says
+# so instead of failing mysteriously.
 #
-# It does **not** run the tunnel. A GitHub runner has no reachable WireGuard
-# peer, so a connection attempt would fail for want of a server rather than
-# for want of a correct client, and a green job would say nothing about
-# whether traffic actually routes. Device verification is documented in
-# docs/BUILDING.md and the on-device suite under
-# packages/phantrix_platform/android/src/androidTest.
+# It does **not** run a tunnel, because there is nothing to run. Device
+# verification is documented in docs/BUILDING.md; the on-device engine suite
+# went away with the engine it tested.
+#
+# ## Dependency verification
+#
+# android/gradle/verification-metadata.xml pins a SHA-256 for every Gradle
+# artifact. The jobs below resolve the full release classpath, so a substituted
+# or unlisted artifact fails the run rather than being linked quietly.
 #
 # ## Signing
 #
@@ -62,7 +66,7 @@ env:
 
 jobs:
   unit-tests:
-    name: JVM unit tests
+    name: Dependency verification
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -88,11 +92,14 @@ jobs:
           flutter config --no-analytics --no-cli-animations >/dev/null
           flutter pub get
 
-      # Dependency verification is enabled in android/gradle and
-      # android/gradle/verification-metadata.xml. It is not switched off here
-      # to make a resolution succeed: an unverified dependency is exactly the
-      # thing this gate exists to catch, so a failure is reported as a failure.
-      - name: Backend unit tests
+      # There are no JVM unit tests any more: the request-parser suite was
+      # deleted with the parser it tested. The Gradle test task still runs
+      # because resolving it verifies every artifact the release build needs
+      # against android/gradle/verification-metadata.xml — which is the gate
+      # this job exists for. It is never switched off to make a resolution
+      # succeed: an unverified dependency is exactly what the gate catches, so
+      # a failure is reported as a failure.
+      - name: Verify the dependency graph
         working-directory: android
         run: ./gradlew --no-daemon testReleaseUnitTest
 

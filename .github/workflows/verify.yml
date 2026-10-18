@@ -11,9 +11,9 @@ name: verify
 # different reason.
 #
 # It also does not run a VPN tunnel. No job here has CAP_NET_ADMIN, a Windows
-# service token, or a reachable WireGuard peer, so nothing here claims a
-# connection works. See docs/BUILDING.md for what each workflow actually
-# proves.
+# administrator token, or a reachable relay it is allowed to use, so nothing
+# here claims a connection works. See docs/BUILDING.md for what each workflow
+# actually proves.
 #
 # ## Third-party actions
 #
@@ -79,9 +79,17 @@ jobs:
           # Only the files this project owns. Generated sources and the
           # vendored upstream Apple bridge are formatted by their upstream and
           # are not reformatted here.
+          #
+          # `lib/notices/generated_third_party_notices.dart` is the one
+          # generated source inside `lib/`, so it is named and excluded: the
+          # generator emits tab indentation and the formatter would rewrite
+          # every entry, which would make the file churn on every regeneration
+          # without changing what it says.
+          files=$(find lib test packages/phantrix_core/lib packages/phantrix_core/test \
+            packages/phantrix_platform/lib packages/phantrix_platform/test \
+            -name '*.dart' ! -name 'generated_third_party_notices.dart')
           unformatted=$(.flutter/bin/dart format --output=none --set-exit-if-changed \
-            lib test packages/phantrix_core/lib packages/phantrix_core/test \
-            packages/phantrix_platform/lib packages/phantrix_platform/test 2>&1 || true)
+            $files 2>&1 || true)
           if echo "$unformatted" | grep -q 'Changed '; then
             echo "::error::These files are not formatted. Run 'dart format .'"
             echo "$unformatted"

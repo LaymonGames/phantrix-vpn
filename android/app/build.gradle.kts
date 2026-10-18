@@ -46,9 +46,9 @@ android {
 
     defaultConfig {
         applicationId = "dev.phantrix.phantrix"
-        // Explicit rather than `flutter.minSdkVersion`: the WireGuard tunnel
-        // library's manifest requires API 24, and inheriting a lower default
-        // would produce an APK whose manifest lies about what it supports.
+        // Explicit rather than `flutter.minSdkVersion`: API 24 is the floor
+        // this app is tested against, and inheriting a lower default would
+        // produce an APK whose manifest lies about what it supports.
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
