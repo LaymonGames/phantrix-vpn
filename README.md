@@ -1,5 +1,14 @@
 # Phantrix
 
+[![verify](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/verify.yml)
+[![windows](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/windows.yml)
+[![linux](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/linux.yml/badge.svg?branch=main)](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/linux.yml)
+[![android](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/LaymonGames/phantrix-vpn/actions/workflows/android.yml)
+[![license: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+**English** · [العربية](README.ar.md)
+
 Phantrix is a free, vibe-coded, account-free VPN client for **OpenVPN**, built
 with Flutter. There is no sign-up, no subscription and no analytics.
 It is a client only: you bring a server (your own, your provider's, or a public
@@ -10,6 +19,33 @@ Phantrix's own code is licensed under **GPL-3.0-only** (see [License](#license))
 > **Status: early and mostly unverified.** An OpenVPN tunnel has been observed
 > working once on Windows. Read [Platform status](#platform-status) before
 > relying on it.
+
+## Features
+
+- **Nothing to sign up for.** No account, no subscription, no analytics SDK.
+- **OpenVPN through the official upstream engine.** Phantrix implements no VPN
+  cryptography itself; on Windows the engine runs as a separate elevated
+  helper process.
+- **Public relays built in.** The bundled list is VPN Gate, run by volunteers;
+  Phantrix brings no servers of its own.
+- **Honest state.** "Connected" appears only after the engine completes a
+  handshake and your public address changes; anything else is said explicitly.
+- **English and Arabic**, with the layout mirrored for right-to-left.
+
+## Screenshots
+
+The five states of the connection control:
+
+![Disconnected, connecting, connected, not connected, needs attention](docs/evidence/ui/09-control-states.png)
+
+The desktop app, and settings with the language choice:
+
+![Dashboard](docs/evidence/ui/03-dashboard-desktop.png)
+
+![Settings](docs/evidence/ui/06-settings-desktop.png)
+
+These are rendered by the UI test harness (`test/ui_screenshots_test.dart`),
+not captured from a live tunnel.
 
 ---
 
@@ -136,6 +172,18 @@ tunnel code per platform). See [ARCHITECTURE.md](ARCHITECTURE.md).
 | [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Dependencies and bundled components, with licenses |
 | [docs/LICENSING_AUDIT.md](docs/LICENSING_AUDIT.md) | GPL-3.0 compatibility review |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | What was verified, how, and what is still open |
+
+## Contributing
+
+Contributions are welcome — just open a pull request. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) first: it is short, and its one firm rule is
+the same honesty this README tries to keep — nothing is described as working
+before it has been observed working.
+
+Some small, useful ways in: run it on a platform nobody has tried yet and say
+what happened; say when a relay no longer answers; improve the Arabic; or
+tighten a sentence above that claims more than the code does. Reports about
+documentation overstating a protection count as ordinary issues.
 
 ## License
 
