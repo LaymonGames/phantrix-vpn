@@ -17,8 +17,12 @@ name: android
 # ## Dependency verification
 #
 # android/gradle/verification-metadata.xml pins a SHA-256 for every Gradle
-# artifact. The jobs below resolve the full release classpath, so a substituted
-# or unlisted artifact fails the run rather than being linked quietly.
+# artifact, and verification is on for every Gradle invocation in this project.
+# The release job below resolves the full release classpath — including the
+# Linux flavor of the build tools, which a metadata file generated on Windows
+# does not carry by itself — so a substituted or unlisted artifact fails the run
+# rather than being linked quietly. The job above resolves what its debug-only
+# unit-test task reaches, as an earlier and cheaper failure.
 #
 # ## Signing
 #
@@ -93,15 +97,22 @@ jobs:
           flutter pub get
 
       # There are no JVM unit tests any more: the request-parser suite was
-      # deleted with the parser it tested. The Gradle test task still runs
-      # because resolving it verifies every artifact the release build needs
-      # against android/gradle/verification-metadata.xml — which is the gate
-      # this job exists for. It is never switched off to make a resolution
-      # succeed: an unverified dependency is exactly what the gate catches, so
-      # a failure is reported as a failure.
+      # deleted with the parser it tested. A Gradle task still runs because
+      # resolving one verifies every artifact it reaches against
+      # android/gradle/verification-metadata.xml — which is the gate this job
+      # exists for. It is never switched off to make a resolution succeed: an
+      # unverified dependency is exactly what the gate catches, so a failure is
+      # reported as a failure.
+      #
+      # `testReleaseUnitTest`, which this step used to call, does not exist on
+      # this toolchain: the Android Gradle Plugin 9.1.0 creates unit-test tasks
+      # for the debug build type only. The step resolves the task that exists.
+      # The release classpath is verified by the release job below, whose Gradle
+      # runs carry the same metadata because verification applies to every
+      # invocation in this project, not only this one.
       - name: Verify the dependency graph
         working-directory: android
-        run: ./gradlew --no-daemon testReleaseUnitTest
+        run: ./gradlew --no-daemon testDebugUnitTest
 
   build:
     name: Release artifacts
