@@ -72,6 +72,20 @@ bool RestrictToUserAndSystem(const std::wstring& path, bool isDirectory);
 // behind, and must not be connected with either.
 bool WriteRestrictedFile(const std::wstring& path, const std::string& contents);
 
+// Copies the engine's log into the archive under the app's data directory and
+// prunes the archive to the newest few entries.
+//
+// A session is torn down with its whole scratch directory, and the one file
+// whose words outlive the connection is the engine's log: which relay was
+// tried, what the TLS layer actually answered, why the handshake ended. Every
+// "none of the relays reached" diagnosis is checkable against reality only
+// while these logs exist. Session teardown must call this *before* its own
+// `RemoveTree`: both the helper and the plugin do, so whichever notices the
+// engine's exit first may archive.
+//
+// Returns silently — diagnostics must never create the outcome they explain.
+void ArchiveEngineLog(const std::wstring& sessionLogPath);
+
 // ---------------------------------------------------------------------------
 // Profile safety
 // ---------------------------------------------------------------------------

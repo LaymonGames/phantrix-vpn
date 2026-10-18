@@ -726,8 +726,12 @@ void PhantrixWindowsPlugin::TeardownOpenVpn() {
 	}
 
 	// The session directory holds the profile, which holds the user's key, and
-	// the engine's own log. It does not outlive the tunnel it belonged to.
+	// the engine's own log. It does not outlive the tunnel it belonged to —
+	// but the engine log's words outlive the tunnel: the last few sessions'
+	// logs are archived under the app's private logs directory first, so a
+	// failure stays diagnosable after the profile that caused it is gone.
 	if (!openVpn_.session.empty()) {
+		phantrix::ovpn::ArchiveEngineLog(openVpn_.session + L"\\openvpn.log");
 		(void)phantrix::ovpn::RemoveTree(openVpn_.session);
 		openVpn_.session.clear();
 	}

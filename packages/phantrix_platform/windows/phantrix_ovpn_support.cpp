@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <random>
+#include <vector>
+#include <cwchar>
 
 #pragma comment(lib, "Advapi32.lib")
 
@@ -300,6 +302,96 @@ bool WriteRestrictedFile(const std::wstring& path, const std::string& contents) 
 		return false;
 	}
 	return true;
+}
+
+// How many past sessions' engine logs are worth keeping for diagnosis.
+constexpr size_t kKeptEngineLogs = 3;
+
+void ArchiveEngineLog(const std::wstring& sessionLogPath) {
+	if (sessionLogPath.empty()) {
+		return;
+	}
+	const std::wstring app = AppDataDirectory();
+	if (app.empty()) {
+		return;
+	}
+	const std::wstring logsDirectory = app + L"\\logs";
+	if (!CreateDirectoryW(logsDirectory.c_str(), nullptr) &&
+	    GetLastError() != ERROR_ALREADY_EXISTS) {
+		return;
+	}
+
+	HANDLE source = CreateFileW(sessionLogPath.c_str(), GENERIC_READ,
+	                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+	                            OPEN_EXISTING, 0, nullptr);
+	if (source == INVALID_HANDLE_VALUE) {
+		return;
+	}
+	LARGE_INTEGER size = {0};
+	if (GetFileSizeEx(source, &size) == FALSE || size.QuadPart <= 0) {
+		CloseHandle(source);
+		return;
+	}
+	// One session's log is a few kilobytes at the engine's default verbosity.
+	// The cap only matters when something goes wrong inside the engine and it
+	// repeats itself; the tail is where the cause lives, so the head is what
+	// gets dropped.
+	const int64_t kMaxLogBytes = 512 * 1024;
+	const int64_t skip =
+	    size.QuadPart > kMaxLogBytes ? size.QuadPart - kMaxLogBytes : 0;
+	if (skip > 0 &&
+	    SetFilePointerEx(source, *reinterpret_cast<const LARGE_INTEGER*>(&skip),
+	                     nullptr, FILE_BEGIN) == FALSE) {
+		CloseHandle(source);
+		return;
+	}
+	const DWORD toRead = static_cast<DWORD>(
+	    size.QuadPart > kMaxLogBytes ? kMaxLogBytes : size.QuadPart);
+	std::string contents;
+	if (skip > 0) {
+		contents += "\n[older engine output trimmed]\n";
+	}
+	contents.resize(contents.size() + toRead);
+	DWORD read = 0;
+	const BOOL ok =
+	    ReadFile(source, contents.data() + contents.size() - toRead, toRead,
+	             &read, nullptr);
+	CloseHandle(source);
+	if (ok == FALSE || read == 0) {
+		return;
+	}
+	if (skip > 0) {
+		contents.resize(contents.size() - toRead + read);
+	} else {
+		contents.resize(read);
+	}
+
+	SYSTEMTIME now = {0};
+	GetLocalTime(&now);
+	wchar_t stamp[40] = {0};
+	swprintf(stamp, 40, L"engine-%04u%02u%02u-%02u%02u%02u.log", now.wYear,
+	         now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+	if (!WriteRestrictedFile(logsDirectory + L"\\" + stamp, contents)) {
+		return;
+	}
+
+	WIN32_FIND_DATAW found = {0};
+	HANDLE scan = FindFirstFileW((logsDirectory + L"\\engine-*.log").c_str(),
+	                             &found);
+	if (scan == INVALID_HANDLE_VALUE) {
+		return;
+	}
+	std::vector<std::wstring> names;
+	do {
+		names.push_back(found.cFileName);
+	} while (FindNextFileW(scan, &found));
+	FindClose(scan);
+	std::sort(names.begin(), names.end());
+	for (size_t index = 0; names.size() >= kKeptEngineLogs &&
+	                       index < names.size() - kKeptEngineLogs;
+	     ++index) {
+		DeleteFileW((logsDirectory + L"\\" + names[index]).c_str());
+	}
 }
 
 namespace {

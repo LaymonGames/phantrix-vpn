@@ -892,7 +892,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	RestoreAdapterRegistration();
 	ReleaseAdapter();
 	// The session directory holds the profile, which holds the user's key. It
-	// does not outlive the tunnel it belonged to.
+	// does not outlive the tunnel it belonged to — but the engine's log out
+	// lives the tunnel as the archive copy: it is the one document that can
+	// later answer *why* a handshake failed. Archived first, deleted second.
+	phantrix::ovpn::ArchiveEngineLog(sessionDirectory + L"\\openvpn.log");
 	(void)RemoveTree(sessionDirectory);
 	reader.Stop();
 	DeleteCriticalSection(&g_writeLock);
