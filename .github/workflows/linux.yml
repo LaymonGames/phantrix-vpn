@@ -147,12 +147,21 @@ jobs:
         run: |
           # Reported separately rather than together, so a failure names
           # the package that owns it.
+          # `tee` is what keeps the output for the artifact upload, but a
+          # pipeline reports the exit status of its last command, so a
+          # failing analysis would be recorded here and then ignored.
+          set -o pipefail
+
           dart analyze --fatal-infos . | tee analysis-app.txt
           (cd packages/phantrix_core && dart analyze --fatal-infos .) | tee analysis-core.txt
           (cd packages/phantrix_platform && dart analyze --fatal-infos .) | tee analysis-platform.txt
 
       - name: Run unit and widget tests
         run: |
+          # Same reason as the analysis above: without `pipefail` a failing
+          # `flutter test` would still leave this step green.
+          set -o pipefail
+
           flutter test --reporter expanded | tee tests-app.txt
           (cd packages/phantrix_core && dart test --reporter expanded) | tee tests-core.txt
 
@@ -161,6 +170,12 @@ jobs:
           # This is the step that compiles phantrix_plugin.cc. It is the
           # only compile of the Linux backend available to this project,
           # and it is the reason this workflow exists.
+          # Without `pipefail` this step cannot fail: the pipeline reports
+          # `tee`'s status, so a compile that did not finish would read as a
+          # successful build and only surface later as a missing plugin
+          # library, which is a much harder thing to diagnose.
+          set -o pipefail
+
           flutter build linux --debug 2>&1 | tee build-linux.txt
 
       - name: Verify the plugin compiled and registered
