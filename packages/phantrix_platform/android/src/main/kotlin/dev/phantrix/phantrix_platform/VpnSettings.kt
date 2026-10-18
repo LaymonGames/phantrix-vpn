@@ -1,30 +1,16 @@
 package dev.phantrix.phantrix_platform
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
-import android.os.Build
 
 /**
- * Android VPN permission handling.
+ * The Android VPN settings the app still reads and opens.
  *
- * [VpnService.prepare] returns a non-null Intent when the user has never
- * granted permission, or revoked it. The plugin must start that intent and
- * only then start the service, which is why [preparationIntent] is separate
- * from [isPrepared].
+ * There is no permission flow here: this build has no tunnel engine on
+ * Android, so nothing asks for `VpnService` consent. What remains is the
+ * system's own protection, which the app reports rather than claims.
  */
-internal object VpnPermissions {
-
-	const val REQUEST_CODE = 0x5647
-
-	/** True when the tunnel may be established without asking the user. */
-	fun isPrepared(context: Context): Boolean = VpnService.prepare(context) == null
-
-	/**
-	 * The consent intent, or null when permission is already granted.
-	 */
-	fun preparationIntent(context: Context): Intent? = VpnService.prepare(context)
+internal object VpnSettings {
 
 	/**
 	 * True when Android itself is currently blocking all traffic outside a VPN.
@@ -85,7 +71,4 @@ internal object VpnPermissions {
 			}
 		}
 	}
-
-	/** The minimum API this plugin supports. */
-	val minimumSdk: Int = Build.VERSION_CODES.LOLLIPOP
 }

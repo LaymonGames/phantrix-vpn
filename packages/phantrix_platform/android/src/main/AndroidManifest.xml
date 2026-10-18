@@ -3,52 +3,16 @@
 	package="dev.phantrix.phantrix_platform">
 
 	<!--
-	  BIND_VPN_SERVICE is declared so the system will let this app own a VPN.
-	  It has existed since API 21 and still exists, so it is deliberately NOT
-	  capped with maxSdkVersion: capping it would leave the app without the
-	  permission on newer releases and the system would refuse the bind.
+	  The app fetches the public server list over HTTPS. The plugin itself
+	  opens no sockets; this permission is declared here because the library
+	  manifest is where the app inherits it from.
+
+	  Nothing else is declared. There is no tunnel service on Android in this
+	  build, so there is no BIND_VPN_SERVICE, no foreground service type and
+	  no boot receiver to go with one.
 	-->
 	<uses-permission android:name="android.permission.INTERNET" />
-	<uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
 
-	<!--
-	  Android 14 (API 34) requires a foreground service type. There is no
-	  "vpn" type, so a VPN tunnel uses `specialUse` and must declare the
-	  matching FOREGROUND_SERVICE_SPECIAL_USE permission. Declaring
-	  FOREGROUND_SERVICE_SYSTEM instead would not grant the right the platform
-	  actually checks for this type.
-	-->
-	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
-	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-	<application android:allowBackup="false">
-
-		<!--
-		  exported=false: no other app may start the tunnel. The only way in is
-		  the system binding it, which is gated by BIND_VPN_SERVICE below.
-		  stopWithTask=false: swiping the app away must not drop the tunnel.
-		-->
-		<service
-			android:name=".PhantrixTunnelService"
-			android:exported="false"
-			android:foregroundServiceType="specialUse"
-			android:permission="android.permission.BIND_VPN_SERVICE"
-			android:stopWithTask="false">
-			<intent-filter>
-				<action android:name="android.net.VpnService" />
-			</intent-filter>
-			<!--
-			  Required alongside specialUse from Android 14 onwards: the platform
-			  refuses to start the service without a declared subtype.
-			-->
-			<property
-				android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-				android:value="vpn" />
-		</service>
-
-	</application>
+	<application android:allowBackup="false" />
 
 </manifest>

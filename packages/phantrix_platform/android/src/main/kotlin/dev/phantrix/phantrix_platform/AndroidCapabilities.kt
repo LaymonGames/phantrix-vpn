@@ -1,7 +1,6 @@
 package dev.phantrix.phantrix_platform
 
 import android.content.Context
-import android.net.VpnService
 import android.os.Build
 
 /**
@@ -9,6 +8,11 @@ import android.os.Build
  *
  * Every value here is a fact about the OS, not an intention: the UI reads this
  * and only offers switches the platform will actually honour.
+ *
+ * This build has no tunnel engine on Android, so [openVpn] is false and the
+ * values below describe what the platform offers rather than a tunnel the app
+ * can run. [bootStart] is the exception that is about this app rather than the
+ * platform, and it is false because there is no boot path left to honour it.
  *
  * In particular, [killSwitch] is always false. No application API on stock
  * Android can install a traffic-blocking rule that survives the tunnel
@@ -59,9 +63,6 @@ internal data class AndroidCapabilities(
 				"Phantrix cannot block traffic itself if the tunnel drops; " +
 					"Settings shows the system protection that exists."
 
-			// The engine's profile is the app's, so a foreign OpenVPN profile
-			// cannot be imported here — that is a Dart-side concern and this map
-			// only describes the platform. Nothing to add.
 			return AndroidCapabilities(
 				platform = "android-$api",
 				killSwitch = false,
@@ -71,7 +72,10 @@ internal data class AndroidCapabilities(
 				lanBypass = true,
 				alwaysOn = true,
 				tray = false,
-				bootStart = true,
+				// No boot receiver and no service to start: the app cannot
+				// come up tunnelling, so the setting that asks it to must be
+				// reported as unsupported rather than offered and ignored.
+				bootStart = false,
 				systemLockdown = isSystemLockdownActive(context),
 				openVpn = false,
 				limitations = limitations,
@@ -79,6 +83,6 @@ internal data class AndroidCapabilities(
 		}
 
 		private fun isSystemLockdownActive(context: Context): Boolean =
-			VpnPermissions.isSystemLockdownActive(context)
+			VpnSettings.isSystemLockdownActive(context)
 	}
 }
