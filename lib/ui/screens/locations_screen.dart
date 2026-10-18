@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:phantrix_core/phantrix_core.dart';
 
 import '../shell.dart';
-import '../widgets/globe_map.dart';
 import '../../theme/tokens.dart';
 import '../components/rows.dart';
 import '../components/surfaces.dart';

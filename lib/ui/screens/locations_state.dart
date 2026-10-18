@@ -4,7 +4,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
   final _search = TextEditingController();
   String _query = '';
   String _sort = 'latency';
-  bool _mapVisible = false;
 
   @override
   void dispose() {
@@ -88,9 +87,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       ),
                     ),
                     const SizedBox(height: VgSpace.sm),
-                    // A Wrap, not a Row: the sort controls plus the map
-                    // toggle do not fit a narrow phone, and wrapping
-                    // keeps them usable at a 2x text scale.
+                    // A Wrap, not a Row: the sort controls do not fit a
+                    // narrow phone, and wrapping keeps them usable at a 2x
+                    // text scale.
                     Wrap(
                       spacing: VgSpace.sm,
                       runSpacing: VgSpace.sm,
@@ -111,36 +110,11 @@ class _LocationsScreenState extends State<LocationsScreen> {
                           selected: _sort == 'count',
                           onSelected: () => setState(() => _sort = 'count'),
                         ),
-                        IconButton(
-                          tooltip: l10n.get('toggleMap'),
-                          isSelected: _mapVisible,
-                          onPressed: () =>
-                              setState(() => _mapVisible = !_mapVisible),
-                          icon: const Icon(Icons.public_rounded),
-                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-              if (_mapVisible) ...[
-                const SizedBox(height: VgSpace.md),
-                VgSurface(
-                  padding: EdgeInsets.zero,
-                  clip: false,
-                  child: SizedBox(
-                    // Taller on a window with room for it: a map
-                    // squashed to a strip is decoration, and this is
-                    // meant to be read.
-                    height:
-                        MediaQuery.sizeOf(context).width >=
-                            VgBreakpoints.twoColumn
-                        ? 320
-                        : 170,
-                    child: GlobeMap(servers: mapServersOf(snapshot.servers)),
-                  ),
-                ),
-              ],
               const SizedBox(height: VgSpace.md),
               DirectoryBanner(
                 snapshot: snapshot,

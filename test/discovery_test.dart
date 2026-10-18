@@ -274,21 +274,6 @@ void main() {
     });
   });
 
-  group('mapServersOf', () {
-    test('drops servers with no coordinates rather than pinning (0,0)', () {
-      final pins = mapServersOf([
-        server(id: 'a', country: 'DE', latitude: 52.5, longitude: 13.4),
-        server(id: 'b', country: 'JP'),
-      ]);
-      expect(pins, hasLength(1));
-      expect(pins.single.latitude, 52.5);
-    });
-
-    test('is empty for an empty list', () {
-      expect(mapServersOf(const []), isEmpty);
-    });
-  });
-
   group('DiscoveryController', () {
     test('connect readiness refreshes provider data even when disk cache is populated', () async {
       final cachedServer = server(id: 'cached', country: 'HK');

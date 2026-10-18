@@ -1,7 +1,5 @@
 import 'package:phantrix_core/phantrix_core.dart';
 
-import '../widgets/globe_map.dart';
-
 /// One country row, derived from real server data.
 ///
 /// Every field here comes from a [DirectorySnapshot]. Nothing is defaulted to
@@ -92,21 +90,6 @@ TrustLevel weakestTrust(Iterable<TrustLevel> levels) {
   }
   return weakest;
 }
-
-/// Converts servers into map pins.
-///
-/// A server with no coordinates is dropped rather than pinned at (0, 0),
-/// which would place it off the coast of Africa and be actively misleading.
-List<MapServer> mapServersOf(List<VpnServer> servers) => [
-  for (final server in servers)
-    if (server.latitude != null && server.longitude != null)
-      MapServer(
-        latitude: server.latitude!,
-        longitude: server.longitude!,
-        label: server.city ?? server.countryCode,
-        countryCode: server.countryCode,
-      ),
-];
 
 /// Sorts country rows for display.
 List<CountryEntry> sortCountryEntries(List<CountryEntry> entries, String mode) {
