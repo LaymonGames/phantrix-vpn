@@ -246,9 +246,40 @@ class ConnectionResolver {
       request,
       _scoreContext,
     );
-    final selection = rankedSelection == null
+    var selection = rankedSelection == null
         ? null
         : _restoreOriginalSelection(rankedSelection, servers);
+    // A named country is a request to reach that country, and the status
+    // column that just judged it was written by the provider's own prober: a
+    // relay whose ping could not be measured is listed offline whether or not
+    // its OpenVPN process is answering. Both halves of that lie have been
+    // seen — relays marked online that never complete a handshake, and relays
+    // marked offline that do — so when the requested country has nothing the
+    // directory calls usable, its own relays are offered to the walk rather
+    // than handing the user a different country they did not ask for. The
+    // walk is the only measurement this app trusts; if every relay there
+    // really is dead, the attempt says so and names the country it tried.
+    //
+    // Only a fallback that left the country counts here: `fellBack` is also
+    // set for a selection from a stale directory, and that one is already the
+    // requested country and must keep its own disclosure.
+    final leftTheCountry =
+        selection != null &&
+        selection.fellBack &&
+        selection.server.countryCode != country?.toUpperCase();
+    if (country != null &&
+        country.isNotEmpty &&
+        (selection == null || leftTheCountry)) {
+      final own = _countryAsLastResort(
+        servers,
+        country,
+        request,
+        capabilities,
+      );
+      if (own != null) {
+        selection = own;
+      }
+    }
     if (selection == null) {
       // Two different problems end up here. If the pool is empty then the
       // platform filter removed every server — no engine for any of them —
@@ -584,11 +615,18 @@ class ConnectionResolver {
         .toList(growable: false);
     var attempted = 0;
 
-    for (final scored in selector.rank(
-      _poolForSelection(pool, capabilities),
-      _scoreContext,
-    )) {
-      final server = _originalServer(scored.server, pool);
+    // A named country follows the same list the selection just used — its own
+    // relays, verification status relaxed — so an unverified relay with a
+    // broken profile is skipped in favour of the next one in the country
+    // rather than ending the attempt. Everything else ranks normally.
+    final candidates = requestedCountry == null || requestedCountry.isEmpty
+        ? selector
+              .rank(_poolForSelection(pool, capabilities), _scoreContext)
+              .map((scored) => _originalServer(scored.server, pool))
+              .toList(growable: false)
+        : _rankCountryIncludingUnverified(pool, requestedCountry, capabilities);
+
+    for (final server in candidates) {
       if (server.id == excludedServerId ||
           !_supports(server.protocol, capabilities)) {
         continue;
@@ -700,6 +738,74 @@ class ConnectionResolver {
     );
   }
 
+  /// The requested country's own relays, for when the directory has given up
+  /// on all of them.
+  ///
+  /// See the call site: this is the difference between "Greece is offline"
+  /// and "Greece answered on the first dial", and it is deliberately
+  /// country-scoped. Only the country the user named is pinned to a relay the
+  /// directory doubts; an automatic request never named a country, so it
+  /// keeps substituting freely, which is the behaviour its caller asked for.
+  Selection? _countryAsLastResort(
+    List<VpnServer> servers,
+    String country,
+    SelectionRequest request,
+    PlatformCapabilities? capabilities,
+  ) {
+    final ranked = _rankCountryIncludingUnverified(
+      servers,
+      country,
+      capabilities,
+    );
+    if (ranked.isEmpty) {
+      return null;
+    }
+    return Selection(
+      server: ranked.first,
+      mode: request.mode,
+      explanation: _tr('selCountryOfflineNote', {
+        'country': country.toUpperCase(),
+      }),
+      fellBack: false,
+    );
+  }
+
+  /// The country's relays this build could dial, ranked even where the
+  /// directory marks them unusable.
+  ///
+  /// Offline and unknown are the two statuses a provider produces by failing
+  /// to *measure* a relay rather than by observing it go away — which is why
+  /// the stale-directory path downgrades exactly those two as well. A
+  /// withdrawn relay is deliberately still excluded: that is the source
+  /// saying the endpoint is gone, and no ping of ours can overrule it.
+  List<VpnServer> _rankCountryIncludingUnverified(
+    List<VpnServer> servers,
+    String country,
+    PlatformCapabilities? capabilities,
+  ) {
+    final upper = country.toUpperCase();
+    final inCountry = servers
+        .where((server) => server.countryCode == upper)
+        .where((server) => _supports(server.protocol, capabilities))
+        .toList(growable: false);
+    if (inCountry.isEmpty) {
+      return const <VpnServer>[];
+    }
+    final relaxed = inCountry
+        .map(
+          (server) =>
+              server.status == ServerStatus.offline ||
+                  server.status == ServerStatus.unknown
+              ? server.copyWith(status: ServerStatus.degraded)
+              : server,
+        )
+        .toList(growable: false);
+    return selector
+        .rank(relaxed, _scoreContext)
+        .map((scored) => _originalServer(scored.server, servers))
+        .toList(growable: false);
+  }
+
   /// Whether [request] may trade a silent server for the next eligible one.
   ///
   /// Only the modes that pick by score qualify; the rest express a choice
@@ -724,9 +830,27 @@ class ConnectionResolver {
         : discovery.snapshot.servers
               .where((server) => server.countryCode == country)
               .toList(growable: false);
-    return selector
+    final ranked = selector
         .rank(_poolForSelection(pool, capabilities), _scoreContext)
         .map((scored) => _originalServer(scored.server, pool))
+        .toList(growable: true);
+    if (country != null && country.isNotEmpty) {
+      // A country walk that runs out of rankable relays continues into the
+      // same country's unverified ones, for the reason the selection relaxed
+      // them in the first place. They go after every rankable candidate, so a
+      // relay the directory vouches for is never queued behind one it doubts.
+      final seen = ranked.map((server) => server.id).toSet();
+      for (final server in _rankCountryIncludingUnverified(
+        pool,
+        country,
+        capabilities,
+      )) {
+        if (seen.add(server.id)) {
+          ranked.add(server);
+        }
+      }
+    }
+    return ranked
         .where(
           (server) =>
               server.id != primary.target.server.id &&

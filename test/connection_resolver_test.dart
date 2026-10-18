@@ -478,7 +478,13 @@ Endpoint = 192.0.2.1:51820
       expect(result.message, contains('ZZ'));
     });
 
-    test('a country with only ineligible servers is distinguished from an unknown one', () async {
+    test('a country whose relays are all marked offline is still dialled', () async {
+      // The status column is the provider's measurement, not this network's:
+      // a relay whose ping could not be measured is listed offline while its
+      // OpenVPN process may be answering fine. A named country's relays are
+      // therefore offered to the walk even when the directory has given up
+      // on all of them — the walk is the test, and the failure that follows
+      // a dead relay names the country that was tried.
       final resolver = await resolverOverProviders([
         FakeResolverProvider(
           id: 'test',
@@ -494,10 +500,11 @@ Endpoint = 192.0.2.1:51820
         capabilities: openVpnCapable,
       );
 
-      expect(
-        (result as ResolveFailureResult).reason,
-        ResolveFailure.noEligibleServer,
-      );
+      expect(result, isA<ResolveSuccess>());
+      final success = result as ResolveSuccess;
+      expect(success.target.server.id, 's1');
+      expect(success.target.selection.fellBack, isFalse);
+      expect(success.notice, isNull);
     });
 
     test('a provider that cannot supply a config fails cleanly', () async {
@@ -572,14 +579,46 @@ Endpoint = 192.0.2.1:51820
     });
 
     test(
+      'a country is only substituted when nothing of its own could be tried',
+      () async {
+        final resolver = await resolverOverProviders([
+          FakeResolverProvider(
+            id: 'test',
+            servers: [
+              // Japan's relay is only *unverified*: the feed could not
+              // measure a ping. That is not a reason to hand the user
+              // Germany, so Japan is still what gets dialled.
+              server(id: 'jp1', country: 'JP', status: ServerStatus.offline),
+              server(id: 'de1', country: 'DE', latencyMs: 25),
+            ],
+            config: realOvpnConfig(),
+          ),
+        ]);
+
+        final result = await resolver.resolve(
+          const SelectionRequest(countryCode: 'JP'),
+          capabilities: openVpnCapable,
+        );
+
+        expect(result, isA<ResolveSuccess>());
+        final success = result as ResolveSuccess;
+        expect(success.target.server.id, 'jp1');
+        expect(success.target.selection.fellBack, isFalse);
+        expect(success.notice, isNull);
+      },
+    );
+
+    test(
       'a substituted country is reported through notice, never silently',
       () async {
         final resolver = await resolverOverProviders([
           FakeResolverProvider(
             id: 'test',
             servers: [
-              // Japan exists but has nothing usable.
-              server(id: 'jp1', country: 'JP', status: ServerStatus.offline),
+              // Japan exists but has nothing that may be dialled: withdrawn
+              // is the source saying the endpoint is gone, and no ping of
+              // ours can overrule it, so a substitute is the honest answer.
+              server(id: 'jp1', country: 'JP', status: ServerStatus.withdrawn),
               server(id: 'de1', country: 'DE', latencyMs: 25),
             ],
             config: realOvpnConfig(),

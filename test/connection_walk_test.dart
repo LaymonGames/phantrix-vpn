@@ -59,6 +59,7 @@ VpnServer walkServer({
   required String id,
   required int latencyMs,
   String country = 'DE',
+  ServerStatus status = ServerStatus.online,
 }) {
   final octet = _octetFor(id);
   return VpnServer(
@@ -70,7 +71,7 @@ VpnServer walkServer({
     trustLevel: TrustLevel.projectVerified,
     countryCode: country,
     providerId: 'walk',
-    status: ServerStatus.online,
+    status: status,
     metrics: ServerMetrics(latencyMs: latencyMs),
   );
 }
@@ -304,8 +305,9 @@ void main() {
     int walkDepth = 3,
     RelayProbe? relayProbe,
     int serverCount = 3,
+    List<VpnServer>? servers,
   }) async {
-    final servers = [
+    final resolvedServers = servers ?? [
       walkServer(id: 'a', latencyMs: 5),
       walkServer(id: 'b', latencyMs: 20),
       walkServer(id: 'c', latencyMs: 90),
@@ -345,9 +347,9 @@ void main() {
       discovery: DiscoveryController(
         providers: [
           WalkProvider(
-            servers: servers,
+            servers: resolvedServers,
             configs: {
-              for (final server in servers)
+              for (final server in resolvedServers)
                 server.id: ovpnConfigFor(server.hostAddress!),
             },
           ),
@@ -626,6 +628,45 @@ void main() {
         reason: 'the user asked for this server, not for the ranking',
       );
       expect(harness.controller.currentView.errorCode, 'tunnel.timeout');
+    });
+  });
+
+  group('a country the directory has doubts about is still walked', () {
+    test('its relays are dialled, and a silent one is walked past', () async {
+      // The live shape behind "Greece is not working": the only Greek relay
+      // could not be pinged by the feed, so the directory listed it offline —
+      // while the relay itself completed a handshake on the first direct
+      // dial. A named country's own relays are what the walk tries; status is
+      // a prediction, and the dial is the measurement.
+      final harness = await build(
+        script: ['silent', 'handshake'],
+        servers: [
+          walkServer(
+            id: 'gr-a',
+            latencyMs: 5,
+            country: 'GR',
+            status: ServerStatus.offline,
+          ),
+          walkServer(
+            id: 'gr-b',
+            latencyMs: 40,
+            country: 'GR',
+            status: ServerStatus.offline,
+          ),
+        ],
+      );
+
+      await harness.resolver.resolveAndConnect(
+        const SelectionRequest(
+          mode: SelectionMode.recommended,
+          countryCode: 'GR',
+        ),
+        connection: harness.controller,
+      );
+      await waitForConnected(harness.controller);
+
+      expect(harness.bridge.startedTo, hasLength(2));
+      expect(harness.controller.currentView.state.isConnected, isTrue);
     });
   });
 
