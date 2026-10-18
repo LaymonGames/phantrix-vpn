@@ -2,48 +2,50 @@ import 'dart:math' as math;
 
 /// A country entry used by the location browser.
 class GeoCountry {
-	const GeoCountry({
-		required this.iso2,
-		required this.iso3,
-		required this.nameEn,
-		required this.nameAr,
-		required this.continent,
-		required this.latitude,
-		required this.longitude,
-	});
+  const GeoCountry({
+    required this.iso2,
+    required this.iso3,
+    required this.nameEn,
+    required this.nameAr,
+    required this.continent,
+    required this.latitude,
+    required this.longitude,
+  });
 
-	final String iso2;
-	final String iso3;
-	final String nameEn;
-	final String nameAr;
-	final String continent;
-	final double latitude;
-	final double longitude;
+  final String iso2;
+  final String iso3;
+  final String nameEn;
+  final String nameAr;
+  final String continent;
+  final double latitude;
+  final double longitude;
 
-	/// Flag as a regional-indicator emoji pair.
-	String get flag =>
-			String.fromCharCodes(iso2.toUpperCase().codeUnits.map((c) => c + 0x1F1E6 - 0x41));
+  /// Flag as a regional-indicator emoji pair.
+  String get flag => String.fromCharCodes(
+    iso2.toUpperCase().codeUnits.map((c) => c + 0x1F1E6 - 0x41),
+  );
 
-	String nameFor(String languageCode) =>
-			languageCode.toLowerCase().startsWith('ar') ? nameAr : nameEn;
+  String nameFor(String languageCode) =>
+      languageCode.toLowerCase().startsWith('ar') ? nameAr : nameEn;
 
-	/// Great-circle distance in kilometres.
-	double distanceKm(double lat, double lon) {
-		const earthRadius = 6371.0;
-		final dLat = _rad(lat - latitude);
-		final dLon = _rad(lon - longitude);
-		final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-				math.cos(_rad(latitude)) *
-					math.cos(_rad(lat)) *
-					math.sin(dLon / 2) *
-					math.sin(dLon / 2);
-		return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-	}
+  /// Great-circle distance in kilometres.
+  double distanceKm(double lat, double lon) {
+    const earthRadius = 6371.0;
+    final dLat = _rad(lat - latitude);
+    final dLon = _rad(lon - longitude);
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_rad(latitude)) *
+            math.cos(_rad(lat)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
 
-	static double _rad(double deg) => deg * math.pi / 180;
+  static double _rad(double deg) => deg * math.pi / 180;
 
-	@override
-	String toString() => nameEn;
+  @override
+  String toString() => nameEn;
 }
 
 /// Offline ISO 3166-1 reference data.
@@ -53,81 +55,82 @@ class GeoCountry {
 /// live directory: this table only maps a code to a name, a flag and a
 /// position, and never implies that a server exists there.
 class GeoDatabase {
-	GeoDatabase._();
+  GeoDatabase._();
 
-	static final Map<String, GeoCountry> _byIso2 = _load();
+  static final Map<String, GeoCountry> _byIso2 = _load();
 
-	static final Map<String, GeoCountry> _byIso3 = {
-		for (final entry in _byIso2.values) entry.iso3: entry,
-	};
+  static final Map<String, GeoCountry> _byIso3 = {
+    for (final entry in _byIso2.values) entry.iso3: entry,
+  };
 
-	static GeoCountry? byIso2(String code) => _byIso2[code.toUpperCase()];
+  static GeoCountry? byIso2(String code) => _byIso2[code.toUpperCase()];
 
-	static GeoCountry? byIso3(String code) => _byIso3[code.toUpperCase()];
+  static GeoCountry? byIso3(String code) => _byIso3[code.toUpperCase()];
 
-	static String nameOf(String code, [String languageCode = 'en']) {
-		final country = byIso2(code) ?? byIso3(code);
-		return country?.nameFor(languageCode) ?? code;
-	}
+  static String nameOf(String code, [String languageCode = 'en']) {
+    final country = byIso2(code) ?? byIso3(code);
+    return country?.nameFor(languageCode) ?? code;
+  }
 
-	static String flagOf(String code) => (byIso2(code) ?? byIso3(code))?.flag ?? '🌐';
+  static String flagOf(String code) =>
+      (byIso2(code) ?? byIso3(code))?.flag ?? '🌐';
 
-	static List<GeoCountry> get all => List.unmodifiable(
-		_byIso2.values.toList()..sort((a, b) => a.nameEn.compareTo(b.nameEn)),
-	);
+  static List<GeoCountry> get all => List.unmodifiable(
+    _byIso2.values.toList()..sort((a, b) => a.nameEn.compareTo(b.nameEn)),
+  );
 
-	static int get countryCount => _byIso2.length;
+  static int get countryCount => _byIso2.length;
 
-	static String continentLabel(String code) => switch (code) {
-		'AF' => 'Africa',
-		'AS' => 'Asia',
-		'EU' => 'Europe',
-		'NA' => 'North America',
-		'SA' => 'South America',
-		'OC' => 'Oceania',
-		'AN' => 'Antarctica',
-		_ => code,
-	};
+  static String continentLabel(String code) => switch (code) {
+    'AF' => 'Africa',
+    'AS' => 'Asia',
+    'EU' => 'Europe',
+    'NA' => 'North America',
+    'SA' => 'South America',
+    'OC' => 'Oceania',
+    'AN' => 'Antarctica',
+    _ => code,
+  };
 
-	static Map<String, GeoCountry> _load() {
-		final map = <String, GeoCountry>{};
-		for (final line in _rows.split('\n')) {
-			final trimmed = line.trim();
-			if (trimmed.isEmpty) {
-				continue;
-			}
-			final parts = trimmed.split(' ');
-			if (parts.length < 7) {
-				continue;
-			}
-			// English and Arabic names may both contain multiple words. Find the
-			// first Arabic-script token rather than assuming the Arabic name is a
-			// single token (which truncated names such as "United Arab Emirates").
-			final nameTokens = parts.sublist(2, parts.length - 3);
-			final arabicStart = nameTokens.indexWhere(_arabicScript.hasMatch);
-			final nameEn = arabicStart > 0
-					? nameTokens.take(arabicStart).join(' ')
-					: nameTokens.join(' ');
-			final nameAr = arabicStart >= 0
-					? nameTokens.skip(arabicStart).join(' ')
-					: nameEn;
-			final country = GeoCountry(
-				iso2: parts[0].toUpperCase(),
-				iso3: parts[1].toUpperCase(),
-				nameEn: nameEn,
-				nameAr: nameAr,
-				continent: parts[parts.length - 3],
-				latitude: double.parse(parts[parts.length - 2]),
-				longitude: double.parse(parts[parts.length - 1]),
-			);
-			map[country.iso2] = country;
-		}
-		return map;
-	}
+  static Map<String, GeoCountry> _load() {
+    final map = <String, GeoCountry>{};
+    for (final line in _rows.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      final parts = trimmed.split(' ');
+      if (parts.length < 7) {
+        continue;
+      }
+      // English and Arabic names may both contain multiple words. Find the
+      // first Arabic-script token rather than assuming the Arabic name is a
+      // single token (which truncated names such as "United Arab Emirates").
+      final nameTokens = parts.sublist(2, parts.length - 3);
+      final arabicStart = nameTokens.indexWhere(_arabicScript.hasMatch);
+      final nameEn = arabicStart > 0
+          ? nameTokens.take(arabicStart).join(' ')
+          : nameTokens.join(' ');
+      final nameAr = arabicStart >= 0
+          ? nameTokens.skip(arabicStart).join(' ')
+          : nameEn;
+      final country = GeoCountry(
+        iso2: parts[0].toUpperCase(),
+        iso3: parts[1].toUpperCase(),
+        nameEn: nameEn,
+        nameAr: nameAr,
+        continent: parts[parts.length - 3],
+        latitude: double.parse(parts[parts.length - 2]),
+        longitude: double.parse(parts[parts.length - 1]),
+      );
+      map[country.iso2] = country;
+    }
+    return map;
+  }
 
-	static final RegExp _arabicScript = RegExp(r'[\u0600-\u06FF]');
+  static final RegExp _arabicScript = RegExp(r'[\u0600-\u06FF]');
 
-	static const String _rows = '''
+  static const String _rows = '''
 AD AND Andorra أندورا EU 42.5462 1.6016
 AE ARE United Arab Emirates الإمارات العربية المتحدة AS 23.4241 53.8478
 AF AFG Afghanistan أفغانستان AS 33.9391 67.7100
@@ -278,7 +281,7 @@ MN MNG Mongolia منغوليا AS 46.8625 103.8467
 MO MAC Macao منطقة ماكاو الإدارية الخاصة AS 22.1667 113.5500
 MP MNP Northern Mariana Islands جزر ماريانا الشمالية OC 15.2000 145.7500
 MQ MTQ Martinique جزر المارتينيك NA 14.6667 -61.0000
-MR MRT Maurituria موريتانيا AF 21.0079 -10.9408
+MR MRT Mauritania موريتانيا AF 21.0079 -10.9408
 MS MSR Montserrat مونتسرات NA 16.7500 -62.2000
 MT MLT Malta مالطا EU 35.9375 14.3754
 MU MUS Mauritius موريشيوس AF -20.3484 57.5522

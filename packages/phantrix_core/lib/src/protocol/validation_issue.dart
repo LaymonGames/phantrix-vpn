@@ -7,58 +7,58 @@ library;
 import '../core/app_error.dart';
 
 class ValidationIssue {
-	const ValidationIssue({
-		required this.code,
-		required this.message,
-		this.severity = IssueSeverity.error,
-		this.field,
-		this.detail,
-	});
+  const ValidationIssue({
+    required this.code,
+    required this.message,
+    this.severity = IssueSeverity.error,
+    this.field,
+    this.detail,
+  });
 
-	final String code;
-	final String message;
-	final IssueSeverity severity;
-	final String? field;
-	final Map<String, Object?>? detail;
+  final String code;
+  final String message;
+  final IssueSeverity severity;
+  final String? field;
+  final Map<String, Object?>? detail;
 
-	bool get isError => severity == IssueSeverity.error;
+  bool get isError => severity == IssueSeverity.error;
 
-	AppError asError() => AppError(
-		group: ErrorGroup.validation,
-		code: code,
-		message: message,
-		detail: detail,
-	);
+  AppError asError() => AppError(
+    group: ErrorGroup.validation,
+    code: code,
+    message: message,
+    detail: detail,
+  );
 
-	@override
-	String toString() => message;
+  @override
+  String toString() => message;
 }
 
 enum IssueSeverity { info, warning, error }
 
 /// The result of a validation pass: a (possibly empty) list of issues.
 class ValidationResult {
-	const ValidationResult(this.issues);
+  const ValidationResult(this.issues);
 
-	final List<ValidationIssue> issues;
+  final List<ValidationIssue> issues;
 
-	static const ValidationResult valid = ValidationResult([]);
+  static const ValidationResult valid = ValidationResult([]);
 
-	bool get isValid => issues.every((i) => !i.isError);
+  bool get isValid => issues.every((i) => !i.isError);
 
-	List<ValidationIssue> get errors => issues.where((i) => i.isError).toList(growable: false);
+  List<ValidationIssue> get errors =>
+      issues.where((i) => i.isError).toList(growable: false);
 
-	List<ValidationIssue> get warnings =>
-			issues.where((i) => i.severity == IssueSeverity.warning).toList(growable: false);
+  List<ValidationIssue> get warnings => issues
+      .where((i) => i.severity == IssueSeverity.warning)
+      .toList(growable: false);
 
-	AppError? get asError => isValid
-			? null
-			: AppError(
-					group: ErrorGroup.validation,
-					code: 'validation.failed',
-					message: errors.map((e) => e.message).join(' '),
-					detail: {
-						'issues': errors.map((e) => e.code).toList(growable: false),
-					},
-				);
+  AppError? get asError => isValid
+      ? null
+      : AppError(
+          group: ErrorGroup.validation,
+          code: 'validation.failed',
+          message: errors.map((e) => e.message).join(' '),
+          detail: {'issues': errors.map((e) => e.code).toList(growable: false)},
+        );
 }
