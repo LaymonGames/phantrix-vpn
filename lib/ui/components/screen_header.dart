@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
 import '../../theme/tokens.dart';
 import 'brand.dart';
 
@@ -38,7 +39,7 @@ class VgScreenHeader extends StatelessWidget {
           if (onBack != null)
             IconButton(
               onPressed: onBack,
-              tooltip: 'Back',
+              tooltip: L10n.of(context).get('back'),
               visualDensity: VisualDensity.compact,
               color: theme.colorScheme.onSurfaceVariant,
               icon: const Icon(Icons.arrow_back_rounded, size: VgIcon.md),

@@ -63,7 +63,7 @@ class _ConnectionOrbState extends State<ConnectionOrb>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final palette = OrbPalette.forTone(widget.state, theme);
+    final palette = OrbPalette.forTone(widget.state, theme, L10n.of(context));
     final busy = widget.state == VgTone.working;
 
     return Semantics(

@@ -75,10 +75,8 @@ class ConnectionPanel extends StatelessWidget {
             title: l10n.get('startOnBoot'),
             value: d.startOnBoot,
             enabled: platform.supportsBootStart,
-            disabledReason:
-                'This platform cannot start the app on system boot.',
-            onChanged: (v) =>
-                settings.update((s) => s.copyWith(startOnBoot: v)),
+            disabledReason: l10n.get('settingsBootStartUnsupported'),
+            onChanged: (v) => settings.update((s) => s.copyWith(startOnBoot: v)),
           ),
         ],
       ),

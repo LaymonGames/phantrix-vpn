@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
 import '../../theme/tokens.dart';
 import 'orb_face.dart';
 import 'orb_palette.dart';

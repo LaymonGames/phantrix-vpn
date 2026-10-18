@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
 import '../../theme/tokens.dart';
 import 'status_style.dart';
 
@@ -42,7 +43,7 @@ class OrbPalette {
   /// *stopping* must say so before the user presses it.
   final String hint;
 
-  static OrbPalette forTone(VgTone tone, ThemeData theme) {
+  static OrbPalette forTone(VgTone tone, ThemeData theme, L10n l10n) {
     final colors = VgStatusColors.of(tone, theme.brightness);
     final track = theme.brightness == Brightness.dark
         ? VgColors.surfaceHighest
@@ -51,47 +52,47 @@ class OrbPalette {
       VgTone.idle => OrbPalette(
         colors: colors,
         track: track,
-        title: 'Disconnected',
-        subtitle: 'Tap to connect',
-        action: 'Connect',
-        semanticLabel: 'Disconnected. Activate to connect the VPN.',
-        hint: 'Double tap to connect the VPN',
+        title: l10n.get('state.disconnected'),
+        subtitle: l10n.get('orbTapToConnect'),
+        action: l10n.get('connect'),
+        semanticLabel: l10n.get('orbSemanticConnect'),
+        hint: l10n.get('orbHintConnect'),
       ),
       VgTone.working => OrbPalette(
         colors: colors,
         track: track,
-        title: 'Connecting',
-        subtitle: 'Tap to cancel',
-        action: 'Cancel',
-        semanticLabel: 'Connecting. Activate to cancel the connection attempt.',
-        hint: 'Double tap to cancel the connection attempt',
+        title: l10n.get('state.connecting'),
+        subtitle: l10n.get('orbTapToCancel'),
+        action: l10n.get('cancel'),
+        semanticLabel: l10n.get('orbSemanticCancel'),
+        hint: l10n.get('orbHintCancel'),
       ),
       VgTone.connected => OrbPalette(
         colors: colors,
         track: track,
-        title: 'Connected',
-        subtitle: 'Tunnel established',
-        action: 'Disconnect',
-        semanticLabel: 'Connected. The tunnel is established and your traffic is routed through it.',
-        hint: 'Double tap to disconnect the VPN',
+        title: l10n.get('state.connected'),
+        subtitle: l10n.get('sidebarTunnelEstablished'),
+        action: l10n.get('disconnect'),
+        semanticLabel: l10n.get('orbSemanticDisconnect'),
+        hint: l10n.get('orbHintDisconnect'),
       ),
       VgTone.failed => OrbPalette(
         colors: colors,
         track: track,
-        title: 'Not connected',
-        subtitle: 'Tap to try again',
-        action: 'Retry',
-        semanticLabel: 'Not connected. Activate to try again.',
-        hint: 'Double tap to try again',
+        title: l10n.get('orbNotConnected'),
+        subtitle: l10n.get('sidebarTapToTryAgain'),
+        action: l10n.get('retry'),
+        semanticLabel: l10n.get('orbSemanticRetry'),
+        hint: l10n.get('orbHintRetry'),
       ),
       VgTone.blocked => OrbPalette(
         colors: colors,
         track: track,
-        title: 'Needs attention',
-        subtitle: 'Tap for details',
-        action: 'Review',
-        semanticLabel: 'Needs your attention before it can connect.',
-        hint: 'Double tap to see what is needed',
+        title: l10n.get('state.blocked'),
+        subtitle: l10n.get('orbTapForDetails'),
+        action: l10n.get('orbReviewAction'),
+        semanticLabel: l10n.get('orbSemanticReview'),
+        hint: l10n.get('orbHintReview'),
       ),
     };
   }

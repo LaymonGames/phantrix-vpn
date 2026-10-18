@@ -25,6 +25,11 @@ class L10n {
 
   static const List<Locale> supportedLocales = [Locale('en'), Locale('ar')];
 
+  /// The complete catalogs, keyed by language code. Exposed for the test that
+  /// keeps the two languages in step; the UI reads strings through [get].
+  @visibleForTesting
+  static const Map<String, Map<String, String>> catalog = _stringsValues;
+
   static L10n of(BuildContext context) {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'ar' ? ar : en;
