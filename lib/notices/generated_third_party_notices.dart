@@ -12,1220 +12,1173 @@ import 'package:phantrix/notices/third_party_notices.dart';
 /// Every component this project depends on, adapts, or ships as a
 /// binary, in the order the licences screen renders them.
 const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
-	ThirdPartyNoticeData(
-		component: 'app',
-		name: 'phantrix',
-		version: '1.0.0+1',
-		sourceUrl: 'https://github.com/ParalloxDev/VPN.git',
-		licenseId: 'GPL-3.0-only',
-		licenseKey: 'phantrix-gpl-3-0-only',
-		licenseSource: 'LICENSE and COPYRIGHT (scope limited to independent original code; see docs/LICENSING_AUDIT.md)',
-		copyright: 'Copyright (c) 2026 Laymon Games.',
-		noteCodes: <String>['appLicenceScopeLimited'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: '_fe_analyzer_shared',
-		version: '109.0.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'fe-analyzer-shared-109-0-0-bsd-3-clause',
-		licenseSource: 'pub cache: _fe_analyzer_shared-109.0.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2019, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'analyzer',
-		version: '14.5.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'analyzer-14-5-0-bsd-3-clause',
-		licenseSource: 'pub cache: analyzer-14.5.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2013, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'args',
-		version: '2.7.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'args-2-7-0-bsd-3-clause',
-		licenseSource: 'pub cache: args-2.7.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2013, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'async',
-		version: '2.13.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'async-2-13-1-bsd-3-clause',
-		licenseSource: 'pub cache: async-2.13.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'boolean_selector',
-		version: '2.1.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'boolean-selector-2-1-2-bsd-3-clause',
-		licenseSource: 'pub cache: boolean_selector-2.1.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2016, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'characters',
-		version: '1.4.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'characters-1-4-1-bsd-3-clause',
-		licenseSource: 'pub cache: characters-1.4.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2019, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'cli_config',
-		version: '0.2.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'cli-config-0-2-0-bsd-3-clause',
-		licenseSource: 'pub cache: cli_config-0.2.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2023, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'clock',
-		version: '1.1.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'clock-1-1-3-apache-2-0',
-		licenseSource: 'pub cache: clock-1.1.3 (pubspec.lock)',
-		copyright: 'Copyright (c) notice that is included in or attached to the work',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'collection',
-		version: '1.19.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'collection-1-19-1-bsd-3-clause',
-		licenseSource: 'pub cache: collection-1.19.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'convert',
-		version: '3.1.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'convert-3-1-2-bsd-3-clause',
-		licenseSource: 'pub cache: convert-3.1.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'coverage',
-		version: '1.15.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'coverage-1-15-1-bsd-3-clause',
-		licenseSource: 'pub cache: coverage-1.15.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'crypto',
-		version: '3.0.7',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'crypto-3-0-7-bsd-3-clause',
-		licenseSource: 'pub cache: crypto-3.0.7 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'cryptography',
-		version: '2.9.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'cryptography-2-9-0-apache-2-0',
-		licenseSource: 'pub cache: cryptography-2.9.0 (pubspec.lock)',
-		copyright: 'Copyright (c) notice that is included in or attached to the work',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'cupertino_icons',
-		version: '1.0.9',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'MIT',
-		licenseKey: 'cupertino-icons-1-0-9-mit',
-		licenseSource: 'pub cache: cupertino_icons-1.0.9 (pubspec.lock)',
-		copyright: 'Copyright (c) 2016 Vladimir Kharlampidi',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'fake_async',
-		version: '1.3.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'fake-async-1-3-3-apache-2-0',
-		licenseSource: 'pub cache: fake_async-1.3.3 (pubspec.lock)',
-		copyright: 'Copyright (c) notice that is included in or attached to the work',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'ffi',
-		version: '2.2.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'ffi-2-2-0-bsd-3-clause',
-		licenseSource: 'pub cache: ffi-2.2.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2019, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'file',
-		version: '7.0.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'file-7-0-1-bsd-3-clause',
-		licenseSource: 'pub cache: file-7.0.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2017, the Dart project authors. All rights reserved.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter_driver',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter_lints',
-		version: '6.0.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'flutter-lints-6-0-0-bsd-3-clause',
-		licenseSource: 'pub cache: flutter_lints-6.0.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['devDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter_localizations',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter_test',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency', 'devDependency'],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'flutter_web_plugins',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'frontend_server_client',
-		version: '4.1.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'frontend-server-client-4-1-0-bsd-3-clause',
-		licenseSource: 'pub cache: frontend_server_client-4.1.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2012, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'fuchsia_remote_debug_protocol',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'glob',
-		version: '2.2.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'glob-2-2-0-bsd-3-clause',
-		licenseSource: 'pub cache: glob-2.2.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'http',
-		version: '1.6.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'http-1-6-0-bsd-3-clause',
-		licenseSource: 'pub cache: http-1.6.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'http_multi_server',
-		version: '3.2.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'http-multi-server-3-2-2-bsd-3-clause',
-		licenseSource: 'pub cache: http_multi_server-3.2.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'http_parser',
-		version: '4.1.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'http-parser-4-1-2-bsd-3-clause',
-		licenseSource: 'pub cache: http_parser-4.1.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'integration_test',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency', 'devDependency'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'intl',
-		version: '0.20.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'intl-0-20-3-bsd-3-clause',
-		licenseSource: 'pub cache: intl-0.20.3 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'io',
-		version: '1.1.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'io-1-1-0-bsd-3-clause',
-		licenseSource: 'pub cache: io-1.1.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2017, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'leak_tracker',
-		version: '11.0.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'leak-tracker-11-0-2-bsd-3-clause',
-		licenseSource: 'pub cache: leak_tracker-11.0.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2022, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'leak_tracker_flutter_testing',
-		version: '3.0.10',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'leak-tracker-flutter-testing-3-0-10-bsd-3-clause',
-		licenseSource: 'pub cache: leak_tracker_flutter_testing-3.0.10 (pubspec.lock)',
-		copyright: 'Copyright (c) 2022, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'leak_tracker_testing',
-		version: '3.0.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'leak-tracker-testing-3-0-2-bsd-3-clause',
-		licenseSource: 'pub cache: leak_tracker_testing-3.0.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2022, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'lints',
-		version: '5.1.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'lints-5-1-1-bsd-3-clause',
-		licenseSource: 'pub cache: lints-5.1.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2021, the Dart project authors.',
-		noteCodes: <String>['devDependency'],
-		scopes: <String>['core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'lints',
-		version: '6.1.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'lints-6-1-0-bsd-3-clause',
-		licenseSource: 'pub cache: lints-6.1.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2021, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'logging',
-		version: '1.3.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'logging-1-3-0-bsd-3-clause',
-		licenseSource: 'pub cache: logging-1.3.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2013, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'matcher',
-		version: '0.12.20',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'matcher-0-12-20-bsd-3-clause',
-		licenseSource: 'pub cache: matcher-0.12.20 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'material_color_utilities',
-		version: '0.13.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'material-color-utilities-0-13-0-apache-2-0',
-		licenseSource: 'pub cache: material_color_utilities-0.13.0 (pubspec.lock)',
-		copyright: 'Copyright (c) notice that is included in or attached to the work',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'meta',
-		version: '1.18.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'meta-1-18-3-bsd-3-clause',
-		licenseSource: 'pub cache: meta-1.18.3 (pubspec.lock)',
-		copyright: 'Copyright (c) 2016, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'meta',
-		version: '1.19.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'meta-1-19-0-bsd-3-clause',
-		licenseSource: 'pub cache: meta-1.19.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2016, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'mime',
-		version: '2.1.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'mime-2-1-0-bsd-3-clause',
-		licenseSource: 'pub cache: mime-2.1.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'node_preamble',
-		version: '2.0.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'MIT',
-		licenseKey: 'node-preamble-2-0-2-mit',
-		licenseSource: 'pub cache: node_preamble-2.0.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2015 Michael Bullington',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'package_config',
-		version: '3.0.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'package-config-3-0-0-bsd-3-clause',
-		licenseSource: 'pub cache: package_config-3.0.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2019, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'path',
-		version: '1.9.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'path-1-9-1-bsd-3-clause',
-		licenseSource: 'pub cache: path-1.9.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'platform',
-		version: '3.2.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'platform-3-2-0-bsd-3-clause',
-		licenseSource: 'pub cache: platform-3.2.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2017, the Dart project authors. All rights reserved.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'plugin_platform_interface',
-		version: '2.1.8',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'plugin-platform-interface-2-1-8-bsd-3-clause',
-		licenseSource: 'pub cache: plugin_platform_interface-2.1.8 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'pool',
-		version: '1.5.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'pool-1-5-3-bsd-3-clause',
-		licenseSource: 'pub cache: pool-1.5.3 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'process',
-		version: '5.0.6',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'process-5-0-6-bsd-3-clause',
-		licenseSource: 'pub cache: process-5.0.6 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'pub_semver',
-		version: '2.2.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'pub-semver-2-2-1-bsd-3-clause',
-		licenseSource: 'pub cache: pub_semver-2.2.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'shelf',
-		version: '1.4.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'shelf-1-4-2-bsd-3-clause',
-		licenseSource: 'pub cache: shelf-1.4.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'shelf_packages_handler',
-		version: '3.0.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'shelf-packages-handler-3-0-2-bsd-3-clause',
-		licenseSource: 'pub cache: shelf_packages_handler-3.0.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2016, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'shelf_static',
-		version: '1.1.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'shelf-static-1-1-3-bsd-3-clause',
-		licenseSource: 'pub cache: shelf_static-1.1.3 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'shelf_web_socket',
-		version: '3.0.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'shelf-web-socket-3-0-0-bsd-3-clause',
-		licenseSource: 'pub cache: shelf_web_socket-3.0.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'sky_engine',
-		version: '0.0.0',
-		licenseId: 'Multiple licenses (SDK aggregate notices)',
-		licenseKey: 'flutter-sdk-aggregate-notices',
-		licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
-		copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>['sdkDependency'],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'source_map_stack_trace',
-		version: '2.1.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'source-map-stack-trace-2-1-2-bsd-3-clause',
-		licenseSource: 'pub cache: source_map_stack_trace-2.1.2 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'source_maps',
-		version: '0.10.14',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'source-maps-0-10-14-bsd-3-clause',
-		licenseSource: 'pub cache: source_maps-0.10.14 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'source_span',
-		version: '1.10.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'source-span-1-10-2-bsd-3-clause',
-		licenseSource: 'pub cache: source_span-1.10.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'stack_trace',
-		version: '1.12.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'stack-trace-1-12-2-bsd-3-clause',
-		licenseSource: 'pub cache: stack_trace-1.12.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'stream_channel',
-		version: '2.1.4',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'stream-channel-2-1-4-bsd-3-clause',
-		licenseSource: 'pub cache: stream_channel-2.1.4 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'string_scanner',
-		version: '1.4.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'string-scanner-1-4-1-bsd-3-clause',
-		licenseSource: 'pub cache: string_scanner-1.4.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'sync_http',
-		version: '0.3.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'sync-http-0-3-1-bsd-3-clause',
-		licenseSource: 'pub cache: sync_http-0.3.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2017, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'term_glyph',
-		version: '1.2.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'term-glyph-1-2-2-bsd-3-clause',
-		licenseSource: 'pub cache: term_glyph-1.2.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2017, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'test',
-		version: '1.33.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'test-1-33-0-bsd-3-clause',
-		licenseSource: 'pub cache: test-1.33.0 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>['devDependency'],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'test_api',
-		version: '0.7.12',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'test-api-0-7-12-bsd-3-clause',
-		licenseSource: 'pub cache: test_api-0.7.12 (pubspec.lock)',
-		copyright: 'Copyright (c) 2018, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'test_api',
-		version: '0.7.15',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'test-api-0-7-15-bsd-3-clause',
-		licenseSource: 'pub cache: test_api-0.7.15 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2018, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'test_core',
-		version: '0.6.21',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'test-core-0-6-21-bsd-3-clause',
-		licenseSource: 'pub cache: test_core-0.6.21 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2018, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'typed_data',
-		version: '1.4.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'typed-data-1-4-0-bsd-3-clause',
-		licenseSource: 'pub cache: typed_data-1.4.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher',
-		version: '6.3.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-6-3-3-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher-6.3.3 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_android',
-		version: '6.3.33',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-android-6-3-33-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_android-6.3.33 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_ios',
-		version: '6.4.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-ios-6-4-2-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_ios-6.4.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_linux',
-		version: '3.2.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-linux-3-2-3-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_linux-3.2.3 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_macos',
-		version: '3.2.6',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-macos-3-2-6-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_macos-3.2.6 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_platform_interface',
-		version: '2.3.2',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-platform-interface-2-3-2-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_platform_interface-2.3.2 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_web',
-		version: '2.4.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-web-2-4-3-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_web-2.4.3 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'url_launcher_windows',
-		version: '3.1.6',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'url-launcher-windows-3-1-6-bsd-3-clause',
-		licenseSource: 'pub cache: url_launcher_windows-3.1.6 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'vector_math',
-		version: '2.4.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'vector-math-2-4-0-bsd-3-clause',
-		licenseSource: 'pub cache: vector_math-2.4.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'vector_math',
-		version: '2.4.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'vector-math-2-4-3-bsd-3-clause',
-		licenseSource: 'pub cache: vector_math-2.4.3 (packages/phantrix_platform/pubspec.lock)',
-		copyright: 'Copyright (c) 2013 The Flutter Authors',
-		noteCodes: <String>[],
-		scopes: <String>['platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'phantrix_core',
-		version: '1.0.0',
-		licenseId: 'GPL-3.0-only',
-		licenseKey: 'phantrix-core-1-0-0-gpl-3-0-only',
-		licenseSource: 'path dependency in this repository; SPDX choice read from COPYRIGHT and text from LICENSE (pubspec.lock)',
-		copyright: 'Copyright (c) 2026 Laymon Games.',
-		noteCodes: <String>['projectPackageScopeLimited'],
-		scopes: <String>['app', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'phantrix_platform',
-		version: '1.0.0',
-		licenseId: 'GPL-3.0-only',
-		licenseKey: 'phantrix-platform-1-0-0-gpl-3-0-only',
-		licenseSource: 'path dependency in this repository; SPDX choice read from COPYRIGHT and text from LICENSE (pubspec.lock)',
-		copyright: 'Copyright (c) 2026 Laymon Games.',
-		noteCodes: <String>['projectPackageScopeLimited'],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'vm_service',
-		version: '15.3.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'vm-service-15-3-0-bsd-3-clause',
-		licenseSource: 'pub cache: vm_service-15.3.0 (pubspec.lock)',
-		copyright: 'Copyright (c) 2015, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'watcher',
-		version: '1.2.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'watcher-1-2-1-bsd-3-clause',
-		licenseSource: 'pub cache: watcher-1.2.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'web',
-		version: '1.1.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'web-1-1-1-bsd-3-clause',
-		licenseSource: 'pub cache: web-1.1.1 (pubspec.lock)',
-		copyright: 'Copyright (c) 2023, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['app', 'core', 'platform'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'web_socket',
-		version: '1.0.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'web-socket-1-0-1-bsd-3-clause',
-		licenseSource: 'pub cache: web_socket-1.0.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2024, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'web_socket_channel',
-		version: '3.0.3',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'web-socket-channel-3-0-3-bsd-3-clause',
-		licenseSource: 'pub cache: web_socket_channel-3.0.3 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2016, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'webdriver',
-		version: '3.2.0',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'webdriver-3-2-0-apache-2-0',
-		licenseSource: 'pub cache: webdriver-3.2.0 (pubspec.lock)',
-		copyright: 'Copyright (c) notice that is included in or attached to the work',
-		noteCodes: <String>[],
-		scopes: <String>['app'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'webkit_inspection_protocol',
-		version: '1.2.1',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'BSD-3-Clause',
-		licenseKey: 'webkit-inspection-protocol-1-2-1-bsd-3-clause',
-		licenseSource: 'pub cache: webkit_inspection_protocol-1.2.1 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2013, Google Inc.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'dart',
-		name: 'yaml',
-		version: '3.1.4',
-		sourceUrl: 'https://pub.dev',
-		licenseId: 'MIT',
-		licenseKey: 'yaml-3-1-4-mit',
-		licenseSource: 'pub cache: yaml-3.1.4 (packages/phantrix_core/pubspec.lock)',
-		copyright: 'Copyright (c) 2014, the Dart project authors.',
-		noteCodes: <String>[],
-		scopes: <String>['core'],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'androidx.annotation:annotation',
-		version: '1.9.1',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'androidx-annotation-annotation-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>[],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'androidx.core:core-ktx',
-		version: '1.15.0',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'androidx-core-core-ktx-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>[],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'androidx.test.ext:junit',
-		version: '1.2.1',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'androidx-test-ext-junit-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>['testOnly'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'androidx.test:core',
-		version: '1.6.1',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'androidx-test-core-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>['testOnly'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'androidx.test:runner',
-		version: '1.6.2',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'androidx-test-runner-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>['testOnly'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'com.wireguard.android:tunnel',
-		version: '1.0.20260102',
-		licenseId: 'Apache-2.0',
-		licenseKey: 'com-wireguard-android-tunnel-apache-2-0',
-		licenseSource: 'tools/attribution/apache-2.0-license.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>[],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'junit:junit',
-		version: '4.13.2',
-		sourceUrl: 'https://www.eclipse.org/legal/epl-v10.html',
-		licenseId: 'EPL-1.0',
-		licenseSource: 'Published Maven metadata declares EPL-1.0 for junit:junit:4.13.2; full licence text is not vendored in this checkout',
-		noteCodes: <String>['testOnly', 'licenceTextNotFound'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'android',
-		name: 'org.json:json',
-		version: '20240303',
-		licenseId: 'Public Domain.',
-		licenseKey: 'org-json-json-public-domain',
-		licenseSource: 'tools/attribution/json-java-public-domain.txt (checked-in fallback licence text; provenance documented in THIRD_PARTY_LICENSES.md)',
-		noteCodes: <String>['testOnly'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'windows',
-		name: 'OpenVPN 2 (community binaries, separate process)',
-		licenseId: 'GPL-2.0-only',
-		licenseKey: 'openvpn-2-community-binaries-separate-process-gpl-2-0-only',
-		licenseSource: 'packages/phantrix_platform/windows/bundle/openvpn/LICENSE.txt',
-		copyright: 'Copyright (c) 2002-2024 OpenVPN Inc <sales@openvpn.net>',
-		noteCodes: <String>['mereAggregation', 'shippedBinary'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'windows',
-		name: 'openvpn_dart (engine glue adapted from, BlockDev AG)',
-		licenseId: 'MIT',
-		licenseKey: 'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit',
-		licenseSource: 'tools/attribution/openvpn-dart-license.txt',
-		copyright: 'Copyright (c) 2023 BlockDev AG',
-		noteCodes: <String>['adaptedUpstream'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'windows',
-		name: 'wintun (prebuilt DLL, WireGuard LLC)',
-		licenseId: 'Prebuilt Binaries License',
-		licenseKey: 'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license',
-		licenseSource: 'tools/attribution/wintun-prebuilt-license.txt',
-		noteCodes: <String>['shippedBinary'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'attribution',
-		name: 'OpenVPN 2 (community binaries, separate process)',
-		licenseId: 'GPL-2.0-only',
-		licenseKey: 'openvpn-2-community-binaries-separate-process-gpl-2-0-only',
-		licenseSource: 'tools/attribution/openvpn-copying.txt',
-		copyright: 'Copyright (c) 2002-2026 OpenVPN Inc <sales@openvpn.net>',
-		noteCodes: <String>['mereAggregation', 'shippedBinary'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'attribution',
-		name: 'openvpn_dart (engine glue adapted from, BlockDev AG)',
-		licenseId: 'MIT',
-		licenseKey: 'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit',
-		licenseSource: 'tools/attribution/openvpn-dart-license.txt',
-		copyright: 'Copyright (c) 2023 BlockDev AG',
-		noteCodes: <String>['adaptedUpstream'],
-		scopes: <String>[],
-	),
-	ThirdPartyNoticeData(
-		component: 'attribution',
-		name: 'wintun (prebuilt DLL, WireGuard LLC)',
-		licenseId: 'Prebuilt Binaries License',
-		licenseKey: 'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license',
-		licenseSource: 'tools/attribution/wintun-prebuilt-license.txt',
-		noteCodes: <String>['shippedBinary'],
-		scopes: <String>[],
-	),
+  ThirdPartyNoticeData(
+    component: 'app',
+    name: 'phantrix',
+    version: '1.0.0+1',
+    sourceUrl: 'https://github.com/ParalloxDev/VPN.git',
+    licenseId: 'GPL-3.0-only',
+    licenseKey: 'phantrix-gpl-3-0-only',
+    licenseSource: 'LICENSE and COPYRIGHT (scope limited to independent original code; see docs/LICENSING_AUDIT.md)',
+    copyright: 'Copyright (c) 2026 Laymon Games.',
+    noteCodes: <String>['appLicenceScopeLimited'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: '_fe_analyzer_shared',
+    version: '109.0.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'fe-analyzer-shared-109-0-0-bsd-3-clause',
+    licenseSource: 'pub cache: _fe_analyzer_shared-109.0.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2019, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'analyzer',
+    version: '14.5.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'analyzer-14-5-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: analyzer-14.5.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2013, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'args',
+    version: '2.7.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'args-2-7-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: args-2.7.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2013, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'async',
+    version: '2.13.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'async-2-13-1-bsd-3-clause',
+    licenseSource: 'pub cache: async-2.13.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'boolean_selector',
+    version: '2.1.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'boolean-selector-2-1-2-bsd-3-clause',
+    licenseSource: 'pub cache: boolean_selector-2.1.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2016, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'characters',
+    version: '1.4.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'characters-1-4-1-bsd-3-clause',
+    licenseSource: 'pub cache: characters-1.4.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2019, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'cli_config',
+    version: '0.2.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'cli-config-0-2-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: cli_config-0.2.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2023, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'clock',
+    version: '1.1.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'Apache-2.0',
+    licenseKey: 'clock-1-1-3-apache-2-0',
+    licenseSource: 'pub cache: clock-1.1.3 (pubspec.lock)',
+    copyright:
+        'Copyright (c) notice that is included in or attached to the work',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'collection',
+    version: '1.19.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'collection-1-19-1-bsd-3-clause',
+    licenseSource: 'pub cache: collection-1.19.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'convert',
+    version: '3.1.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'convert-3-1-2-bsd-3-clause',
+    licenseSource:
+        'pub cache: convert-3.1.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'coverage',
+    version: '1.15.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'coverage-1-15-1-bsd-3-clause',
+    licenseSource:
+        'pub cache: coverage-1.15.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'crypto',
+    version: '3.0.7',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'crypto-3-0-7-bsd-3-clause',
+    licenseSource: 'pub cache: crypto-3.0.7 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'cryptography',
+    version: '2.9.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'Apache-2.0',
+    licenseKey: 'cryptography-2-9-0-apache-2-0',
+    licenseSource: 'pub cache: cryptography-2.9.0 (pubspec.lock)',
+    copyright:
+        'Copyright (c) notice that is included in or attached to the work',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'cupertino_icons',
+    version: '1.0.9',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'MIT',
+    licenseKey: 'cupertino-icons-1-0-9-mit',
+    licenseSource: 'pub cache: cupertino_icons-1.0.9 (pubspec.lock)',
+    copyright: 'Copyright (c) 2016 Vladimir Kharlampidi',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'fake_async',
+    version: '1.3.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'Apache-2.0',
+    licenseKey: 'fake-async-1-3-3-apache-2-0',
+    licenseSource: 'pub cache: fake_async-1.3.3 (pubspec.lock)',
+    copyright:
+        'Copyright (c) notice that is included in or attached to the work',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'ffi',
+    version: '2.2.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'ffi-2-2-0-bsd-3-clause',
+    licenseSource: 'pub cache: ffi-2.2.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2019, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'file',
+    version: '7.0.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'file-7-0-1-bsd-3-clause',
+    licenseSource: 'pub cache: file-7.0.1 (pubspec.lock)',
+    copyright:
+        'Copyright (c) 2017, the Dart project authors. All rights reserved.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter_driver',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter_lints',
+    version: '6.0.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'flutter-lints-6-0-0-bsd-3-clause',
+    licenseSource: 'pub cache: flutter_lints-6.0.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['devDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter_localizations',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter_test',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency', 'devDependency'],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'flutter_web_plugins',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'frontend_server_client',
+    version: '4.1.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'frontend-server-client-4-1-0-bsd-3-clause',
+    licenseSource: 'pub cache: frontend_server_client-4.1.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2012, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'fuchsia_remote_debug_protocol',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'glob',
+    version: '2.2.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'glob-2-2-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: glob-2.2.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'http',
+    version: '1.6.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'http-1-6-0-bsd-3-clause',
+    licenseSource: 'pub cache: http-1.6.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'http_multi_server',
+    version: '3.2.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'http-multi-server-3-2-2-bsd-3-clause',
+    licenseSource: 'pub cache: http_multi_server-3.2.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'http_parser',
+    version: '4.1.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'http-parser-4-1-2-bsd-3-clause',
+    licenseSource: 'pub cache: http_parser-4.1.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'integration_test',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency', 'devDependency'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'intl',
+    version: '0.20.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'intl-0-20-3-bsd-3-clause',
+    licenseSource: 'pub cache: intl-0.20.3 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'io',
+    version: '1.1.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'io-1-1-0-bsd-3-clause',
+    licenseSource: 'pub cache: io-1.1.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2017, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'leak_tracker',
+    version: '11.0.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'leak-tracker-11-0-2-bsd-3-clause',
+    licenseSource: 'pub cache: leak_tracker-11.0.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2022, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'leak_tracker_flutter_testing',
+    version: '3.0.10',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'leak-tracker-flutter-testing-3-0-10-bsd-3-clause',
+    licenseSource:
+        'pub cache: leak_tracker_flutter_testing-3.0.10 (pubspec.lock)',
+    copyright: 'Copyright (c) 2022, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'leak_tracker_testing',
+    version: '3.0.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'leak-tracker-testing-3-0-2-bsd-3-clause',
+    licenseSource: 'pub cache: leak_tracker_testing-3.0.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2022, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'lints',
+    version: '5.1.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'lints-5-1-1-bsd-3-clause',
+    licenseSource:
+        'pub cache: lints-5.1.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2021, the Dart project authors.',
+    noteCodes: <String>['devDependency'],
+    scopes: <String>['core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'lints',
+    version: '6.1.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'lints-6-1-0-bsd-3-clause',
+    licenseSource: 'pub cache: lints-6.1.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2021, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'logging',
+    version: '1.3.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'logging-1-3-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: logging-1.3.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2013, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'matcher',
+    version: '0.12.20',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'matcher-0-12-20-bsd-3-clause',
+    licenseSource: 'pub cache: matcher-0.12.20 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'material_color_utilities',
+    version: '0.13.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'Apache-2.0',
+    licenseKey: 'material-color-utilities-0-13-0-apache-2-0',
+    licenseSource: 'pub cache: material_color_utilities-0.13.0 (pubspec.lock)',
+    copyright:
+        'Copyright (c) notice that is included in or attached to the work',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'meta',
+    version: '1.18.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'meta-1-18-3-bsd-3-clause',
+    licenseSource: 'pub cache: meta-1.18.3 (pubspec.lock)',
+    copyright: 'Copyright (c) 2016, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'meta',
+    version: '1.19.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'meta-1-19-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: meta-1.19.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2016, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'mime',
+    version: '2.1.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'mime-2-1-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: mime-2.1.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'node_preamble',
+    version: '2.0.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'MIT',
+    licenseKey: 'node-preamble-2-0-2-mit',
+    licenseSource:
+        'pub cache: node_preamble-2.0.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2015 Michael Bullington',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'package_config',
+    version: '3.0.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'package-config-3-0-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: package_config-3.0.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2019, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'path',
+    version: '1.9.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'path-1-9-1-bsd-3-clause',
+    licenseSource: 'pub cache: path-1.9.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'platform',
+    version: '3.2.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'platform-3-2-0-bsd-3-clause',
+    licenseSource: 'pub cache: platform-3.2.0 (pubspec.lock)',
+    copyright:
+        'Copyright (c) 2017, the Dart project authors. All rights reserved.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'plugin_platform_interface',
+    version: '2.1.8',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'plugin-platform-interface-2-1-8-bsd-3-clause',
+    licenseSource: 'pub cache: plugin_platform_interface-2.1.8 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'pool',
+    version: '1.5.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'pool-1-5-3-bsd-3-clause',
+    licenseSource:
+        'pub cache: pool-1.5.3 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'process',
+    version: '5.0.6',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'process-5-0-6-bsd-3-clause',
+    licenseSource: 'pub cache: process-5.0.6 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'pub_semver',
+    version: '2.2.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'pub-semver-2-2-1-bsd-3-clause',
+    licenseSource:
+        'pub cache: pub_semver-2.2.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'shelf',
+    version: '1.4.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'shelf-1-4-2-bsd-3-clause',
+    licenseSource:
+        'pub cache: shelf-1.4.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'shelf_packages_handler',
+    version: '3.0.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'shelf-packages-handler-3-0-2-bsd-3-clause',
+    licenseSource: 'pub cache: shelf_packages_handler-3.0.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2016, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'shelf_static',
+    version: '1.1.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'shelf-static-1-1-3-bsd-3-clause',
+    licenseSource:
+        'pub cache: shelf_static-1.1.3 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'shelf_web_socket',
+    version: '3.0.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'shelf-web-socket-3-0-0-bsd-3-clause',
+    licenseSource: 'pub cache: shelf_web_socket-3.0.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'sky_engine',
+    version: '0.0.0',
+    licenseId: 'Multiple licenses (SDK aggregate notices)',
+    licenseKey: 'flutter-sdk-aggregate-notices',
+    licenseSource: 'Flutter SDK aggregate LICENSE notices (pubspec.lock)',
+    copyright: 'Copyright (c) 2014 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>['sdkDependency'],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'source_map_stack_trace',
+    version: '2.1.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'source-map-stack-trace-2-1-2-bsd-3-clause',
+    licenseSource: 'pub cache: source_map_stack_trace-2.1.2 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'source_maps',
+    version: '0.10.14',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'source-maps-0-10-14-bsd-3-clause',
+    licenseSource:
+        'pub cache: source_maps-0.10.14 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'source_span',
+    version: '1.10.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'source-span-1-10-2-bsd-3-clause',
+    licenseSource: 'pub cache: source_span-1.10.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'stack_trace',
+    version: '1.12.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'stack-trace-1-12-2-bsd-3-clause',
+    licenseSource: 'pub cache: stack_trace-1.12.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'stream_channel',
+    version: '2.1.4',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'stream-channel-2-1-4-bsd-3-clause',
+    licenseSource: 'pub cache: stream_channel-2.1.4 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'string_scanner',
+    version: '1.4.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'string-scanner-1-4-1-bsd-3-clause',
+    licenseSource: 'pub cache: string_scanner-1.4.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'sync_http',
+    version: '0.3.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'sync-http-0-3-1-bsd-3-clause',
+    licenseSource: 'pub cache: sync_http-0.3.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2017, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'term_glyph',
+    version: '1.2.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'term-glyph-1-2-2-bsd-3-clause',
+    licenseSource: 'pub cache: term_glyph-1.2.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2017, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'test',
+    version: '1.33.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'test-1-33-0-bsd-3-clause',
+    licenseSource:
+        'pub cache: test-1.33.0 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>['devDependency'],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'test_api',
+    version: '0.7.12',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'test-api-0-7-12-bsd-3-clause',
+    licenseSource: 'pub cache: test_api-0.7.12 (pubspec.lock)',
+    copyright: 'Copyright (c) 2018, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'test_api',
+    version: '0.7.15',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'test-api-0-7-15-bsd-3-clause',
+    licenseSource:
+        'pub cache: test_api-0.7.15 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2018, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'test_core',
+    version: '0.6.21',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'test-core-0-6-21-bsd-3-clause',
+    licenseSource:
+        'pub cache: test_core-0.6.21 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2018, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'typed_data',
+    version: '1.4.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'typed-data-1-4-0-bsd-3-clause',
+    licenseSource: 'pub cache: typed_data-1.4.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher',
+    version: '6.3.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-6-3-3-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher-6.3.3 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_android',
+    version: '6.3.33',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-android-6-3-33-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_android-6.3.33 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_ios',
+    version: '6.4.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-ios-6-4-2-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_ios-6.4.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_linux',
+    version: '3.2.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-linux-3-2-3-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_linux-3.2.3 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_macos',
+    version: '3.2.6',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-macos-3-2-6-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_macos-3.2.6 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_platform_interface',
+    version: '2.3.2',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-platform-interface-2-3-2-bsd-3-clause',
+    licenseSource:
+        'pub cache: url_launcher_platform_interface-2.3.2 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_web',
+    version: '2.4.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-web-2-4-3-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_web-2.4.3 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'url_launcher_windows',
+    version: '3.1.6',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'url-launcher-windows-3-1-6-bsd-3-clause',
+    licenseSource: 'pub cache: url_launcher_windows-3.1.6 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'vector_math',
+    version: '2.4.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'vector-math-2-4-0-bsd-3-clause',
+    licenseSource: 'pub cache: vector_math-2.4.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'vector_math',
+    version: '2.4.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'vector-math-2-4-3-bsd-3-clause',
+    licenseSource: 'pub cache: vector_math-2.4.3 (packages/phantrix_platform/pubspec.lock)',
+    copyright: 'Copyright (c) 2013 The Flutter Authors',
+    noteCodes: <String>[],
+    scopes: <String>['platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'phantrix_core',
+    version: '1.0.0',
+    licenseId: 'GPL-3.0-only',
+    licenseKey: 'phantrix-core-1-0-0-gpl-3-0-only',
+    licenseSource: 'path dependency in this repository; SPDX choice read from COPYRIGHT and text from LICENSE (pubspec.lock)',
+    copyright: 'Copyright (c) 2026 Laymon Games.',
+    noteCodes: <String>['projectPackageScopeLimited'],
+    scopes: <String>['app', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'phantrix_platform',
+    version: '1.0.0',
+    licenseId: 'GPL-3.0-only',
+    licenseKey: 'phantrix-platform-1-0-0-gpl-3-0-only',
+    licenseSource: 'path dependency in this repository; SPDX choice read from COPYRIGHT and text from LICENSE (pubspec.lock)',
+    copyright: 'Copyright (c) 2026 Laymon Games.',
+    noteCodes: <String>['projectPackageScopeLimited'],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'vm_service',
+    version: '15.3.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'vm-service-15-3-0-bsd-3-clause',
+    licenseSource: 'pub cache: vm_service-15.3.0 (pubspec.lock)',
+    copyright: 'Copyright (c) 2015, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'watcher',
+    version: '1.2.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'watcher-1-2-1-bsd-3-clause',
+    licenseSource:
+        'pub cache: watcher-1.2.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'web',
+    version: '1.1.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'web-1-1-1-bsd-3-clause',
+    licenseSource: 'pub cache: web-1.1.1 (pubspec.lock)',
+    copyright: 'Copyright (c) 2023, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['app', 'core', 'platform'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'web_socket',
+    version: '1.0.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'web-socket-1-0-1-bsd-3-clause',
+    licenseSource:
+        'pub cache: web_socket-1.0.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2024, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'web_socket_channel',
+    version: '3.0.3',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'web-socket-channel-3-0-3-bsd-3-clause',
+    licenseSource: 'pub cache: web_socket_channel-3.0.3 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2016, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'webdriver',
+    version: '3.2.0',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'Apache-2.0',
+    licenseKey: 'webdriver-3-2-0-apache-2-0',
+    licenseSource: 'pub cache: webdriver-3.2.0 (pubspec.lock)',
+    copyright:
+        'Copyright (c) notice that is included in or attached to the work',
+    noteCodes: <String>[],
+    scopes: <String>['app'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'webkit_inspection_protocol',
+    version: '1.2.1',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'BSD-3-Clause',
+    licenseKey: 'webkit-inspection-protocol-1-2-1-bsd-3-clause',
+    licenseSource: 'pub cache: webkit_inspection_protocol-1.2.1 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2013, Google Inc.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'dart',
+    name: 'yaml',
+    version: '3.1.4',
+    sourceUrl: 'https://pub.dev',
+    licenseId: 'MIT',
+    licenseKey: 'yaml-3-1-4-mit',
+    licenseSource:
+        'pub cache: yaml-3.1.4 (packages/phantrix_core/pubspec.lock)',
+    copyright: 'Copyright (c) 2014, the Dart project authors.',
+    noteCodes: <String>[],
+    scopes: <String>['core'],
+  ),
+  ThirdPartyNoticeData(
+    component: 'windows',
+    name: 'OpenVPN 2 (community binaries, separate process)',
+    licenseId: 'GPL-2.0-only',
+    licenseKey: 'openvpn-2-community-binaries-separate-process-gpl-2-0-only',
+    licenseSource:
+        'packages/phantrix_platform/windows/bundle/openvpn/LICENSE.txt',
+    copyright: 'Copyright (c) 2002-2024 OpenVPN Inc <sales@openvpn.net>',
+    noteCodes: <String>['mereAggregation', 'shippedBinary'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'windows',
+    name: 'openvpn_dart (engine glue adapted from, BlockDev AG)',
+    licenseId: 'MIT',
+    licenseKey: 'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit',
+    licenseSource: 'tools/attribution/openvpn-dart-license.txt',
+    copyright: 'Copyright (c) 2023 BlockDev AG',
+    noteCodes: <String>['adaptedUpstream'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'windows',
+    name: 'wintun (prebuilt DLL, WireGuard LLC)',
+    licenseId: 'Prebuilt Binaries License',
+    licenseKey: 'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license',
+    licenseSource: 'tools/attribution/wintun-prebuilt-license.txt',
+    noteCodes: <String>['shippedBinary'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'attribution',
+    name: 'OpenVPN 2 (community binaries, separate process)',
+    licenseId: 'GPL-2.0-only',
+    licenseKey: 'openvpn-2-community-binaries-separate-process-gpl-2-0-only',
+    licenseSource: 'tools/attribution/openvpn-copying.txt',
+    copyright: 'Copyright (c) 2002-2026 OpenVPN Inc <sales@openvpn.net>',
+    noteCodes: <String>['mereAggregation', 'shippedBinary'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'attribution',
+    name: 'openvpn_dart (engine glue adapted from, BlockDev AG)',
+    licenseId: 'MIT',
+    licenseKey: 'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit',
+    licenseSource: 'tools/attribution/openvpn-dart-license.txt',
+    copyright: 'Copyright (c) 2023 BlockDev AG',
+    noteCodes: <String>['adaptedUpstream'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'attribution',
+    name: 'wintun (prebuilt DLL, WireGuard LLC)',
+    licenseId: 'Prebuilt Binaries License',
+    licenseKey: 'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license',
+    licenseSource: 'tools/attribution/wintun-prebuilt-license.txt',
+    noteCodes: <String>['shippedBinary'],
+    scopes: <String>[],
+  ),
 ];
 
 /// The licence text of every entry that has one, keyed by [
 /// ThirdPartyNoticeData.licenseKey].
 const Map<String, String> licenseTexts = <String, String>{
-	'analyzer-14-5-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+  'analyzer-14-5-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -1253,7 +1206,148 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'androidx-annotation-annotation-apache-2-0': r'''
+  'args-2-7-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'async-2-13-1-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'boolean-selector-2-1-2-bsd-3-clause':
+      r'''Copyright 2016, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'characters-1-4-1-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'cli-config-0-2-0-bsd-3-clause': r'''Copyright 2023, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'clock-1-1-3-apache-2-0': r'''
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -1456,819 +1550,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    See the License for the specific language governing permissions and
    limitations under the License.
 ''',
-	'androidx-core-core-ktx-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'androidx-test-core-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'androidx-test-ext-junit-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'androidx-test-runner-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'args-2-7-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+  'collection-1-19-1-bsd-3-clause':
+      r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2296,7 +1579,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'async-2-13-1-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'convert-3-1-2-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2324,7 +1607,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'boolean-selector-2-1-2-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
+  'coverage-1-15-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2352,7 +1635,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'characters-1-4-1-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
+  'crypto-3-0-7-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -2380,553 +1663,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'cli-config-0-2-0-bsd-3-clause': r'''Copyright 2023, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'clock-1-1-3-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'collection-1-19-1-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'com-wireguard-android-tunnel-apache-2-0': r'''
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
-
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-   1. Definitions.
-
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
-
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
-
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
-
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
-
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
-
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
-
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
-
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
-
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-''',
-	'convert-3-1-2-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'coverage-1-15-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'crypto-3-0-7-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'cryptography-2-9-0-apache-2-0': r'''                                 Apache License
+  'cryptography-2-9-0-apache-2-0':
+      r'''                                 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
@@ -3103,7 +1841,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
    END OF TERMS AND CONDITIONS
 ''',
-	'cupertino-icons-1-0-9-mit': r'''The MIT License (MIT)
+  'cupertino-icons-1-0-9-mit': r'''The MIT License (MIT)
 
 Copyright (c) 2016 Vladimir Kharlampidi
 
@@ -3124,7 +1862,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ''',
-	'fake-async-1-3-3-apache-2-0': r'''
+  'fake-async-1-3-3-apache-2-0': r'''
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -3327,7 +2065,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    See the License for the specific language governing permissions and
    limitations under the License.
 ''',
-	'fe-analyzer-shared-109-0-0-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
+  'fe-analyzer-shared-109-0-0-bsd-3-clause':
+      r'''Copyright 2019, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3355,7 +2094,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'ffi-2-2-0-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
+  'ffi-2-2-0-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3383,7 +2122,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'file-7-0-1-bsd-3-clause': r'''Copyright 2017, the Dart project authors. All rights reserved.
+  'file-7-0-1-bsd-3-clause':
+      r'''Copyright 2017, the Dart project authors. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -3410,7 +2150,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'flutter-lints-6-0-0-bsd-3-clause': r'''Copyright 2013 The Flutter Authors. All rights reserved.
+  'flutter-lints-6-0-0-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -3436,7 +2177,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'flutter-sdk-aggregate-notices': r'''Copyright 2014 The Flutter Authors. All rights reserved.
+  'flutter-sdk-aggregate-notices':
+      r'''Copyright 2014 The Flutter Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -3462,7 +2204,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'frontend-server-client-4-1-0-bsd-3-clause': r'''Copyright 2012, the Dart project authors.
+  'frontend-server-client-4-1-0-bsd-3-clause':
+      r'''Copyright 2012, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3489,35 +2232,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'glob-2-2-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'http-1-6-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'glob-2-2-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3545,7 +2260,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'http-multi-server-3-2-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'http-1-6-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3573,7 +2288,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'http-parser-4-1-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'http-multi-server-3-2-2-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3601,7 +2317,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'intl-0-20-3-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+  'http-parser-4-1-2-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3629,7 +2346,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'io-1-1-0-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
+  'intl-0-20-3-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3657,7 +2374,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'leak-tracker-11-0-2-bsd-3-clause': r'''Copyright 2022, the Dart project authors.
+  'io-1-1-0-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3685,7 +2402,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'leak-tracker-flutter-testing-3-0-10-bsd-3-clause': r'''Copyright 2022, the Dart project authors.
+  'leak-tracker-11-0-2-bsd-3-clause':
+      r'''Copyright 2022, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3713,7 +2431,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'leak-tracker-testing-3-0-2-bsd-3-clause': r'''Copyright 2022, the Dart project authors.
+  'leak-tracker-flutter-testing-3-0-10-bsd-3-clause':
+      r'''Copyright 2022, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3741,7 +2460,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'lints-5-1-1-bsd-3-clause': r'''Copyright 2021, the Dart project authors.
+  'leak-tracker-testing-3-0-2-bsd-3-clause':
+      r'''Copyright 2022, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3769,7 +2489,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'lints-6-1-0-bsd-3-clause': r'''Copyright 2021, the Dart project authors.
+  'lints-5-1-1-bsd-3-clause': r'''Copyright 2021, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3797,7 +2517,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'logging-1-3-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+  'lints-6-1-0-bsd-3-clause': r'''Copyright 2021, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3825,7 +2545,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'matcher-0-12-20-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'logging-1-3-0-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -3853,7 +2573,35 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'material-color-utilities-0-13-0-apache-2-0': r'''
+  'matcher-0-12-20-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'material-color-utilities-0-13-0-apache-2-0': r'''
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -4056,7 +2804,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    See the License for the specific language governing permissions and
    limitations under the License.
 ''',
-	'meta-1-18-3-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
+  'meta-1-18-3-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4084,7 +2832,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'meta-1-19-0-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
+  'meta-1-19-0-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4112,7 +2860,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'mime-2-1-0-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'mime-2-1-0-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4140,7 +2888,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'node-preamble-2-0-2-mit': r'''The MIT License (MIT)
+  'node-preamble-2-0-2-mit': r'''The MIT License (MIT)
 
 Copyright (c) 2015 Michael Bullington
 
@@ -4189,7 +2937,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'openvpn-2-community-binaries-separate-process-gpl-2-0-only': r'''OpenVPN (TM) -- An Open Source VPN daemon
+  'openvpn-2-community-binaries-separate-process-gpl-2-0-only':
+      r'''OpenVPN (TM) -- An Open Source VPN daemon
 
 Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
 
@@ -4787,7 +3536,7 @@ consider it more useful to permit linking proprietary applications with the
 library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.
 ''',
-	'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit': r'''MIT License
+  'openvpn-dart-engine-glue-adapted-from-blockdev-ag-mit': r'''MIT License
 
 Copyright (c) 2023 BlockDev AG
 
@@ -4809,9 +3558,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ''',
-	'org-json-json-public-domain': r'''Public Domain.
-''',
-	'package-config-3-0-0-bsd-3-clause': r'''Copyright 2019, the Dart project authors.
+  'package-config-3-0-0-bsd-3-clause':
+      r'''Copyright 2019, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4839,7 +3587,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'path-1-9-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'path-1-9-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4867,7 +3615,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'platform-3-2-0-bsd-3-clause': r'''Copyright 2017, the Dart project authors. All rights reserved.
+  'platform-3-2-0-bsd-3-clause':
+      r'''Copyright 2017, the Dart project authors. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -4894,7 +3643,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'plugin-platform-interface-2-1-8-bsd-3-clause': r'''Copyright 2013 The Flutter Authors. All rights reserved.
+  'plugin-platform-interface-2-1-8-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -4920,7 +3670,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'pool-1-5-3-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'pool-1-5-3-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4948,7 +3698,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'process-5-0-6-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
+  'process-5-0-6-bsd-3-clause': r'''Copyright 2013, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4976,7 +3726,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'pub-semver-2-2-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'pub-semver-2-2-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5004,7 +3754,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'shelf-1-4-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'shelf-1-4-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5032,7 +3782,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'shelf-packages-handler-3-0-2-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
+  'shelf-packages-handler-3-0-2-bsd-3-clause':
+      r'''Copyright 2016, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5060,7 +3811,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'shelf-static-1-1-3-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'shelf-static-1-1-3-bsd-3-clause':
+      r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5088,7 +3840,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'shelf-web-socket-3-0-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'shelf-web-socket-3-0-0-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5116,7 +3869,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'source-map-stack-trace-2-1-2-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'source-map-stack-trace-2-1-2-bsd-3-clause':
+      r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5144,7 +3898,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'source-maps-0-10-14-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'source-maps-0-10-14-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5172,7 +3927,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'source-span-1-10-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'source-span-1-10-2-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5200,7 +3956,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'stack-trace-1-12-2-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'stack-trace-1-12-2-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5228,7 +3985,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'stream-channel-2-1-4-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'stream-channel-2-1-4-bsd-3-clause':
+      r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5256,7 +4014,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'string-scanner-1-4-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'string-scanner-1-4-1-bsd-3-clause':
+      r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5284,7 +4043,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'sync-http-0-3-1-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
+  'sync-http-0-3-1-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5312,7 +4071,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'term-glyph-1-2-2-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
+  'term-glyph-1-2-2-bsd-3-clause': r'''Copyright 2017, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5340,7 +4099,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'test-1-33-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'test-1-33-0-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5368,7 +4127,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'test-api-0-7-12-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
+  'test-api-0-7-12-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5396,7 +4155,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'test-api-0-7-15-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
+  'test-api-0-7-15-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5424,7 +4183,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'test-core-0-6-21-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
+  'test-core-0-6-21-bsd-3-clause': r'''Copyright 2018, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5452,7 +4211,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'typed-data-1-4-0-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'typed-data-1-4-0-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -5480,7 +4239,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-6-3-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-6-3-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5506,7 +4265,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-android-6-3-33-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-android-6-3-33-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5532,7 +4292,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-ios-6-4-2-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-ios-6-4-2-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5558,7 +4318,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-linux-3-2-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-linux-3-2-3-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5584,7 +4345,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-macos-3-2-6-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-macos-3-2-6-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5610,7 +4372,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-platform-interface-2-3-2-bsd-3-clause': r'''Copyright 2013 The Flutter Authors. All rights reserved.
+  'url-launcher-platform-interface-2-3-2-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5636,7 +4399,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-web-2-4-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-web-2-4-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5662,7 +4425,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'url-launcher-windows-3-1-6-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'url-launcher-windows-3-1-6-bsd-3-clause':
+      r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5688,7 +4452,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'vector-math-2-4-0-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'vector-math-2-4-0-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5714,7 +4478,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'vector-math-2-4-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
+  'vector-math-2-4-3-bsd-3-clause': r'''Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -5740,7 +4504,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'phantrix-core-1-0-0-gpl-3-0-only': r'''                    GNU GENERAL PUBLIC LICENSE
+  'phantrix-core-1-0-0-gpl-3-0-only':
+      r'''                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
@@ -6415,7 +5180,7 @@ the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
 ''',
-	'phantrix-gpl-3-0-only': r'''                    GNU GENERAL PUBLIC LICENSE
+  'phantrix-gpl-3-0-only': r'''                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
@@ -7090,7 +5855,8 @@ the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
 ''',
-	'phantrix-platform-1-0-0-gpl-3-0-only': r'''                    GNU GENERAL PUBLIC LICENSE
+  'phantrix-platform-1-0-0-gpl-3-0-only':
+      r'''                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
@@ -7765,7 +6531,8 @@ the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
 ''',
-	'vm-service-15-3-0-bsd-3-clause': r'''Copyright 2015, the Dart project authors.
+  'vm-service-15-3-0-bsd-3-clause':
+      r'''Copyright 2015, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -7793,7 +6560,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'watcher-1-2-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
+  'watcher-1-2-1-bsd-3-clause': r'''Copyright 2014, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -7821,7 +6588,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'web-1-1-1-bsd-3-clause': r'''Copyright 2023, the Dart project authors.
+  'web-1-1-1-bsd-3-clause': r'''Copyright 2023, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -7848,35 +6615,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'web-socket-1-0-1-bsd-3-clause': r'''Copyright 2024, the Dart project authors.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
-    * Neither the name of Google LLC nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-''',
-	'web-socket-channel-3-0-3-bsd-3-clause': r'''Copyright 2016, the Dart project authors.
+  'web-socket-1-0-1-bsd-3-clause': r'''Copyright 2024, the Dart project authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -7904,7 +6643,37 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'webdriver-3-2-0-apache-2-0': r'''                                 Apache License
+  'web-socket-channel-3-0-3-bsd-3-clause':
+      r'''Copyright 2016, the Dart project authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google LLC nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'webdriver-3-2-0-apache-2-0':
+      r'''                                 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
@@ -8106,7 +6875,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    See the License for the specific language governing permissions and
    limitations under the License.
 ''',
-	'webkit-inspection-protocol-1-2-1-bsd-3-clause': r'''Copyright 2013, Google Inc.
+  'webkit-inspection-protocol-1-2-1-bsd-3-clause':
+      r'''Copyright 2013, Google Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -8135,7 +6905,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''',
-	'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license': r'''Prebuilt Binaries License
+  'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license':
+      r'''Prebuilt Binaries License
 -------------------------
 
 1. DEFINITIONS. "Software" means the precise contents of the "wintun.dll"
@@ -8220,7 +6991,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    terms, release dates, APIs, ABIs, general availability, or other
    characteristics of the Software.
 ''',
-	'yaml-3-1-4-mit': r'''Copyright (c) 2014, the Dart project authors.
+  'yaml-3-1-4-mit': r'''Copyright (c) 2014, the Dart project authors.
 Copyright (c) 2006, Kirill Simonov.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of

@@ -57,31 +57,18 @@ From `packages/phantrix_platform/android/build.gradle.kts`:
 
 ### The tunnel engine
 
-| Dependency | Version | Licence | Used for |
-| --- | --- | --- | --- |
-| `com.wireguard.android:tunnel` | **1.0.20260102** | **Apache-2.0** | **The entire WireGuard protocol implementation on Android.** Ships `libwg-go.so` for arm64-v8a, armeabi-v7a, x86 and x86_64. The Noise_IK handshake, ChaCha20-Poly1305, key exchange and packet routing all happen inside this library. Phantrix contains no WireGuard cryptography of its own. |
+**There is none.** The Android plugin declares no dependencies at all: the
+`com.wireguard.android:tunnel` library (Apache-2.0, the official WireGuard
+Android engine) was removed on 16 October 2026, together with the `VpnService`,
+the configuration mapper and the request parser that drove it, when the app
+became OpenVPN-only. Android therefore cannot start a tunnel in this build, and
+the app declines every relay there with an explanation. The one OpenVPN engine
+available for Android, ics-openvpn, cannot be shipped either — see §6 and
+`docs/LICENSING_AUDIT.md`.
 
-Provenance, verified rather than assumed:
-
-- Coordinate and version read from Maven Central's own
-  `maven-metadata.xml` for `com/wireguard/android/tunnel`, which lists ten
-  releases; `1.0.20260102` is the latest.
-- Licence read from the artifact's published POM: Apache-2.0.
-- SHA-256 `2b9c16db026496123e4db695d26d03d1958a201096c7c4c89b21077dc70f3119`,
-  cross-checked against the `.sha1` Central publishes alongside the AAR
-  (`decdc1c35d64033aeff6565446483c26388307a5`).
-- The checksum is additionally pinned in
-  `android/gradle/verification-metadata.xml`, which covers **1165
-  artifacts** across the whole build (raised from 1027 when the
-  `integration_test` Gradle module pulled in its own AGP toolchain). A
-  clean checkout therefore refuses a substituted WireGuard binary, and
-  the build fails loudly rather than quietly linking something else.
-  Enabling that verification immediately caught Google's own `aapt2`
-  build tool as unpinned, which is the intended behaviour.
-
-The earlier "dependency could not be resolved" report was a coordinate
-problem, not a network restriction: the versions being tried did not exist.
-The published version list is the only authority for a valid coordinate.
+`android/gradle/verification-metadata.xml` still pins SHA-256 checksums for
+every Gradle artifact in the build (1169 artifacts today), so a substituted
+artifact fails the build loudly rather than being linked quietly.
 
 ### Apple WireGuard source snapshot (not an enabled target)
 
@@ -98,17 +85,8 @@ separate OpenVPN iOS/macOS engine is enabled here.
 
 ### Supporting dependencies
 
-| Dependency | Version | Licence | Used for |
-| --- | --- | --- | --- |
-| `androidx.core:core-ktx` | 1.15.0 | Apache-2.0 | `NotificationCompat` and core Android KTX APIs for the foreground-service notification |
-| `androidx.annotation:annotation` | 1.9.1 | Apache-2.0 | `@RequiresApi` and related nullability/sdk annotations |
-| `androidx.security:security-crypto` | 1.1.0-alpha06 | Apache-2.0 | **Removed.** It was declared for secure storage but nothing used it: this build persists no keys at all. Dropped rather than left as an unused dependency |
-| `junit:junit` | 4.13.2 | EPL-1.0 | Unit-test scaffolding (`testImplementation`); the published POM identifies EPL-1.0 |
-| `org.json:json` | 20240303 | Public Domain (as declared in the published POM/source notice) | JVM-only tests for JSON parsing; `testImplementation`, not bundled in releases |
-| `com.android.tools.build:gradle` | 9.1.0 (buildscript) | Apache-2.0 | Android Gradle Plugin for the library module |
-| `org.jetbrains.kotlin:kotlin-gradle-plugin` | 2.4.0 (buildscript) | Apache-2.0 | Kotlin compilation for the library module |
-
-From `android/` (the app module):
+The plugin module declares no dependencies of its own. The app module declares
+only Flutter's build tooling:
 
 | Dependency | Version | Licence | Used for |
 | --- | --- | --- | --- |
@@ -116,12 +94,7 @@ From `android/` (the app module):
 | `org.jetbrains.kotlin.android` | 2.4.0 | Apache-2.0 | Kotlin compilation for the app |
 | `dev.flutter.flutter-plugin-loader` | 1.0.0 | BSD-3-Clause | Flutter's Gradle plugin loader |
 | Gradle (wrapper) | 9.3.1 | Apache-2.0 | Build tool, downloaded by `gradle/wrapper/gradle-wrapper.properties` |
-| Android SDK Platform 35 | — | Android Software Development Kit License | `compileSdk = 35` in the plugin module (the app module uses Flutter's default compile and target SDK); `android.net.VpnService` is part of the Android OS, used under the SDK licence |
-
-The AndroidX Test dependencies (`androidx.test.ext:junit:1.2.1`,
-`androidx.test:runner:1.6.2` and `androidx.test:core:1.6.1`) are Apache-2.0
-licensed test-only dependencies. They and JUnit/`org.json` are not shipped in
-production builds; the in-app inventory keeps this distinction explicit.
+| Android SDK Platform 35 | — | Android Software Development Kit License | `compileSdk = 35` in the plugin module (the app module uses Flutter's default compile and target SDK) |
 
 There is no Fuchsia target in this repository. The plugin manifest declares
 `android`, `linux` and `windows`; it does not declare `ios` or `macos`, despite
@@ -140,17 +113,23 @@ the Apple source snapshot described above.
 	component) and MIT (the `wireguard-go` userspace component). The
 	protocol specification ("WireGuard: Next Generation Kernel Network
 	Tunnel") is a published paper under the author's copyright.
-- The **Android engine**, `com.wireguard.android:tunnel`
-	(WireGuard LLC), is licensed **Apache-2.0** and is the reference
-	Android implementation. **It is a dependency of this project, and it is
-	the tunnel.** See the Android dependency table above for the exact version
-	and checksum. `PhantrixTunnelService.kt` drives it and explains why the project
-	does not reimplement the Noise_IK handshake or ChaCha20-Poly1305 itself.
-- Because the kernel-side reference implementation is GPL-2.0 and this
-	project is GPL-3.0, no WireGuard kernel code is linked into or
-	distributed with Phantrix. The userspace pieces this project would use
-	(`wireguard-go`, MIT; `com.wireguard.android:tunnel`, Apache-2.0) are
-	both distributable alongside GPL-3.0 code.
+- **This build does not ship or run any WireGuard engine.** The Windows app
+	runs OpenVPN (§4) and nothing else, and the Android plugin has no engine
+	at all. The WireGuard parser, validator and serializer in `phantrix_core`
+	are pure-Dart code written for this project under its own GPL-3.0-only
+	licence; no third-party WireGuard code is linked into the app.
+- The **Linux backend source** (`packages/phantrix_platform/linux/`) drives
+	the kernel's own WireGuard module through `wg-quick`. The kernel module is
+	GPL-2.0, but it is part of the operating system and is not distributed
+	with Phantrix; the backend invokes the user's separately installed
+	`wireguard-tools`, which are GPL-2.0 and likewise not redistributed here.
+	No kernel or `wireguard-tools` code is linked into or shipped with this
+	GPL-3.0 application, so the licences do not have to combine.
+- The **Apple source snapshot** keeps upstream's MIT headers (see §2). It is
+	not a build target.
+- The `wireguard-windows` package is deliberately **not** bundled or linked.
+	It is GPL-2.0-only, which cannot be combined with this project's GPL-3.0.
+	It is never a dependency of this project's build.
 
 ## 4. The OpenVPN protocol — licensing statement
 
@@ -170,27 +149,29 @@ the Apple source snapshot described above.
 Honest inventory. "Implementation present" means real source exists; "verified"
 separately records whether it was ever run. The Windows OpenVPN tunnel has been
 observed working end to end (see `docs/evidence/openvpn/`); the WireGuard
-engines have never completed a handshake in this environment, because no
-reachable WireGuard peer exists here.
+sources in the tree have never completed a handshake in this environment,
+because no reachable WireGuard peer exists here — and the app would refuse to
+try, since it no longer offers the protocol.
 
 | Platform | Implementation present? | Component providing it | Verified |
 | --- | --- | --- | --- |
-| Android | **Yes (WireGuard only)** | `com.wireguard.android:tunnel` 1.0.20260102 (Apache-2.0), driven by `PhantrixTunnelService` + `GoBackend`; no OpenVPN engine | **Compiled and run on a real Android 14 x86_64 emulator.** 15 engine tests + 4 app tests pass. Handshake not observed. |
+| Android | **No engine** | Nothing: the WireGuard engine, its `VpnService` and the mapper that drove it were removed on 16 October 2026, and no OpenVPN engine can be shipped | **Compiled and run on a real Android 14 x86_64 emulator, before the app became OpenVPN-only.** 4 app tests pass; the app now declines every relay with an explanation. |
 | iOS | **No enabled plugin target** | Apple WireGuard source snapshot exists under `packages/phantrix_platform/apple/` (MIT), but no iOS target is declared by the plugin manifest | **Not a supported build target in this checkout.** |
 | macOS | **No enabled plugin target** | Apple WireGuard source snapshot exists under `packages/phantrix_platform/apple/` (MIT), but no macOS target is declared by the plugin manifest | **Not a supported build target in this checkout.** |
 | Linux | **Yes** | The **Linux kernel's own WireGuard module**, driven by official `wireguard-tools` (`wg-quick`) elevated through `pkexec` | **Compiled in CI**, and asserted to register and export its entry point. Never run against a live system. |
-| Windows | **Yes** | The official **WireGuard for Windows** service (`wireguard.exe /installtunnelservice`) | **Compiled here.** Never run — WireGuard for Windows is not installed and the session is not Administrator. The OpenVPN backend, by contrast, has connected live: see section 6. |
+| Windows | **Yes** | The official **OpenVPN 2 community binaries**, run as a separate elevated helper process (`phantrix_ovpn_helper.exe`); wintun is the driver | **Connected live:** one tunnel observed for 6.5 minutes with a changed exit address (`docs/evidence/openvpn/`). |
 | Web | **No, by design** | A browser cannot move system traffic; `PlatformCapabilities.web` says so and `startTunnel` fails explicitly | N/A |
 
-### Linux and Windows use the OS's own engine, not a reimplementation
+### Linux and Windows use a maintained engine, not a reimplementation
 
-Both backends contain **zero** WireGuard cryptography. Linux shells out
-to `wg-quick`; Windows installs a tunnel service with `wireguard.exe`.
-Neither tool is bundled or redistributed by Phantrix: they are installed
-separately by the user, and Phantrix only runs them as separate processes.
-This is deliberate: the kernel module and the official Windows service
-are the maintained implementations on those platforms, and reimplementing
-the protocol would be a large new attack surface for no gain.
+The Linux backend contains **zero** WireGuard cryptography: it shells out to
+`wg-quick`, and neither `wireguard-tools` nor the kernel module is bundled or
+redistributed by Phantrix — they are installed separately by the user. The
+Windows backend is the same story with OpenVPN: the official community
+binaries run as a separate process and are fetched from the official source
+by `tools/fetch_openvpn_bundle.ps1` rather than committed. This is deliberate:
+the maintained implementations on those platforms are the engine, and
+reimplementing a VPN protocol would be a large new attack surface for no gain.
 
 Everything else in the project — protocol parsing and validation, server
 providers, discovery, scoring, the state machine, settings, diagnostics

@@ -1,6 +1,6 @@
 # Phantrix licensing audit
 
-Last updated: 13 October 2026. This is an engineering compliance review, not
+Last updated: 16 October 2026. This is an engineering compliance review, not
 legal advice. It reviews this checkout and its public licence notices, not the
 copyright ownership or private agreements of every contributor.
 
@@ -21,10 +21,12 @@ distributed work, and the upstream licence states that using any part of the
 
 ## Consequences
 
-- **Android is WireGuard-only.** There is no OpenVPN engine on Android. The
-  built-in VPN Gate list is OpenVPN-only, so those relays cannot be connected on
-  Android; the app reports OpenVPN servers as unsupported and offers a WireGuard
-  import instead. Windows keeps its OpenVPN backend.
+- **Android has no engine at all.** There is no OpenVPN engine on Android, and
+  the WireGuard engine that briefly took its place was removed on 16 October
+  2026 when the app became OpenVPN-only. The built-in VPN Gate list is
+  OpenVPN-only, so those relays cannot be connected on Android; the app declines
+  every one of them with an explanation instead of pretending otherwise.
+  Windows keeps its OpenVPN backend.
 - Do not re-add ics-openvpn, or any other GPL-2.0-only code, to a build that is
   distributed as GPL-3.0.
 - `test/licenses_test.dart` asserts that no OpenVPN engine entry appears in the
@@ -45,13 +47,13 @@ should stay unedited. The project-specific copyright notice lives in
 | --- | --- | --- |
 | Phantrix original code | GPL-3.0-only | Publishable, provided every contributor's rights are in order (see below) |
 | Flutter / Dart SDK and most Dart packages | BSD / MIT / Apache-2.0 | Compatible with GPL-3.0; keep upstream texts |
-| `com.wireguard.android:tunnel` | Apache-2.0 | Compatible with GPL-3.0. This is also why relicensing the whole app GPL-2-only is not a workaround |
+| `com.wireguard.android:tunnel` (removed 2026-10-16) | Apache-2.0 | Was compatible with GPL-3.0, but is no longer a dependency: the Android WireGuard backend was removed when the app became OpenVPN-only |
 | wireguard-apple source snapshot (not a build target) | MIT | Keep its licence file; no Apple target is enabled |
 | `openvpn_dart`-derived glue (Windows backend) | MIT (BlockDev AG) | Keep the original MIT copyright and licence text. The Android glue it also covered was removed with the Android OpenVPN engine. The Windows C++ sources carry no per-file attribution, so confirm the scope of the notice before release |
 | Windows OpenVPN 2 binaries | GPL-2.0 | Separate process, never linked into the app — a mere aggregation, not a combined work. Ship its licence and offer its source |
 | Windows wintun DLL | WireGuard LLC prebuilt-binaries licence | Ship unchanged and paired with the OpenVPN process that consumes its permitted API. OpenVPN, not Phantrix's Dart code, is the runtime consumer |
 | Linux `wg-quick` / kernel WireGuard | GPL-2.0 | Separate processes, not linked, not bundled |
-| WireGuard for Windows (`wireguard.exe`) | Not checked here | Installed separately by the user and run as a separate process. Not bundled or redistributed by Phantrix |
+| WireGuard for Windows (`wireguard.exe`) | Not checked here | Never bundled, linked or run by this build. The Windows backend drives OpenVPN |
 
 The Wintun redistribution exception depends on the DLL being shipped alongside
 software that uses it only through the permitted API, so keep the two paired as
