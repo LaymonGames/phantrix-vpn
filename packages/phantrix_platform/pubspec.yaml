@@ -19,8 +19,10 @@ dev_dependencies:
 
 flutter:
   plugin:
-    # `android`, `linux` and `windows` each have a real native implementation
-    # that drives an official WireGuard engine.
+    # `android`, `linux` and `windows` each have a real native implementation.
+    # Windows is the one that can start a tunnel in this build (the official
+    # OpenVPN binaries); Linux drives the kernel's WireGuard through `wg-quick`;
+    # Android has no engine and answers a start request with the reason.
     #
     # `macos` and `ios` are deliberately not declared: the Apple sources under
     # `apple/` have never been compiled, signed or wired into an Xcode target,
