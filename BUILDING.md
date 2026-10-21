@@ -158,6 +158,12 @@ The delete-then-clean procedure above is therefore a **fallback for older
 toolchains**, not a required step on this one; keep it in mind if a release
 build fails on `package dev.flutter.plugins.integration_test does not exist`.
 
+**Audit caveat on Flutter 3.47.5:** do not run test generation and Android
+release generation concurrently. They share the generated registrant, and an
+overlapping run reproduced this failure. Removing only the untracked generated
+registrant and rerunning `flutter build appbundle --release` serially succeeded;
+no full clean or source change was needed.
+
 ### 4.3 Dependency verification
 
 `android/gradle/verification-metadata.xml` pins `sha256` values for every Gradle

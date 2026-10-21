@@ -18,6 +18,11 @@ Historical live-tunnel evidence elsewhere in this repository is not a live test
 of these changes. No UAC elevation, tunnel connection, firewall modification, or
 packet-capture experiment was performed during this audit.
 
+Before publication, the audit branch was rebased onto GitHub `main` at
+`8f72ad8`, preserving its licensing/credits work and 1.0.1 version updates.
+Application tests and all three release builds were rerun on that integrated
+tree. The shared destination branch was not changed.
+
 ## Fixed findings, in priority order
 
 ### High: elevated Windows profile and file boundary
@@ -130,6 +135,13 @@ Implementation/tests: [connection controller](../lib/vpn/connection_controller.d
 - Security/privacy/build documents now distinguish preferences from enforcement,
   disclose cached public client keys and retained raw native logs, and remove
   obsolete Android service/Windows LocalSystem claims.
+- The upstream notices freshness gate exposed stale platform-version metadata
+  and an environment-dependent OpenVPN licence fallback. The existing full
+  binary notice was preserved as a vendored snapshot, not deleted/replaced with
+  a shorter source COPYING file. Identical normalized notices now use a stable
+  source label with or without the optional runtime; a changed bundle notice
+  remains visible. Regression coverage includes absent, identical, and changed
+  bundle notices. Review this snapshot again when upgrading the runtime.
 
 ## Verification
 
@@ -138,8 +150,8 @@ Implementation/tests: [connection controller](../lib/vpn/connection_controller.d
 | `flutter analyze --fatal-infos --fatal-warnings` | Passed, no issues |
 | Core `dart analyze` | Passed |
 | Platform `flutter analyze --fatal-infos --fatal-warnings` | Passed |
-| Owned Dart `dart format --output=none --set-exit-if-changed` | Passed, 197 files; generated notices excluded under the original formatting rule |
-| App `flutter test --no-pub --reporter expanded` | 251 passed, 1 POSIX-permission test skipped on Windows |
+| Owned Dart `dart format --output=none --set-exit-if-changed` | Passed, 200 owned files including generated notices, plus the notices generator (201 total) |
+| App `flutter test --no-pub --reporter expanded` | 277 passed, 1 POSIX-permission test skipped on Windows |
 | Core `dart test --reporter expanded` | 210 passed |
 | Platform `flutter test --no-pub --reporter expanded` | 27 passed |
 | Windows native support test executable, Debug and Release | Passed |
@@ -147,6 +159,7 @@ Implementation/tests: [connection controller](../lib/vpn/connection_controller.d
 | `flutter build web --release` | Passed; no browser runtime test |
 | `flutter build appbundle --release` | Passed; debug signing fallback, no Android VPN engine |
 | `tools/check_windows_build.ps1` | Passed without `-RequireOpenVpn`; runtime check skipped |
+| `dart run tools/generate_third_party_notices.dart --check` | Passed, 96 entries and 86 licence texts |
 | PowerShell parser and mocked bundle failure paths | Passed; no network download/extraction performed |
 | OSV query of all three Pub lockfiles | No advisories returned for 79 unique hosted package/version pairs; excludes native runtime/SDK dependencies |
 | Android `gradlew.bat testDebugUnitTest --console=plain` | Failed: 3 Flutter SDK `integration_test` screenshot tests; Byte Buddy rejects JDK 25 |
@@ -157,6 +170,14 @@ The Android all-project JVM failure is not hidden or fixed by disabling tests.
 The installed Byte Buddy supports Java class versions only through Java 22,
 while this machine uses Java 25. Re-run with JDK 21, matching Android CI.
 No suitable JDK 21 installation was found in the inspected standard locations.
+
+An overlapping test/release run also left a test-generated Android plugin
+registrant referencing `integration_test`, which is absent from release
+dependencies. Removing only that untracked generated file and rerunning
+`flutter build appbundle --release` serially succeeded (51.8 MB AAB). Do not
+overlap Flutter/Gradle test generation with Android release generation. The
+final Windows build had a nonfatal MSBuild temporary-response-file cleanup
+warning; compilation, native tests, and artifact inspection still succeeded.
 
 ## Unresolved and required decisions
 

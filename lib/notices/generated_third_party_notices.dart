@@ -269,7 +269,7 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
     licenseSource: 'pub cache: flutter_lints-6.0.0 (pubspec.lock)',
     copyright: 'Copyright (c) 2013 The Flutter Authors. All rights reserved.',
     noteCodes: <String>['devDependency'],
-    scopes: <String>['app'],
+    scopes: <String>['app', 'platform'],
   ),
   ThirdPartyNoticeData(
     component: 'dart',
@@ -459,7 +459,7 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
         'pub cache: lints-5.1.1 (packages/phantrix_core/pubspec.lock)',
     copyright: 'Copyright (c) 2021, the Dart project authors.',
     noteCodes: <String>['devDependency'],
-    scopes: <String>['core', 'platform'],
+    scopes: <String>['core'],
   ),
   ThirdPartyNoticeData(
     component: 'dart',
@@ -471,7 +471,7 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
     licenseSource: 'pub cache: lints-6.1.0 (pubspec.lock)',
     copyright: 'Copyright (c) 2021, the Dart project authors.',
     noteCodes: <String>[],
-    scopes: <String>['app'],
+    scopes: <String>['app', 'platform'],
   ),
   ThirdPartyNoticeData(
     component: 'dart',
@@ -601,9 +601,9 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
   ThirdPartyNoticeData(
     component: 'dart',
     name: 'phantrix_platform',
-    version: '1.0.0',
+    version: '1.0.1',
     licenseId: 'GPL-3.0-only',
-    licenseKey: 'phantrix-platform-1-0-0-gpl-3-0-only',
+    licenseKey: 'phantrix-platform-1-0-1-gpl-3-0-only',
     licenseSource: 'path dependency in this repository; SPDX choice read from COPYRIGHT and text from LICENSE (pubspec.lock)',
     copyright: 'Copyright (c) 2026 Laymon Games.',
     noteCodes: <String>['projectPackageScopeLimited'],
@@ -1119,8 +1119,7 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
     name: 'OpenVPN 2 (community binaries, separate process)',
     licenseId: 'GPL-2.0-only',
     licenseKey: 'openvpn-2-community-binaries-separate-process-gpl-2-0-only',
-    licenseSource:
-        'packages/phantrix_platform/windows/bundle/openvpn/LICENSE.txt',
+    licenseSource: 'tools/attribution/openvpn-bundle-license.txt',
     copyright: 'Copyright (c) 2002-2024 OpenVPN Inc <sales@openvpn.net>',
     noteCodes: <String>['mereAggregation', 'shippedBinary'],
     scopes: <String>[],
@@ -4966,7 +4965,7 @@ the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
 ''',
-  'phantrix-platform-1-0-0-gpl-3-0-only':
+  'phantrix-platform-1-0-1-gpl-3-0-only':
       r'''                    GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

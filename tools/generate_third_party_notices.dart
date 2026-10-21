@@ -48,8 +48,9 @@ const List<String> gradleFiles = [
 /// repository as the fetched original for when the bundle is absent.
 ///
 /// Keyed by the file name; the value is the component the text covers and
-/// the note the entry carries. The bundle copy wins when it exists, so the
-/// entry always describes the bits that ship.
+/// the note the entry carries. A differing bundle copy wins when present.
+/// Identical bundled/vendored text uses the stable vendored source label so
+/// installing the optional runtime does not change the generated inventory.
 const List<
   ({String file, String? bundleFile, String component, List<String> notes})
 >
@@ -67,7 +68,10 @@ windowsLicenceFiles = [
     notes: ['adaptedUpstream'],
   ),
   (
-    file: 'openvpn-copying.txt',
+    // Preserve the full binary notice already published in the inventory at
+    // 8f72ad8. The source COPYING fallback has different text. Review this
+    // snapshot alongside the binary hashes when upgrading the runtime.
+    file: 'openvpn-bundle-license.txt',
     bundleFile: 'openvpn/LICENSE.txt',
     component: 'OpenVPN 2 (community binaries, separate process)',
     notes: ['mereAggregation', 'shippedBinary'],
@@ -1016,7 +1020,12 @@ List<Entry> windowsEntries(List<LicenceText> texts) {
     final bundleText = bundlePath == null ? null : readIfExists(bundlePath);
     final fallbackText = readIfExists(attributionPath);
     final text = bundleText ?? fallbackText;
-    final from = bundleText != null ? bundlePath! : attributionPath;
+    final from =
+        bundleText != null &&
+            (fallbackText == null ||
+                normalise(bundleText) != normalise(fallbackText))
+        ? bundlePath!
+        : attributionPath;
     final notes = List<String>.of(descriptor.notes);
     if (text == null) {
       entries.add(
@@ -1245,8 +1254,7 @@ Future<void> main(List<String> args) async {
 bool sameInventory(String a, String b) =>
     _withoutLayout(a) == _withoutLayout(b);
 
-String _withoutLayout(String source) =>
-    source.replaceAll(RegExp(r'\s+'), '');
+String _withoutLayout(String source) => source.replaceAll(RegExp(r'\s+'), '');
 
 /// Runs `dart format` over [file], reporting a failure rather than ignoring it.
 Future<bool> formatInPlace(File file) async {

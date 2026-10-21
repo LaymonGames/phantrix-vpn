@@ -10,6 +10,8 @@ import 'package:phantrix/notices/third_party_notices.dart';
 import 'package:phantrix/theme/app_theme.dart';
 import 'package:phantrix/ui/screens/licenses_screen.dart';
 
+import '../tools/generate_third_party_notices.dart' as generator;
+
 /// The repository URL the project publishes under.
 ///
 /// Pinned as a literal rather than imported from the generator, because the
@@ -103,6 +105,47 @@ Finder rowText(String value) =>
 
 void main() {
   group('generated inventory', () {
+    test('OpenVPN notice is stable with or without an identical bundle', () {
+      final previous = Directory.current;
+      final directory = Directory.systemTemp.createTempSync('phantrix-notices');
+      try {
+        Directory.current = directory;
+        const text =
+            'OpenVPN is distributed under the GPL license version 2.\n';
+        final fallback = File('tools/attribution/openvpn-bundle-license.txt');
+        fallback.parent.createSync(recursive: true);
+        fallback.writeAsStringSync(text);
+
+        generator.Entry openVpnEntry(List<generator.LicenceText> texts) =>
+            generator.windowsEntries(texts).last;
+
+        final withoutBundle = <generator.LicenceText>[];
+        final expected = openVpnEntry(withoutBundle);
+        expect(expected.licenseSource, fallback.path);
+        final bundle = File(
+          'packages/phantrix_platform/windows/bundle/openvpn/LICENSE.txt',
+        );
+        bundle.parent.createSync(recursive: true);
+        bundle.writeAsStringSync('${text.trimRight()}  \r\n\r\n');
+        final withBundle = <generator.LicenceText>[];
+        final actual = openVpnEntry(withBundle);
+        expect(actual.licenseSource, expected.licenseSource);
+        expect(actual.licenseId, expected.licenseId);
+        expect(
+          generator.normalise(withBundle.single.text),
+          generator.normalise(withoutBundle.single.text),
+        );
+
+        bundle.writeAsStringSync('$text\nChanged distribution notice.\n');
+        final changed = <generator.LicenceText>[];
+        expect(openVpnEntry(changed).licenseSource, bundle.path);
+        expect(changed.single.text, isNot(withoutBundle.single.text));
+      } finally {
+        Directory.current = previous;
+        directory.deleteSync(recursive: true);
+      }
+    });
+
     test('every package the app locks is in the inventory', () {
       final locked = <String>{};
       for (final block in RegExp(
