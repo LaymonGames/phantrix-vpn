@@ -233,7 +233,7 @@ packages:
       path: "packages/phantrix_platform"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "1.0.1"
   platform:
     dependency: transitive
     description:
