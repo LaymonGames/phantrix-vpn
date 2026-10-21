@@ -1,6 +1,7 @@
 import '../../core/app_error.dart';
 import '../../core/result.dart';
 import '../../protocol/validation_issue.dart';
+import '../address_cidr.dart';
 import 'ovpn_config.dart';
 
 /// The outcome of validating an OpenVPN configuration.
@@ -191,6 +192,8 @@ class OvpnValidator {
     final declaredCiphers = [
       if (cipher != null) cipher,
       ...config.dataCiphers.map((c) => c.toLowerCase()),
+      if (config.dataCiphersFallback != null)
+        config.dataCiphersFallback!.toLowerCase(),
     ];
     if (declaredCiphers.isNotEmpty) {
       for (final candidate in declaredCiphers) {
@@ -222,6 +225,30 @@ class OvpnValidator {
       );
     }
 
+    if (config.keyDirection != null &&
+        !const {'0', '1'}.contains(config.keyDirection)) {
+      return _invalidOption('key-direction');
+    }
+    if (config.tlsVersionMin != null &&
+        !RegExp(r'^1\.[0-3]( or-highest)?$').hasMatch(config.tlsVersionMin!)) {
+      return _invalidOption('tls-version-min');
+    }
+    if (config.tlsCertProfile != null &&
+        !const {
+          'legacy',
+          'preferred',
+          'suiteb',
+        }.contains(config.tlsCertProfile)) {
+      return _invalidOption('tls-cert-profile');
+    }
+    // Preserve explicit certificate-name pinning, but not control characters
+    // or escape sequences that could change the rebuilt profile's grammar.
+    final name = config.verifyX509Name;
+    if (name != null &&
+        (name.isEmpty || RegExp(r'[\x00-\x1f\\]').hasMatch(name))) {
+      return _invalidOption('verify-x509-name');
+    }
+
     // 5. Remotes.
     if (config.remotes.isEmpty) {
       return Err(
@@ -233,6 +260,9 @@ class OvpnValidator {
       );
     }
     for (final remote in config.remotes) {
+      if (!_validProto(remote.proto ?? config.proto ?? 'udp')) {
+        return _invalidOption('proto');
+      }
       if (!_validHost(remote.host)) {
         return Err(
           AppError(
@@ -395,20 +425,33 @@ class OvpnValidator {
     return Ok(OvpnVerdict(config: config, issues: issues, repairs: repairs));
   }
 
+  static Result<OvpnVerdict> _invalidOption(String option) => Err(
+    AppError(
+      group: ErrorGroup.configuration,
+      code: 'ovpn.invalid_option',
+      message: 'The configuration contains an invalid "$option" value.',
+      detail: {'directive': option},
+    ),
+  );
+
+  static bool _validProto(String value) => const {
+    'udp',
+    'udp4',
+    'udp6',
+    'tcp',
+    'tcp-client',
+    'tcp4',
+    'tcp4-client',
+    'tcp6',
+    'tcp6-client',
+  }.contains(value);
+
   static bool _validHost(String host) {
     if (host.isEmpty || host.length > 253) {
       return false;
     }
-    if (RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(host)) {
-      // Split rather than index capture groups. The pattern above has a
-      // single group, so asking for groups 1..4 threw a RangeError on
-      // every IPv4 remote — which is most of them.
-      return host
-          .split('.')
-          .every((octet) => (int.tryParse(octet) ?? 256) <= 255);
-    }
-    if (host.contains(':') && RegExp(r'^[0-9A-Fa-f:]+$').hasMatch(host)) {
-      return true;
+    if (host.contains(':') || RegExp(r'^[0-9.]+$').hasMatch(host)) {
+      return AddressCidr.isIpv4(host) || AddressCidr.isIpv6(host);
     }
     return _validHostName(host);
   }

@@ -133,6 +133,24 @@ void main() {
       expect(raw.trim().endsWith('}'), isTrue);
     });
 
+    test('a failed write does not poison later writes', () async {
+      final blockedParent = File(
+        '${directory.path}${Platform.pathSeparator}db',
+      );
+      blockedParent.writeAsStringSync('not a directory');
+      final store = FileAppStore.inDirectory(
+        '${blockedParent.path}${Platform.pathSeparator}nested',
+        fileName: 's.json',
+      );
+      await expectLater(
+        store.write('first', 'fails'),
+        throwsA(isA<FileSystemException>()),
+      );
+      blockedParent.deleteSync();
+      await store.write('second', 'recovers');
+      expect(await store.read('second'), 'recovers');
+    });
+
     test(
       'the store file is owner-only on POSIX',
       () async {

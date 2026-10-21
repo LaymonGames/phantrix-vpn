@@ -7,8 +7,8 @@ import 'package:phantrix_core/phantrix_core.dart';
 ///
 /// This is kept separate from the visible server-directory cache. The file is
 /// versioned, size-limited, and only read by the provider, which re-validates a
-/// profile before passing it to the VPN engine. No user-supplied
-/// configuration or private key material is ever written here.
+/// profile before passing it to the VPN engine. It can contain the public feed's
+/// shared client keys, but never user-supplied configuration or private keys.
 class FileVpnGateProfileCache extends VpnGateProfileCache {
   FileVpnGateProfileCache(this.file);
 
@@ -90,9 +90,6 @@ class FileVpnGateProfileCache extends VpnGateProfileCache {
       file.parent.createSync(recursive: true);
       final temporary = File('${file.path}.tmp');
       temporary.writeAsStringSync(payload, flush: true);
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
       temporary.renameSync(file.path);
     } on Object {
       // Persistence is opportunistic. A failed cache write must not turn a

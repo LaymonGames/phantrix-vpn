@@ -130,15 +130,16 @@ function Invoke-Download {
     try {
         Invoke-WebRequest -Uri $Url -OutFile $DestinationPath -TimeoutSec 600 -UseBasicParsing
     } catch {
-        Write-Error "download failed: $Url`n$($_.Exception.Message)"
+        Remove-Item -LiteralPath $DestinationPath -Force -ErrorAction SilentlyContinue
+        Write-Warning "download failed: $Url`n$($_.Exception.Message)"
         return $false
     }
     $actual = Get-FileSha256 -Path $DestinationPath
     if ($actual -ne $ExpectedHash) {
-        Write-Error ("SHA-256 mismatch for $(Split-Path -Leaf $DestinationPath)`n" +
-                     "  expected $ExpectedHash`n  actual   $actual`n" +
-                     "The download is not the pinned build and has been deleted.")
         Remove-Item -LiteralPath $DestinationPath -Force -ErrorAction SilentlyContinue
+        Write-Warning ("SHA-256 mismatch for $(Split-Path -Leaf $DestinationPath)`n" +
+                       "  expected $ExpectedHash`n  actual   $actual`n" +
+                       "The download is not the pinned build and has been deleted.")
         return $false
     }
     Write-Step "verified $(Split-Path -Leaf $DestinationPath) ($([math]::Round((Get-Item -LiteralPath $DestinationPath).Length / 1MB, 1)) MB)"
@@ -169,7 +170,7 @@ function Invoke-VerifyBundle {
     }
     if ($problems.Count -gt 0) {
         foreach ($problem in $problems) {
-            Write-Error "bundle check: $problem"
+            Write-Warning "bundle check: $problem"
         }
         return $false
     }
@@ -226,10 +227,10 @@ New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
 Write-Step 'extracting the installer'
 $logPath = Join-Path $StagingPath 'msiexec.log'
 $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList @(
-    '/a', $msiPath,
+    '/a', "`"$msiPath`"",
     '/qn', '/norestart',
-    "TARGETDIR=$extractDir",
-    '/lv', $logPath
+    "TARGETDIR=`"$extractDir`"",
+    '/lv', "`"$logPath`""
 ) -Wait -PassThru -WindowStyle Hidden
 if ($process.ExitCode -ne 0) {
     Write-Error "msiexec exited with $($process.ExitCode); see $logPath"
@@ -299,7 +300,7 @@ if (Test-Path -LiteralPath $licenseSource) {
 Write-Host ''
 Write-Step 'verifying the bundle'
 if (-not (Invoke-VerifyBundle)) {
-    Write-Error 'the bundle did not verify; nothing was installed'
+    Write-Error 'the bundle did not verify; do not use it for a release'
     exit 1
 }
 

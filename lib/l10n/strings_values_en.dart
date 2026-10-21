@@ -249,10 +249,17 @@ const Map<String, String> _stringsValuesEn = {
   'flowConnectedVia':
       'Connected via {ip}, which is different from the address used '
       'before connecting.',
-  'flowConnectedViaUncertain':
-      'Connected via {ip}. The address used before connecting could not '
-      'be read, so the change in address could not be confirmed; the '
-      'handshake with the server was verified.',
+  'flowBaselineUnavailable':
+      'The handshake succeeded, but the address used before connecting '
+      'could not be read. The change in address cannot be confirmed, so '
+      'the connection is not verified.',
+  'flowAddressFamilyChanged':
+      'The address services returned different IP families before and after '
+      'connecting. That does not prove traffic is using the tunnel, so the '
+      'connection is not verified.',
+  'flowHandshakeFuture':
+      'The engine reported a handshake time in the future. Check the device '
+      'clock; the connection cannot be verified with this timestamp.',
   'flowHandshakeMissing':
       'The tunnel interface is up, but the server has not completed '
       '{article} {protocol} handshake yet, so nothing is being carried. '
@@ -279,6 +286,11 @@ const Map<String, String> _stringsValuesEn = {
       'The tunnel has been stopped.',
   'flowTimeoutNoHandshake': 'the engine never reported a handshake',
   'flowTimeoutUnverified': 'the handshake could not be verified in time',
+  'flowStopUnconfirmed':
+      'The platform has not confirmed that the previous tunnel stopped. '
+      'Disconnect again before starting another connection.',
+  'flowLaunchTimeout':
+      'The platform did not finish launching the tunnel in time.',
 
   // The multi-server walk, in the words the user can act on: what was
   // tried, in what country, and whether the relays were ever heard from.

@@ -4,6 +4,7 @@ import 'package:cryptography/cryptography.dart';
 
 import '../../core/app_error.dart';
 import '../../model/server_status.dart';
+import '../../model/trust_level.dart';
 import '../../model/vpn_server.dart';
 import '../../protocol/openvpn/ovpn_parser.dart';
 import '../../protocol/openvpn/ovpn_validator.dart';
@@ -24,8 +25,8 @@ import 'manifest_schema.dart';
 ///
 /// When a detached Ed25519 signature and the matching public key are both
 /// configured, [Manifest.signatureVerified] is true and servers are labelled
-/// as signed. Otherwise the servers are still offered at their declared trust
-/// level, but the UI explicitly says the list was not verified.
+/// as signed. A configured signature must verify; unsigned lists cannot grant
+/// their own entries project/community trust.
 class ManifestProvider implements ServerProvider {
   ManifestProvider({
     required this.fetcher,
@@ -110,6 +111,14 @@ class ManifestProvider implements ServerProvider {
       return RefreshOutcome.failure(error);
     } on BodyTooLargeException catch (error) {
       return RefreshOutcome.failure(error.asError());
+    } on Object {
+      return RefreshOutcome.failure(
+        const AppError(
+          group: ErrorGroup.network,
+          code: 'manifest.fetch_failed',
+          message: 'The server list could not be fetched.',
+        ),
+      );
     }
 
     final Object? decoded;
@@ -146,12 +155,37 @@ class ManifestProvider implements ServerProvider {
       signatureUrl: signatureUrl,
       publicKeyBase64: trustedSigningKey,
     );
+    final signatureRequired =
+        signatureUrl?.trim().isNotEmpty == true ||
+        trustedSigningKey?.trim().isNotEmpty == true;
+    if (signatureRequired && !signed) {
+      return RefreshOutcome.failure(
+        const AppError(
+          group: ErrorGroup.provider,
+          code: 'manifest.signature_invalid',
+          message:
+              'The configured server-list signature could not be verified.',
+        ),
+      );
+    }
 
     final servers = <VpnServer>[];
     final configs = <String, ({String raw, VpnConfiguration config})>{};
     final now = DateTime.now();
 
     for (final entry in value.entries) {
+      final expiresAt = entry.expiresAt;
+      if (expiresAt != null) {
+        final expiry = DateTime.tryParse(expiresAt);
+        if (expiry == null || !expiry.isAfter(now)) {
+          continue;
+        }
+      }
+      // Duplicate ids must not replace a configuration while retaining a
+      // different server's display/trust metadata in the same result.
+      if (configs.containsKey(entry.id)) {
+        continue;
+      }
       final accepted = _accept(entry);
       if (accepted == null) {
         continue;
@@ -164,7 +198,7 @@ class ManifestProvider implements ServerProvider {
           hostAddress: null,
           port: null,
           protocol: entry.protocol,
-          trustLevel: entry.trustLevel,
+          trustLevel: signed ? entry.trustLevel : TrustLevel.unknown,
           status: ServerStatus.unknown,
           countryCode: entry.countryCode,
           providerId: id,
@@ -269,12 +303,13 @@ class SignatureVerifier {
     } on FormatException {
       return false;
     }
+    if (uri.scheme != 'https' || uri.host.isEmpty) {
+      return false;
+    }
     final String signatureText;
     try {
       signatureText = await fetcher.get(uri);
-    } on AppError {
-      return false;
-    } on BodyTooLargeException {
+    } on Object {
       return false;
     }
     final List<int> signature;

@@ -106,6 +106,14 @@ void main() {
       expect(cache.file.readAsStringSync(), isNot(contains('BEGIN')));
     });
 
+    test('replaces an existing profile cache without leaving a temporary', () {
+      cache.write({'old.example.net': 'Y2xpZW50'});
+      const replacement = {'new.example.net': 'Y2xpZW50Mg=='};
+      cache.write(replacement);
+      expect(cache.read(), replacement);
+      expect(File('${cache.file.path}.tmp').existsSync(), isFalse);
+    });
+
     test('missing or corrupt profile cache is treated as empty', () {
       expect(cache.read(), isEmpty);
       cache.file.parent.createSync(recursive: true);

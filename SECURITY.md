@@ -4,6 +4,11 @@ This document describes what Phantrix defends, what it cannot, and the
 rules the code enforces. It is written to be auditable: every claim below
 points at the file that implements it.
 
+**Current release status:** the pinned OpenVPN 2.6.17 runtime needs a security
+upgrade before distribution. No strict kill switch is implemented, and DNS/IPv6
+leak protection is not established by the IPv4 verification gate. See
+[PROJECT_AUDIT.md](docs/PROJECT_AUDIT.md) for remaining risks and checked scope.
+
 ## 1. Threat model
 
 **In scope:**
@@ -19,9 +24,9 @@ points at the file that implements it.
 - A malicious or compromised *server list*: a feed fetched over the
 	network must only be able to offer servers that pass the same safety
 	rules as any other profile.
-- Secret leakage through logs and diagnostics: keys, certificates,
-	credentials, full URLs and DNS names must not escape the process in
-	readable form.
+- Accidental secret leakage through structured logs and diagnostics:
+	keys, certificates, and credentials are filtered. Raw native engine logs
+	are a separate retained surface with metadata limits described in §4.1.
 
 **Out of scope (stated plainly):**
 
@@ -65,8 +70,9 @@ inert, not because anything can reach it.
 **Both share the same structural limits:** they protect the wire, not the
 exit. Whichever server you choose, its operator sees your decrypted
 traffic. IPv6 outside the tunnel, DNS outside the tunnel, or any split
-route is a hole in that protection — which is why validation repairs
-split-tunnel configs and IPv6 is blocked by default.
+route is a hole in that protection. Validation repairs client-side default
+routes, but this is not a firewall. The default IPv6 preference does not prove
+host-level blocking; see §6.
 
 ---
 
@@ -74,9 +80,10 @@ split-tunnel configs and IPv6 is blocked by default.
 
 Every configuration — from the manifest or from VPN Gate —
 passes the same two gates: a parser (`WgParser` / `OvpnParser`) and a
-policy validator (`WgValidator` / `OvpnValidator`). A `VpnConfiguration`
-can only be constructed through those validators, so an unchecked config
-cannot acquire a checked type.
+policy validator (`WgValidator` / `OvpnValidator`) on the app's ingestion path.
+The public Dart model constructors are not a security boundary by themselves:
+callers can construct values directly. The elevated Windows helper independently
+validates the complete serialized profile before starting the engine.
 
 ### 3.1 WireGuard (`packages/phantrix_core/lib/src/protocol/wireguard/wg_validator.dart`)
 
@@ -93,9 +100,9 @@ cannot acquire a checked type.
 	cannot silently become a leaky one; the repair is surfaced to the user
 	(`routeRepair`, and "Phantrix will add 0.0.0.0/0 so traffic cannot
 	leave outside the tunnel").
-- **IPv6 honesty:** if no peer carries an IPv6 default route, the app
-	says IPv6 will be blocked while connected (`wg.peer.no_ipv6_route`) —
-	it does not pretend to route it.
+- **IPv6 warning:** a missing IPv6 default route produces
+	`wg.peer.no_ipv6_route`. That warning is not proof of host-level blocking.
+	This parser is not on the app's active connection path.
 
 ### 3.2 OpenVPN (`packages/phantrix_core/lib/src/protocol/openvpn/ovpn_validator.dart`)
 
@@ -109,12 +116,16 @@ cannot acquire a checked type.
 	`tls-auth`, `tls-crypt`, `tls-crypt-v2`, `extra-certs`, `crl-verify`,
 	`http-proxy-user-pass` must be inline blocks; a path on disk ⇒
 	`ovpn.external_file_forbidden`. `askpass` (reading credentials from a
-	file) ⇒ `ovpn.askpass_forbidden`; credentials are asked for at
-	connection time instead.
+	file) ⇒ `ovpn.askpass_forbidden`. This build has no user-credential
+	prompt; the Windows helper refuses profiles requiring one.
 - **TLS verification is never weakened.** A configuration with no CA at
 	all — inline, file or path — is refused (`ovpn.no_ca`), because without
 	it the server cannot be authenticated. There is no flag, default or
 	repair that turns verification off.
+- **Server identity is preserved:** serialization always emits
+`remote-cert-tls server` and preserves explicit `verify-x509-name`,
+`key-direction`, and supported TLS policy options. A server certificate
+without the required server usage may now be refused rather than accepted.
 - **Broken crypto is refused, not warned about:** ciphers with no
 	confidentiality (`none`, DES, 3DES, RC2, BF, RC4 variants) ⇒
 	`ovpn.broken_cipher`; non-collision-resistant digests (`md4`, `md5`,
@@ -146,12 +157,17 @@ cannot acquire a checked type.
 
 ### 3.3 Request validation at the backend
 
-The Windows plugin re-validates everything the bridge hands over: no payload in
-error messages (it can contain key material), a missing IPv6 policy is an error
-rather than a silent "allow", and a profile that asks for credentials is
-refused rather than passed through. The Android plugin does not parse a request
-at all — with no engine there, a start request is answered with the reason it
-cannot be served.
+The Windows helper accepts only the normalized serializer's directive subset,
+inline certificate/key material, a client TUN profile, and server-certificate
+verification. It reads and checks the entire profile, rejecting anything over
+64 KiB instead of checking a safe prefix. Session paths must exactly match fixed
+filenames beneath the generated session directory. Directory/profile handles
+are held against replacement while the engine uses them, with reparse-point and
+hardlink checks on session files. Native regression tests cover these rules.
+
+This does **not** mean every request preference is enforced: Windows does not
+implement the requested strict kill switch, custom DNS, MTU, or host IPv6 block.
+The Android plugin has no engine and rejects a start request explicitly.
 
 ---
 
@@ -159,24 +175,26 @@ cannot be served.
 
 ### 4.0 At rest: what the store holds, and what it does not
 
-The app keeps one JSON file per user. It holds **settings and cached server
-directories** — the chosen country, kill-switch/DNS/IPv6 preferences, the last
-selected relay, and the public relay list the app last fetched. It holds **no
-key material**: this build neither imports nor stores a configuration of its
-own, so there is no private key on disk for anyone to find. The only
-configuration that reaches a file is the VPN Gate profile the feed published,
-and that is written by the engine path for the length of one tunnel and
-removed when the tunnel ends (see §4.1).
+The settings JSON holds preferences and selected/recent/favourite relays.
+Separate files cache public directory metadata and VPN Gate OpenVPN profiles.
+Those profiles can contain the feed's **shared client private keys**. They are
+public feed data, not user-owned account credentials, but they are still key
+material on disk; base64 storage is not encryption.
+
+Windows also writes a restricted per-session profile and public VPN Gate
+authentication file. Normal teardown removes session files, after retaining
+bounded raw OpenVPN log archives. A crash can leave session files behind;
+cleanup is not a secure-erasure guarantee. See §4.1 and [PRIVACY.md](PRIVACY.md).
 
 What protects the file:
 
 | Control | Detail |
 | --- | --- |
 | Location | the platform's own private per-user directory — `filesDir` on Android, `%LOCALAPPDATA%\Phantrix` on Windows, `$XDG_CONFIG_HOME/phantrix` or `~/.config/phantrix` on Linux, Application Support inside the app container on Apple. Never a shared or world-readable path |
-| Permissions | POSIX `0700` on the directory and `0600` on the file — distinct modes, because an owner-executable bit on a JSON store is meaningless and a group-readable bit on either is not wanted. Applied explicitly after creation rather than inherited from the process umask |
-| Windows | an explicit DACL for the current user and LocalSystem only, applied by the native backend on every directory creation and every file write, fail-closed. See §4.1. Deliberately **not** under `Program Files`, which is shared by every account on the machine |
+| Permissions | The settings store attempts POSIX `0700` on newly created directories and `0600` on files. Permission-command failures are currently best effort, not a fail-closed guarantee for every Dart cache |
+| Windows | Native session directories/files receive an explicit current-user + LocalSystem DACL, fail-closed. Dart settings/cache files rely on the per-user directory; do not infer that every Dart write reapplies the native file ACL |
 | Android | `filesDir`, UID-private by the kernel; backups disabled (`allowBackup="false"`); nothing ever written to shared storage. No `chmod` is attempted there: the binary is not reliably present in an app's execution environment, so spawning it would silently do nothing on exactly the platform where silence is dangerous |
-| Atomicity | written to a temporary sibling and renamed over the original, so a crash or a full disk leaves the previous file intact rather than a truncated one that fails to parse and loses the user's settings. No `.tmp` sibling is left behind after a write |
+| Atomicity | Writes use a temporary sibling and rename over the original rather than deleting the good file first. Failed settings writes no longer poison the next queued write. Ordinary failure cleanup removes temporary files; process crashes can still leave them |
 
 What is **not** claimed:
 
@@ -225,22 +243,16 @@ shipped in an artifact is a key given to everyone who downloads it.
 
 ### 4.1 In transit and in logs
 
-- **Staged to the platform: in memory only.** The validated configuration
-	reaches the native side over the method channel and is handed to the
-	service from a short-lived `PendingRequest` that is cleared the moment
-	it is read and again on teardown. The copy in §4.0 above is the user's
-	stored configuration; this is the copy handed to the engine, and it is
-	not written to a second location.
-- **In transit (app → platform):** keys travel inside the validated
-	configuration over the method channel, and on Android the tunnel
-	request is staged in a short-lived in-memory `PendingRequest` that is
-	cleared the moment the service reads it and again on teardown.
+- **Staged to the platform:** the configuration travels over the local method
+	channel. Windows writes it into its restricted session directory for the
+	OpenVPN subprocess; it is not memory-only. Android has no tunnel engine in
+	this build and does not provide the former `PendingRequest` service path.
 - **Never in logcat:** exceptions raised while parsing or building a
 	tunnel are logged by class name only. `org.json` embeds the offending
 	value in its message and that value is the configuration. Passing the
 	exception object to `Log` would put a private key somewhere any app
 	with `READ_LOGS` (or an adb shell) can read it.
-- **Never in logs:** `Redactor` (`packages/phantrix_core/lib/src/logging/redactor.dart`)
+- **Structured application logs:** `Redactor` (`packages/phantrix_core/lib/src/logging/redactor.dart`)
 	runs every log field through, at minimum:
 	- WireGuard base64 keys → non-reversible `[redacted-…]` marker
 	carrying an 8-hex-character FNV-1a fingerprint, so the same secret
@@ -252,8 +264,13 @@ shipped in an artifact is a key given to everyone who downloads it.
 	`key: [redacted]`;
 	- full URLs → `scheme://host/…` (path and query can leak DNS identity);
 	- IPv6 addresses → truncated to the /48 prefix.
-	`Logger` redacts at the boundary (`LogRecord.format()`), so no sink —
-	memory ring buffer, stderr, or file — can receive a secret.
+	`Logger` redacts at the formatting boundary. This is tested secret
+	filtering, not a guarantee that arbitrary input cannot reveal metadata.
+- **Raw native logs are separate:** Windows retains up to three OpenVPN log
+archives, each holding up to 512 KiB of engine output plus a trim marker,
+beneath `%LOCALAPPDATA%\Phantrix\logs\`. They bypass the Dart redactor and may
+contain endpoint addresses, names, and connection metadata. Do not share
+them without review. The in-app clear-log action does not delete them.
 - **The fingerprint is 32-bit and not cryptographic.** It exists to let two
 	occurrences of the same secret be correlated during support. It is
 	implemented over 32-bit halves (`logging/fingerprint.dart`) because a
@@ -263,7 +280,7 @@ shipped in an artifact is a key given to everyone who downloads it.
 - **Key generation:** this build generates no WireGuard keys. When it
 	does, they must come from `java.security.SecureRandom` or the platform
 	CSPRNG, never `Random()`.
-- **At rest (Apple): the shared keychain, and nowhere else.** Apple's
+- **Apple source design (uncompiled, not a supported target):** Apple's
 	`NETunnelProviderProtocol.providerConfiguration` is a plist in the VPN
 	preferences and is *not* encrypted, so the configuration is not stored
 	there. `PhantrixVPNManager` writes the wg-quick serialisation to the
@@ -273,34 +290,27 @@ shipped in an artifact is a key given to everyone who downloads it.
 	applications, and is `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
 	— not iCloud-synchronizable. `stop` deletes the item, so a key does
 	not outlive the tunnel it belonged to.
-- **At rest (Linux): a temporary file that does not survive the
-	tunnel.** `install -m 600` places the configuration root-owned with
+- **Inert Linux WireGuard source:** `install -m 600` places the configuration root-owned with
 	0600, and `stop` removes it. There is deliberately **no** long-lived
 	key store: a private key sitting in `/etc/wireguard` after the user
 	disconnected is a credential left on disk.
-- **On Windows:** the configuration is written to
-	`%LOCALAPPDATA%\Phantrix\Phantrix.conf`, which carries an explicit DACL
-	for the current user and LocalSystem only — no inherited ACEs, no other
-	accounts. The service runs as LocalSystem and must read the file, which
-	is why SYSTEM is on it; administrators are deliberately not, because an
-	administrator can take ownership of any object regardless of its DACL
-	and an ACE for them would imply a boundary that does not exist. The DACL
-	is applied to the directory on creation *and* re-applied when it already
-	exists, and to the file after every write, because `CREATE_ALWAYS`
-	truncates without replacing a pre-existing ACL. When the DACL cannot be
-	applied the file is deleted and the tunnel is refused: failing to
-	connect is recoverable, a readable private key is not. The file is
-	removed on teardown. Verified by launching the built app and reading the
-	ACL back with `icacls`: user `(F)` plus inherit-only `(OI)(CI)(IO)(F)`,
-	SYSTEM `(F)` plus inherit-only, nothing else.
+- **On Windows:** the configuration is
+	`%LOCALAPPDATA%\Phantrix\openvpn\session-<token>\phantrix.ovpn`.
+	The helper is an elevated process for the user, not a LocalSystem service.
+	Native file/directory ACLs allow the current user and SYSTEM; inability to
+	secure the profile refuses the tunnel. Administrators can still take
+	ownership. The helper locks the checked profile against writes/deletion
+	until the engine stops. Normal teardown removes the session directory;
+	crash recovery and helper-child lifetime still need fault-injection tests.
 
 ---
 
 ## 4a. Privilege boundaries on Linux
 
 Linux needs `CAP_NET_ADMIN` to create an interface, and a desktop
-application does not have it. The backend's rules, all enforced by the
-CI in `.github/workflows/linux.yml`:
+application does not have it. This legacy WireGuard backend is not on the
+OpenVPN-only app's supported connection path. The following describes source
+intent and CI compile/static checks, not a live audit of privilege handling:
 
 - **No shell.** `runElevated` executes `pkexec` through `posix_spawnp`
 	with an argument vector. There is no `/bin/sh -c`, so no character
@@ -357,11 +367,12 @@ CI in `.github/workflows/linux.yml`:
 	  carries the hostname and that is connection metadata.
 - **Signing:** manifests may ship a detached Ed25519 signature. With both
 	a `signatureUrl` and the matching base64 public key configured,
-	`SignatureVerifier.verifyManifest` checks the body and the list is
-	labelled signed; with either half missing, or a bad length, or any
-	parse failure, it returns false — never throws — and every server from
-	that list carries a note that it "does not carry a signature that could
-	be verified, so treat it as unverified".
+	`SignatureVerifier.verifyManifest` checks the exact response body.
+	Configuring either signing field requires verification: missing halves,
+	bad signatures, or signature-fetch failures reject the refresh with
+	`manifest.signature_invalid`. An explicitly unsigned source may still
+	offer validated entries, but cannot grant itself project/community trust.
+	Document content cannot assert its own verified-signature status.
 - **Trust levels** (`model/trust_level.dart`) are about the exit point,
 	not the cipher, and three of them (`publicRelay`, `imported`,
 	`unknown`) always carry a warning in the UI:
@@ -391,15 +402,12 @@ CI in `.github/workflows/linux.yml`:
 	posture is implemented). A settings control that claimed otherwise would
 	be the single most dangerous lie in the product, so the control reports
 	the limitation instead.
-- **"Automatic" is reconnect, not blocking.** `KillSwitchMode.automatic`
-	means the app retries after a failure. Nothing holds traffic back while
-	a reconnect is in flight, and the settings copy says exactly that. The
-	previous wording — "as strong as the operating system allows" — was
-	removed because it implied a protection that does not exist.
-- **`strict` is refused out loud.** On Android, requesting it emits an event
-	saying the platform cannot enforce it, and the tunnel still starts. A
-	silent downgrade would leave the user believing in a guarantee nobody
-	is providing.
+- **"Automatic" is not blocking.** Connection retries and engine reconnects
+	can happen, but this preference is not a complete failure-recovery
+	supervisor and holds no traffic back during a reconnect.
+- **`strict` is unsupported.** Capabilities report no backend enforcement.
+	Windows does not turn the request into firewall rules. Android has no
+	engine and refuses tunnel starts, irrespective of this preference.
 - **Android's genuine protection is the system's, and it is read live.**
 	Always-on VPN with "Block connections without VPN" is the only traffic
 	blocker on stock Android. The app reads `always_on_vpn_app` and
@@ -412,28 +420,25 @@ CI in `.github/workflows/linux.yml`:
 
 	| Scenario | Android | Windows | Linux | Apple |
 	| --- | --- | --- | --- | --- |
-	| Tunnel up, full-tunnel routes | No engine in this build; unit-tested route construction | Routed by the OpenVPN engine; one live tunnel observed (`docs/evidence/openvpn/`) | Routed by wg-quick; untested live | Routed by WireGuardKit; untested (never built) |
-	| Tunnel drops unexpectedly | Traffic leaves via the normal network until reconnect, unless system lockdown is armed. Untested live | Traffic leaves via the normal network. Untested live | Traffic leaves via the normal network. Untested live | Untested (never built) |
-	| Peer becomes unreachable | Handshake timeout → failure → teardown. Engine-tested config paths only; no live peer | Service reports failure; teardown removes the tunnel. Untested live | `wg-quick down` + config removal run unconditionally on failed-up. Untested live | Untested (never built) |
-	| Network change / sleep-resume | Reconnect is attempted; the gap is unprotected without system lockdown. Untested live | Untested live | Untested live | Untested (never built) |
-	| App killed while connected | Android keeps the service only if the system keeps it; routes die with the interface. Untested live | The service keeps running without the UI; `stop` on next launch removes it. Untested live | The interface persists until `wg-quick down`; a crash leaves it up. Untested live | Untested (never built) |
-	| IPv6 with block policy | Family never added to the interface; no route to escape through. Logic-tested, untested live | Not enforced by this backend (`ipv6Block: false` is reported). **A known gap** | Enforced by dropping IPv6 routes pre-elevation. Untested live | Untested (never built) |
-	| DNS during failure | Resolvers belong to the tunnel interface; on teardown the system resolver returns. Untested live | System resolver returns on service removal. Untested live | wg-quick restores resolv.conf on `down`. Untested live | Untested (never built) |
+	| Tunnel up | No engine | Historical IPv4 tunnel evidence in `docs/evidence/openvpn/`; not a fresh audit run | No app-supported engine; inert WireGuard source | Not wired or compiled |
+	| Tunnel drops / reconnects | No engine | No firewall blocks fallback traffic | Not tested live | Not built |
+	| Peer unreachable / sleep-resume | No engine | Fault and recovery behavior needs live testing | Not tested live | Not built |
+	| App or helper killed | No engine | Helper watches parent, but child lifetime after helper crash is not guaranteed; no kill-on-close job | Inert source can leave a WireGuard interface behind | Not built |
+	| IPv6 with block preference | No engine | Host-level block not enforced (`ipv6Block: false`) | Omitting tunnel IPv6 routes does not block the physical network | Not built |
+	| DNS protection / failure | No engine | Not verified; no independent DNS-leak firewall | Not tested live | Not built |
 
-- **IPv6 handling.** Blocked by default (`Ipv6Mode.block`): on Android and
-	Linux the address family is simply not added to the tunnel interface, so
-	there is no IPv6 route to escape through — that is why "block" is a real
-	answer rather than a leak. `prefer_tunnel` carries IPv6 only when the
-	configuration declares an IPv6 default route; `allow` is labelled "may
-	leak" in the settings UI. **Windows does not enforce the block policy:**
-	it reports `ipv6Block: false` and the limitation is shown, because the
-	OpenVPN engine applies the profile's own addresses and this backend does
-	not rewrite them.
-- **Verification is the only door to "connected".** An external IP probe
-	compares against the pre-connection baseline; an unchanged address
-	means the tunnel is not carrying traffic, and the connection is failed
-	and torn down. The core state machine refuses `connected` without a
-	`tunnelVerified` event, twice (`reduce` and `allows`).
+- **IPv6 handling.** `Ipv6Mode.block` is the default preference, not proof
+	of enforcement. OpenVPN's serialized `block-ipv6` only blocks IPv6 that
+	reaches the TUN device. Removing or omitting tunnel IPv6 routes does not
+	block IPv6 on a physical adapter. Separate routing/firewall enforcement
+	and packet-level tests are needed before claiming IPv6 leak protection.
+- **Verification gates "connected".** A recent, non-future handshake plus
+	a changed public address in the baseline's IP family is required. A
+	missing baseline or unchanged/unavailable probe fails closed and requests
+	teardown; teardown errors remain visible. The default probes measure IPv4
+	only. Success does not establish DNS, IPv6, every application's routing,
+	or protection after a drop. The core state machine requires
+	`tunnelVerified` in both `reduce` and `allows`.
 - **The redactor once leaked, and now pins absence.** The credential rule
 	replaced `password=hunter2` with `hunter2: [redacted]` — the secret,
 	printed next to the marker claiming its removal — and a scoped

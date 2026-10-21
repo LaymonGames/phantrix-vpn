@@ -23,6 +23,7 @@ class FakeBridge extends PhantrixPlatform {
   int startCalls = 0;
   int stopCalls = 0;
   AppError? startError;
+  AppError? stopError;
 
   /// What `requestPermission` answers. A held [permissionGate] makes the
   /// call pending, which is how a test observes the consent state while the
@@ -55,7 +56,8 @@ class FakeBridge extends PhantrixPlatform {
   @override
   Future<Result<void>> stopTunnel() async {
     stopCalls++;
-    return const Ok(null);
+    final error = stopError;
+    return error == null ? const Ok(null) : Err(error);
   }
 
   void emit(PlatformEvent event) => events2.add(event);
@@ -726,6 +728,38 @@ TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
       },
     );
 
+    test('a refused stop is not presented as disconnected', () async {
+      final (controller, bridge) = await connectable();
+      await attempt(controller);
+      controller.debugSetBaselineForTest('198.51.100.4');
+      controller.debugReceive(evt(PlatformTunnelState.preparing));
+      controller.debugReceive(evt(PlatformTunnelState.connecting));
+      controller.debugReceive(
+        evt(
+          PlatformTunnelState.handshaked,
+          handshakeAtMillis: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+      await waitForConnected(controller);
+      bridge.stopError = const AppError(
+        group: ErrorGroup.tunnel,
+        code: 'native.stop_failed',
+        message: 'The operating system refused to stop the tunnel.',
+      );
+
+      await controller.disconnect();
+
+      expect(controller.currentView.state, VpnState.error);
+      expect(controller.currentView.errorCode, 'tunnel.stop_failed');
+      expect(controller.currentView.state, isNot(VpnState.disconnected));
+      await controller.connect(server: target(), config: configuration());
+      expect(
+        bridge.startCalls,
+        1,
+        reason: 'do not overlap a tunnel not stopped',
+      );
+    });
+
     test('a new attempt retires the previous attempt error', () async {
       final (controller, bridge) = await connectable(
         connectTimeout: const Duration(milliseconds: 150),
@@ -1037,6 +1071,25 @@ TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
         // stopped: a view that says "Disconnected" with a live tunnel
         // behind it is the one outcome worse than a stale error card.
         expect(bridge.stopCalls, greaterThan(1));
+      },
+    );
+
+    test(
+      'cancellation resolves the outcome while native launch is pending',
+      () async {
+        final bridge = GatedBridge()..launchGate = Completer<Result<void>>();
+        final (controller, _) = await connectable(withBridge: bridge);
+        final pending = controller.connectAndAwait(
+          server: target(),
+          config: configuration(),
+        );
+        await pumpEventQueue();
+        expect(bridge.startCalls, 1);
+        await controller.cancel();
+        final outcome = await pending.timeout(const Duration(seconds: 1));
+        expect(outcome.code, 'tunnel.cancelled');
+        bridge.launchGate!.complete(const Ok(null));
+        await pumpEventQueue();
       },
     );
 

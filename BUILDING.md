@@ -1,10 +1,15 @@
 # Building Phantrix
 
-Everything here was verified against the repository on a Windows machine
-with Flutter 3.47.0 / Dart 3.13.0, JDK 25 (Android Studio JBR),
-Android Gradle Plugin 9.1.0 and Visual Studio Community 2022 (18.10) with
-the C++ workload. Commands are given for `cmd`/PowerShell; they are the
-same on macOS and Linux.
+The latest audit used Windows, Flutter 3.47.5 / Dart 3.13.4, JDK 25
+(Android Studio JBR), Android Gradle Plugin 9.1.0, and Visual Studio 2022
+Build Tools 17.14 with the C++ workload. Windows, web, and Android release
+builds compiled; see [PROJECT_AUDIT.md](docs/PROJECT_AUDIT.md) for the exact
+checks and limitations. Older dated observations below are historical evidence,
+not fresh verification of every platform.
+
+The OpenVPN 2.6.17 runtime pin has known security advisories. Do not distribute
+that bundle before upgrading and validating it. A Windows build without the
+runtime can compile but cannot connect.
 
 Where a build cannot succeed in this environment, or cannot succeed at
 all in the current code, this document says so instead of hoping.
@@ -15,13 +20,13 @@ all in the current code, this document says so instead of hoping.
 
 | Tool | Version | Why / where it comes from |
 | --- | --- | --- |
-| Flutter | 3.47.0 or newer | `flutter --version` on this machine reports 3.47.0, stable |
-| Dart | 3.13.0 (bundled with Flutter) | The root `pubspec.yaml` requires `sdk: ^3.13.0`; `packages/phantrix_core/pubspec.yaml` requires `^3.9.0` |
-| JDK | 17 | `android/app/build.gradle.kts` and `packages/phantrix_platform/android/build.gradle.kts` both set `sourceCompatibility`/`targetCompatibility` and `jvmTarget` to 17 |
+| Flutter | 3.47.5 | Version pinned by CI and used in the latest audit |
+| Dart | 3.13.4 (bundled with Flutter) | The root `pubspec.yaml` requires `sdk: ^3.13.0`; `packages/phantrix_core/pubspec.yaml` requires `^3.9.0` |
+| JDK | 21 recommended, matching Android CI | Java/Kotlin bytecode targets are 17, which is not the Gradle runtime version. JDK 25 compiled the release, but the upstream integration-test Mockito/Byte Buddy tests reject Java 25 |
 | Android SDK | Platform 35 | `packages/phantrix_platform/android/build.gradle.kts` sets `compileSdk = 35`; the app module uses `flutter.compileSdkVersion`. No NDK: the plugin compiles no native code |
 | Gradle | 9.3.1 (via wrapper) | `android/gradle/wrapper/gradle-wrapper.properties` downloads `gradle-9.3.1-all.zip` |
 | Android Gradle Plugin / Kotlin | AGP 9.1.0 / Kotlin 2.4.0 | `android/settings.gradle.kts` |
-| Visual Studio 2022 | "Desktop development with C++" workload | Windows desktop only. Windows builds were verified with Visual Studio Community 2022, as stated at the top of this document |
+| Visual Studio 2022 | "Desktop development with C++" workload | Windows desktop only; latest checks used Build Tools 17.14 |
 | Xcode | Current stable | macOS and iOS only, and only on a Mac |
 
 `android/local.properties` in this repository points at
@@ -56,7 +61,7 @@ change must pass.
 ```bash
 cd packages/phantrix_core
 dart analyze      # clean as of this writing
-dart test         # 184 core tests, all passing as of this writing
+dart test --reporter expanded
 ```
 
 `dart analyze` in `packages/phantrix_platform` is also clean.
@@ -65,6 +70,26 @@ dart test         # 184 core tests, all passing as of this writing
 state-machine, connection-flow, persistence, licensing, and rendered-UI tests.
 The integration tests in `integration_test/` are separate because they require
 a real device/emulator and the platform channel.
+
+Native Windows profile/path/IPC regression tests can run without UAC or a
+network route change after building the app:
+
+```powershell
+flutter build windows --release
+tools/test_windows_support.ps1 -Configuration Release
+tools/check_windows_build.ps1
+```
+
+The last command permits a missing runtime for a compile-only check. Distribution
+checks require `-RequireOpenVpn` and a reviewed, updated runtime.
+
+For Android JVM tests, run `gradlew.bat testDebugUnitTest --console=plain`
+inside `android/` with `JAVA_HOME` pointing at JDK 21. With JDK 25 the audit
+observed three failures in Flutter's `integration_test` screenshot tests:
+`Java 25 (69) is not supported ... Byte Buddy ... Java 22 (66)`.
+No project code or test was disabled to hide that failure. The app and platform
+plugin have no Java/Kotlin unit-test sources today; a `NO-SOURCE` result is not
+Android tunnel coverage.
 
 Expected analyzer configuration:
 

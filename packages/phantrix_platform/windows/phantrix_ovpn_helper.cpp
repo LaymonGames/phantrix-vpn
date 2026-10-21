@@ -20,11 +20,10 @@
 //   4. reports what the engine says, and stops when told to;
 //   5. exits when the app that launched it goes away.
 //
-// It never parses the profile beyond one defensive check. The application writes
-// it, restricts its ACL, and hands this program three paths; the elevated engine
-// then reads it. The check exists because the engine reads the file as
-// Administrator, and "the sender already checked" is not a property of the
-// receiver.
+// The application writes the profile and hands this program three paths. The
+// helper verifies the complete normalized profile and locks its session paths
+// before the elevated engine reads them: "the sender already checked" is not a
+// property of the receiver.
 //
 // ## Why there is no service
 //
@@ -83,12 +82,12 @@ constexpr DWORD kPipeWaitMillis = 300000;
 // The pipe is written to by two threads: this one, answering the app, and the
 // engine's monitor thread, reporting state. Interleaving those two would
 // corrupt both, so every write takes this lock.
-CRITICAL_SECTION g_writeLock;
+SRWLOCK g_writeLock = SRWLOCK_INIT;
 
 void WriteToPipe(HANDLE pipe, const Message& message) {
-	EnterCriticalSection(&g_writeLock);
+	AcquireSRWLockExclusive(&g_writeLock);
 	(void)WriteMessage(pipe, message);
-	LeaveCriticalSection(&g_writeLock);
+	ReleaseSRWLockExclusive(&g_writeLock);
 }
 
 // The reader.
@@ -198,7 +197,10 @@ struct PipeReader {
 				SetEvent(self->messageReady);
 			}
 		}
-		CancelIo(self->pipe);
+		CancelIoEx(self->pipe, &overlap);
+		DWORD ignored = 0;
+		(void)GetOverlappedResult(self->pipe, &overlap, &ignored, TRUE);
+		CloseHandle(overlap.hEvent);
 		EnterCriticalSection(&self->lock);
 		self->closed = true;
 		LeaveCriticalSection(&self->lock);
@@ -209,24 +211,6 @@ struct PipeReader {
 
 void Reject(HANDLE pipe, const char* code, const std::string& message) {
 	WriteToPipe(pipe, MakeMessage(MessageType::kFailed, {std::string(code), message}));
-}
-
-// True when `path` is inside `root`.
-//
-// The helper checks this even though the paths come from the application, because
-// the helper is the privileged side: a request that points at a file outside the
-// session directory is a request to make an elevated process read something that
-// is not the profile this session wrote.
-bool IsInside(const std::wstring& path, const std::wstring& root) {
-	if (path.size() <= root.size()) {
-		return false;
-	}
-	const std::wstring head = path.substr(0, root.size());
-	const std::wstring prefix = path.substr(root.size(), 1) == L"\\" ? L"\\" : L"";
-	if (prefix.empty()) {
-		return false;
-	}
-	return _wcsicmp(head.c_str(), root.c_str()) == 0;
 }
 
 // The Wintun adapter the engine will use.
@@ -591,38 +575,10 @@ void EnsureHiddenConsole() {
 
 void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirectory,
                  const std::wstring& sessionDirectory, const std::wstring& profile,
-                 const std::wstring& status, const std::wstring& log) {
-	if (!IsInside(profile, sessionDirectory) || !IsInside(status, sessionDirectory) ||
-	    !IsInside(log, sessionDirectory)) {
-		Reject(pipe, "ovpn.paths_rejected",
-		       "The tunnel's file locations were not the ones this session "
-		       "created.");
-		return;
-	}
-
-	// Read the profile back and check it here, before an elevated process does.
-	char profileBuffer[64 * 1024] = {0};
-	HANDLE profileHandle = CreateFileW(profile.c_str(), GENERIC_READ, FILE_SHARE_READ,
-	                                   nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-	                                   nullptr);
-	if (profileHandle == INVALID_HANDLE_VALUE) {
-		Reject(pipe, "ovpn.profile_missing",
-		       "The tunnel configuration could not be read.");
-		return;
-	}
-	DWORD profileRead = 0;
-	const BOOL profileOk =
-	    ReadFile(profileHandle, profileBuffer, sizeof(profileBuffer) - 1,
-	             &profileRead, nullptr);
-	CloseHandle(profileHandle);
-	if (profileOk == FALSE) {
-		Reject(pipe, "ovpn.profile_missing",
-		       "The tunnel configuration could not be read.");
-		return;
-	}
+                 const std::wstring& status, const std::wstring& log,
+                 phantrix::ovpn::LockedSessionFiles& files) {
 	ProfileRejection rejection = {nullptr, nullptr};
-	if (!RejectUnsafeDirectives(std::string(profileBuffer, profileRead),
-	                            &rejection)) {
+	if (!files.Open(sessionDirectory, profile, status, log, &rejection)) {
 		Reject(pipe, rejection.code,
 		       std::string("The server's configuration asks for something "
 		                   "Phantrix will not do: it ") +
@@ -693,7 +649,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	}
 	LocalFree(argv);
 
-	if (pipeName.empty() || token.empty()) {
+	if (pipeName.rfind(phantrix::ovpn::kPipePrefix, 0) != 0 ||
+	    token.size() != 32 ||
+	    token.find_first_not_of(L"0123456789abcdef") != std::wstring::npos ||
+	    parentPid == 0) {
 		// Launched by something other than the app. Doing nothing and exiting is
 		// the safe response; there is nobody to tell.
 		return 2;
@@ -730,6 +689,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	if (parentPid != 0) {
 		parentProcess = OpenProcess(SYNCHRONIZE, FALSE, parentPid);
 	}
+	if (parentProcess == nullptr) {
+		CloseHandle(pipe);
+		return 3;
+	}
 
 	// Where this program itself lives. The engine directory is resolved from it,
 	// never from the request and never from PATH, so a poisoned environment
@@ -741,7 +704,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	// directory rather than the already-resolved one.
 	wchar_t modulePath[MAX_PATH + 1] = {0};
 	const DWORD moduleLength = GetModuleFileNameW(nullptr, modulePath, MAX_PATH);
-	if (moduleLength == 0 || moduleLength > MAX_PATH) {
+	if (moduleLength == 0 || moduleLength >= MAX_PATH) {
 		CloseHandle(pipe);
 		return 5;
 	}
@@ -800,7 +763,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	bool shuttingDown = false;
 	bool refusedPeer = false;
 	PipeReader reader;
-	InitializeCriticalSection(&g_writeLock);
+	phantrix::ovpn::LockedSessionFiles files;
 	reader.Start(pipe);
 
 	HANDLE waits[2] = {reader.messageReady, parentProcess};
@@ -875,7 +838,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					StartEngine(pipe, engine, moduleDirectory, sessionDirectory,
 					            Utf8ToWide(message.fields[0]),
 					            Utf8ToWide(message.fields[1]),
-					            Utf8ToWide(message.fields[2]));
+					            Utf8ToWide(message.fields[2]), files);
 					continue;
 				}
 				// Any other type is ignored. This program takes one instruction
@@ -891,6 +854,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	// Closing the adapter handle also removes the adapter this session made.
 	RestoreAdapterRegistration();
 	ReleaseAdapter();
+	files.Close();
 	// The session directory holds the profile, which holds the user's key. It
 	// does not outlive the tunnel it belonged to — but the engine's log out
 	// lives the tunnel as the archive copy: it is the one document that can
@@ -898,7 +862,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	phantrix::ovpn::ArchiveEngineLog(sessionDirectory + L"\\openvpn.log");
 	(void)RemoveTree(sessionDirectory);
 	reader.Stop();
-	DeleteCriticalSection(&g_writeLock);
 	if (parentProcess != nullptr) {
 		CloseHandle(parentProcess);
 	}

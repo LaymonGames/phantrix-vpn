@@ -227,6 +227,24 @@ void main() {
       expect(caps.systemLockdown, isTrue);
     });
 
+    test('capabilities are refreshed instead of permanently cached', () async {
+      var installed = false;
+      mock(
+        (call) => <String, Object?>{
+          'platform': 'windows',
+          'openVpn': installed,
+          'limitations': ['First note', 'Second note'],
+        },
+      );
+      final bridge = PhantrixPlatform();
+      addTearDown(bridge.dispose);
+      expect((await bridge.capabilities()).openVpn, isFalse);
+      installed = true;
+      final refreshed = await bridge.capabilities();
+      expect(refreshed.openVpn, isTrue);
+      expect(refreshed.limitations.values, ['First note', 'Second note']);
+    });
+
     test('a missing lockdown key parses as off, not as an error', () async {
       // Older native builds predate the key. Treating its absence as a
       // failure would red-flag every user who has not updated the native

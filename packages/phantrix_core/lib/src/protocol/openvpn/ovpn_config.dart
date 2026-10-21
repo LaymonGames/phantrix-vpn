@@ -31,9 +31,12 @@ class OvpnConfig {
     this.dev,
     this.cipher,
     this.dataCiphers = const [],
+    this.dataCiphersFallback,
     this.auth,
     this.tlsVersionMin,
     this.tlsCertProfile,
+    this.keyDirection,
+    this.verifyX509Name,
     required this.authUserPass,
     this.authUserPassFile,
     this.caFile,
@@ -56,9 +59,12 @@ class OvpnConfig {
   final String? dev;
   final String? cipher;
   final List<String> dataCiphers;
+  final String? dataCiphersFallback;
   final String? auth;
   final String? tlsVersionMin;
   final String? tlsCertProfile;
+  final String? keyDirection;
+  final String? verifyX509Name;
   final bool authUserPass;
   final String? authUserPassFile;
   final String? caFile;

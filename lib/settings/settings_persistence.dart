@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:phantrix_core/phantrix_core.dart';
 
@@ -205,6 +207,17 @@ class PersistentSettingsController extends SettingsController {
     // Fire and forget: the UI must not wait on a disk write, and a failed
     // write leaves the in-memory value correct. The store is written
     // atomically, so a partially written settings file cannot exist.
-    _store.write(SettingsCodec.storageKey, SettingsCodec.encode(data));
+    unawaited(
+      _store
+          .write(SettingsCodec.storageKey, SettingsCodec.encode(data))
+          .catchError((Object error, StackTrace stackTrace) {
+            developer.log(
+              'Could not persist updated settings.',
+              name: 'phantrix.settings',
+              error: error,
+              stackTrace: stackTrace,
+            );
+          }),
+    );
   }
 }

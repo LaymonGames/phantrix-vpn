@@ -55,8 +55,8 @@ class VerificationOutcome {
 ///
 /// ### What this does not prove
 ///
-/// A successful check means this device's traffic is leaving through the
-/// tunnel. It does **not** mean:
+/// A successful check confirms a changed public address for the probed IP
+/// family, alongside the engine's handshake. It does **not** mean:
 ///
 ///  * every application on the device is routed through it — per-app
 ///    exclusions, and apps that open their own sockets by other means, are
@@ -64,6 +64,7 @@ class VerificationOutcome {
 ///  * DNS is not leaking — the check reads an HTTPS address, resolved by
 ///    whichever resolver is in force at that moment, so a hijacked resolver
 ///    would still have seen the lookup;
+///  * the other IP family is protected — the default probes use IPv4;
 ///  * the content is private — the exit node operator can see it.
 ///
 /// Those limits are stated in the UI rather than glossed over.
@@ -76,7 +77,10 @@ class LeakCheck {
   }) : _injectedFetcher = fetcher,
        _fetcherFactory =
            fetcherFactory ??
-           (() => AppHttpFetcher.owned(timeout: const Duration(seconds: 4))),
+           (() => AppHttpFetcher.owned(
+             timeout: const Duration(seconds: 4),
+             maxBodyBytes: 4096,
+           )),
        _endpoints = List.unmodifiable(endpoints ?? defaultEndpoints),
        _wait = wait ?? Future<void>.delayed;
 
@@ -143,11 +147,12 @@ class LeakCheck {
   /// hidden: a check that claims to be invisible is not a useful check. The
   /// list is tried in order and the first success wins, so one provider being
   /// down does not make verification impossible.
+  /// IPv4-only endpoints keep a change of address family from being mistaken
+  /// for a change of route. IPv6 protection needs a separate check.
   ///
   /// `static final` rather than `const`, because `Uri.parse` is not a const
   /// function.
   static final List<Uri> defaultEndpoints = <Uri>[
-    Uri.parse('https://api64.ipify.org?format=json'),
     Uri.parse('https://api.ipify.org?format=json'),
     Uri.parse('https://checkip.amazonaws.com/'),
   ];
@@ -267,7 +272,8 @@ class LeakCheck {
   }) async {
     final at = now ?? DateTime.now();
     final observed = handshakeAt != null;
-    final fresh = observed && at.difference(handshakeAt) <= handshakeFreshness;
+    final age = handshakeAt == null ? null : at.difference(handshakeAt);
+    final fresh = age != null && !age.isNegative && age <= handshakeFreshness;
 
     if (!observed) {
       final article = protocol == ProtocolKind.openVpn ? 'an' : 'a';
@@ -279,12 +285,20 @@ class LeakCheck {
         }),
       );
     }
-    if (!fresh) {
-      final age = at.difference(handshakeAt).inMinutes;
+    if (age!.isNegative) {
       return VerificationOutcome(
         verified: false,
         handshakeObserved: true,
-        message: l10n.get('flowHandshakeStale', {'minutes': '$age'}),
+        message: l10n.get('flowHandshakeFuture'),
+      );
+    }
+    if (!fresh) {
+      return VerificationOutcome(
+        verified: false,
+        handshakeObserved: true,
+        message: l10n.get('flowHandshakeStale', {
+          'minutes': '${age.inMinutes}',
+        }),
       );
     }
 
@@ -341,7 +355,8 @@ class LeakCheck {
         // evidence of anything.
         continue;
       }
-      if (baseline == null || !sameAddress(baseline, current)) {
+      if (baseline == null ||
+          (_sameFamily(baseline, current) && !sameAddress(baseline, current))) {
         // Either changed (the tunnel works — no reason to keep
         // probing) or no baseline to compare against (the first
         // reading is all the evidence there will be).
@@ -359,18 +374,26 @@ class LeakCheck {
     }
 
     if (baseline == null) {
-      // No pre-connection reading, so "the address changed" cannot be
-      // tested. A completed handshake is real evidence that traffic is
-      // flowing to the peer, so this is reported as verified with the
-      // limitation stated rather than refused outright — refusing here
-      // would make the check useless whenever the pre-probe was blocked.
+      // A handshake proves contact with the VPN server, not that ordinary
+      // traffic took its route. Missing evidence must not become success.
       return VerificationOutcome(
-        verified: true,
+        verified: false,
         publicIp: current,
         handshakeObserved: true,
         handshakeFresh: true,
         endpointHost: host,
-        message: l10n.get('flowConnectedViaUncertain', {'ip': current}),
+        message: l10n.get('flowBaselineUnavailable'),
+      );
+    }
+
+    if (!_sameFamily(baseline, current)) {
+      return VerificationOutcome(
+        verified: false,
+        publicIp: current,
+        handshakeObserved: true,
+        handshakeFresh: true,
+        endpointHost: host,
+        message: l10n.get('flowAddressFamilyChanged'),
       );
     }
 
@@ -443,52 +466,44 @@ class LeakCheck {
   }
 
   /// Rejects anything that cannot be an address.
-  static bool isPlausibleAddress(String value) {
-    if (value.length < 3 || value.length > 45) {
+  static bool isPlausibleAddress(String value) =>
+      AddressCidr.isIpv4(value) || AddressCidr.isIpv6(value);
+
+  /// Compares address bytes, including compressed and IPv4-mapped IPv6.
+  static bool sameAddress(String a, String b) {
+    final left = _addressBytes(a);
+    final right = _addressBytes(b);
+    if (left == null || right == null || left.length != right.length) {
       return false;
     }
-    if (value.contains(':')) {
-      // IPv6: hex and colons only, and at least two colons so a stray word
-      // containing a colon cannot pass.
-      if (!RegExp(r'^[0-9A-Fa-f:]+$').hasMatch(value)) {
-        return false;
-      }
-      return value.contains('::') || ':'.allMatches(value).length >= 2;
-    }
-    final parts = value.split('.');
-    if (parts.length != 4) {
-      return false;
-    }
-    for (final part in parts) {
-      if (part.isEmpty || part.length > 3) {
-        return false;
-      }
-      final octet = int.tryParse(part);
-      if (octet == null || octet < 0 || octet > 255) {
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) {
         return false;
       }
     }
     return true;
   }
 
-  /// Compares two addresses for equality.
-  ///
-  /// Textual, deliberately. Two spellings of the same address
-  /// (`::ffff:1.2.3.4` and `1.2.3.4`) would compare unequal and wrongly read
-  /// as "the address changed", so the IPv4-mapped prefix is stripped before
-  /// comparing. Full IPv6 normalisation is a large amount of code for a case
-  /// these services do not produce.
-  static bool sameAddress(String a, String b) {
-    if (a == b) {
-      return true;
-    }
-    return _stripMappedPrefix(a) == _stripMappedPrefix(b);
+  static bool _sameFamily(String a, String b) {
+    final left = _addressBytes(a);
+    final right = _addressBytes(b);
+    return left != null && right != null && left.length == right.length;
   }
 
-  static String _stripMappedPrefix(String value) {
-    const prefix = '::ffff:';
-    final lower = value.toLowerCase();
-    return lower.startsWith(prefix) ? lower.substring(prefix.length) : lower;
+  static List<int>? _addressBytes(String value) {
+    if (AddressCidr.isIpv4(value)) {
+      return Uri.parseIPv4Address(value);
+    }
+    if (!AddressCidr.isIpv6(value)) {
+      return null;
+    }
+    final bytes = Uri.parseIPv6Address(value);
+    if (bytes.take(10).every((byte) => byte == 0) &&
+        bytes[10] == 255 &&
+        bytes[11] == 255) {
+      return bytes.sublist(12);
+    }
+    return bytes;
   }
 
   Future<void> close() {

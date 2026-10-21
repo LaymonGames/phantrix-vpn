@@ -93,9 +93,12 @@ class OvpnParser {
     String? dev;
     String? cipher;
     final dataCiphers = <String>[];
+    String? dataCiphersFallback;
     String? auth;
     String? tlsVersionMin;
     String? tlsCertProfile;
+    String? keyDirection;
+    String? verifyX509Name;
     var authUserPass = false;
     String? authUserPassFile;
     String? caFile;
@@ -107,6 +110,13 @@ class OvpnParser {
     final dns = <String>[];
     var routeNopull = false;
     int? verbosity;
+    // OpenVPN's default is 1194 for both TCP and UDP. A global port may
+    // appear after a remote; malformed explicit ports must reach validation
+    // as invalid rather than silently selecting another server port.
+    final globalPort = unknown['rport'] ?? unknown['port'];
+    final defaultPort = globalPort == null
+        ? 1194
+        : int.tryParse(globalPort) ?? -1;
     for (final directive in directives) {
       switch (directive.key) {
         case 'remote':
@@ -114,13 +124,13 @@ class OvpnParser {
           if (parts.isEmpty || parts.first.isEmpty) {
             continue;
           }
-          final port = parts.length > 1 ? int.tryParse(parts[1]) : null;
+          final port = parts.length > 1
+              ? int.tryParse(parts[1]) ?? -1
+              : defaultPort;
           remotes.add(
             OvpnRemote(
               host: parts.first,
-              port:
-                  port ??
-                  (proto != null && proto.toLowerCase() == 'tcp' ? 443 : 1194),
+              port: port,
               proto: parts.length > 2 ? parts[2].toLowerCase() : null,
             ),
           );
@@ -130,19 +140,25 @@ class OvpnParser {
           dev ??= directive.value;
         case 'cipher':
           cipher = directive.value;
-        case 'data-ciphers' || 'data-ciphers-fallback':
+        case 'data-ciphers':
           for (final entry in directive.value.split(':')) {
             final value = entry.trim();
-            if (value.isNotEmpty && value.toLowerCase() != 'none') {
+            if (value.isNotEmpty) {
               dataCiphers.add(value);
             }
           }
+        case 'data-ciphers-fallback':
+          dataCiphersFallback = directive.value;
         case 'auth':
           auth = directive.value;
         case 'tls-version-min':
           tlsVersionMin = directive.value;
         case 'tls-cert-profile':
           tlsCertProfile = directive.value;
+        case 'key-direction':
+          keyDirection = directive.value;
+        case 'verify-x509-name':
+          verifyX509Name = directive.value;
         case 'auth-user-pass':
           authUserPass = true;
           final value = directive.value.trim();
@@ -186,9 +202,12 @@ class OvpnParser {
       dev: dev,
       cipher: cipher,
       dataCiphers: List.unmodifiable(dataCiphers),
+      dataCiphersFallback: dataCiphersFallback,
       auth: auth,
       tlsVersionMin: tlsVersionMin,
       tlsCertProfile: tlsCertProfile,
+      keyDirection: keyDirection,
+      verifyX509Name: verifyX509Name,
       authUserPass: authUserPass,
       authUserPassFile: authUserPassFile,
       caFile: caFile,

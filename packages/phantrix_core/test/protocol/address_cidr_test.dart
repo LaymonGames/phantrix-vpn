@@ -28,6 +28,18 @@ void main() {
   });
 
   group('AddressCidr.isIpv6', () {
+    test('rejects a single leading or trailing colon', () {
+      expect(AddressCidr.isIpv6(':1:2:3:4:5:6:7:8'), isFalse);
+      expect(AddressCidr.isIpv6('1:2:3:4:5:6:7:8:'), isFalse);
+    });
+
+    test('accepts IPv4-mapped IPv6 and keeps its family', () {
+      expect(AddressCidr.isIpv6('::ffff:192.0.2.1'), isTrue);
+      final address = AddressCidr.parse('::ffff:192.0.2.1/128').valueOrNull!;
+      expect(address.isV6, isTrue);
+      expect(address.isV4, isFalse);
+    });
+
     test('rejects a run of three or more colons', () {
       expect(AddressCidr.isIpv6(':::'), isFalse);
       expect(AddressCidr.isIpv6('1:::2'), isFalse);
@@ -42,5 +54,11 @@ void main() {
     test('rejects a bare single colon', () {
       expect(AddressCidr.isIpv6(':'), isFalse);
     });
+  });
+
+  test('IPv4 octets must be unambiguous decimal digits', () {
+    for (final value in ['+1.2.3.4', '1. 2.3.4', '01.2.3.4', '256.2.3.4']) {
+      expect(AddressCidr.isIpv4(value), isFalse, reason: value);
+    }
   });
 }

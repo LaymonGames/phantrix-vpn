@@ -240,6 +240,7 @@ class ConnectionController {
   /// with an attempt in flight and this unset is an unexpected death and
   /// becomes a failure with a retry.
   bool _teardownRequested = false;
+  bool _stopFailed = false;
 
   /// The verifier. Injectable so tests can supply a fetcher that never opens
   /// a socket.
@@ -314,6 +315,9 @@ class ConnectionController {
   }
 
   Future<void> _onPlatformEvent(PlatformEvent event) async {
+    if (_disposed) {
+      return;
+    }
     if (event.capabilities != null) {
       _capabilities = event.capabilities!;
     }
@@ -606,11 +610,26 @@ class ConnectionController {
   /// the tunnel is torn down as well as reported.
   void _onConnectDeadline() {
     _connectDeadline = null;
-    if (_launching && _launchWatch.elapsed < launchGrace) {
+    if (_launching) {
       // The native side is still launching the tunnel (on Windows: the
       // administrator prompt may be open). Nothing has had a chance to
-      // answer yet, so silence is not a verdict. The handshake clock
-      // starts once the launch returns; [launchGrace] bounds the wait.
+      // answer yet, so silence is not a verdict. Keep the deadline alive
+      // through the documented launch grace instead of silently abandoning
+      // it after its first firing.
+      final remaining = launchGrace - _launchWatch.elapsed;
+      if (remaining > Duration.zero) {
+        _connectDeadline = Timer(remaining, _onConnectDeadline);
+        return;
+      }
+      const attemptStates = {
+        VpnState.preparing,
+        VpnState.connecting,
+        VpnState.reconnecting,
+      };
+      if (attemptStates.contains(_current)) {
+        _fail('tunnel.launch_timeout', _tr('flowLaunchTimeout'));
+        unawaited(_stopAfterFailure());
+      }
       return;
     }
     const attemptStates = {
@@ -653,10 +672,14 @@ class ConnectionController {
   /// The actual best-effort stop, silent by contract.
   Future<void> _teardownAfterFailure() async {
     try {
-      await platform.stopTunnel();
+      final result = await platform.stopTunnel();
+      _stopFailed = result.errorOrNull != null;
     } on Object {
-      // The attempt is already reported as failed; there is nothing the
-      // user could do about a failed stop that this would change.
+      _stopFailed = true;
+    }
+    if (_stopFailed) {
+      _statusMessage = _tr('flowStopUnconfirmed');
+      _emit();
     }
   }
 
@@ -729,25 +752,37 @@ class ConnectionController {
     }
     final outcome = Completer<ConnectAttemptOutcome>();
     _attemptOutcome = outcome;
-    await connect(
-      server: server,
-      config: config,
-      countryLabel: countryLabel,
-      timeout: timeout,
-    );
-    if (!outcome.isCompleted && !_current.isTransitioning) {
-      // The attempt ended without an event — a refusal at the consent
-      // dialog, for example — so the state machine's own answer is the
-      // outcome, rather than a future that never resolves.
-      _completeAttempt(
-        _current == VpnState.connected
-            ? const ConnectAttemptOutcome.connected()
-            : ConnectAttemptOutcome.failed(
-                _errorCode ?? 'tunnel.failed',
-                _errorMessage ?? _tr('flowTunnelFailed'),
-              ),
-      );
+    Future<void> runAttempt() async {
+      try {
+        await connect(
+          server: server,
+          config: config,
+          countryLabel: countryLabel,
+          timeout: timeout,
+        );
+      } on Object {
+        if (identical(_attemptOutcome, outcome) && !outcome.isCompleted) {
+          _fail('tunnel.start_failed', _tr('flowTunnelFailed'));
+        }
+      }
+      if (identical(_attemptOutcome, outcome) &&
+          !outcome.isCompleted &&
+          !_current.isTransitioning) {
+        // Consent refusal may end without an engine event. Do not await
+        // connect itself here: cancellation/deadlines must resolve the
+        // outcome even while a native launch call is still pending.
+        outcome.complete(
+          _current == VpnState.connected
+              ? const ConnectAttemptOutcome.connected()
+              : ConnectAttemptOutcome.failed(
+                  _errorCode ?? 'tunnel.failed',
+                  _errorMessage ?? _tr('flowTunnelFailed'),
+                ),
+        );
+      }
     }
+
+    unawaited(runAttempt());
     return outcome.future;
   }
 
@@ -827,6 +862,20 @@ class ConnectionController {
     // for it here is what lets a walk start its next attempt cleanly
     // instead of racing the platform's own stop.
     await _lastStop;
+    if (_disposed) {
+      _completeAttempt(
+        const ConnectAttemptOutcome.failed(
+          'tunnel.cancelled',
+          'The connection controller was disposed.',
+        ),
+      );
+      return;
+    }
+    if (_stopFailed) {
+      // A retry first retries the failed teardown, never starts over an
+      // engine whose shutdown was not confirmed.
+      await disconnect();
+    }
     if (_current.isTransitioning) {
       // A connect request while one is in flight is a cancellation, not
       // a duplicate: the user pressed the control again or chose a
@@ -842,6 +891,15 @@ class ConnectionController {
       // the new attempt starts from `disconnected` instead of racing a
       // live tunnel that nobody has stopped.
       await disconnect();
+    }
+    if (_stopFailed) {
+      _completeAttempt(
+        ConnectAttemptOutcome.failed(
+          'tunnel.stop_failed',
+          _tr('flowStopUnconfirmed'),
+        ),
+      );
+      return;
     }
     if (_current.isTransitioning) {
       // Teardown did not finish: the platform is still answering.
@@ -910,17 +968,18 @@ class ConnectionController {
     _armConnectDeadline(_attemptBudget);
     _apply(VpnEvent.connectRequested(), _tr('flowPreparing'));
     final preflightWatch = Stopwatch()..start();
-    _ipBeforeTunnel = await _leakCheck.currentIp();
-    developer.log(
-      'phase=preflight_exit_ip duration_ms=${preflightWatch.elapsedMilliseconds} '
-      'baseline_available=${_ipBeforeTunnel != null}',
-      name: 'phantrix.connection',
-    );
-    if (epoch != _attemptEpoch) {
-      // Superseded during the preflight probe. The address it read
-      // belongs to the attempt that has since been abandoned.
+    final baseline = await _leakCheck.currentIp();
+    if (epoch != _attemptEpoch || _current != VpnState.preparing) {
+      // A cancelled/superseded or timed-out preflight must not update the
+      // baseline or proceed to launch a tunnel for an attempt no longer live.
       return;
     }
+    _ipBeforeTunnel = baseline;
+    developer.log(
+      'phase=preflight_exit_ip duration_ms=${preflightWatch.elapsedMilliseconds} '
+      'baseline_available=${baseline != null}',
+      name: 'phantrix.connection',
+    );
 
     // The **effective** configuration, not the one the user supplied.
     //
@@ -972,8 +1031,10 @@ class ConnectionController {
     try {
       result = await platform.startTunnel(tunnelRequest);
     } finally {
-      _launching = false;
-      _launchWatch.stop();
+      if (_launchedEpoch == epoch) {
+        _launching = false;
+        _launchWatch.stop();
+      }
     }
     if (epoch != _attemptEpoch) {
       // Superseded while the platform was launching. If no newer attempt
@@ -1080,7 +1141,18 @@ class ConnectionController {
     _teardownRequested = true;
     try {
       _apply(VpnEvent.disconnectRequested());
-      await platform.stopTunnel();
+      final stopResult = await platform.stopTunnel();
+      final stopError = stopResult.errorOrNull;
+      if (stopError != null) {
+        _stopFailed = true;
+        _errorCode = 'tunnel.stop_failed';
+        _errorMessage = stopError.message;
+        _canRetry = true;
+        _failureReplayable = _lastServer != null && _lastConfig != null;
+        _apply(VpnEvent.failed(stopError.message), stopError.message);
+        return;
+      }
+      _stopFailed = false;
       _session = ConnectionSession.none;
       _traffic = PlatformTraffic.empty;
       _lastHandshakeAt = null;
@@ -1100,6 +1172,13 @@ class ConnectionController {
         // alone.
       }
       _apply(VpnEvent.disconnected());
+    } on Object {
+      const message = 'The platform could not confirm that the tunnel stopped.';
+      _stopFailed = true;
+      _errorCode = 'tunnel.stop_failed';
+      _errorMessage = message;
+      _canRetry = true;
+      _apply(VpnEvent.failed(message), message);
     } finally {
       _teardownRequested = false;
     }
@@ -1237,10 +1316,20 @@ class ConnectionController {
 
   void dispose() {
     _disposed = true;
+    // Invalidate any network or platform continuation before closing the
+    // streams; a late completion must not start or promote a tunnel.
+    _attemptEpoch++;
+    _completeAttempt(
+      const ConnectAttemptOutcome.failed(
+        'tunnel.cancelled',
+        'The connection controller was disposed.',
+      ),
+    );
     // A deadline armed by an attempt that is being torn down must not
     // outlive the controller: it would fire into a closed view stream.
     _cancelConnectDeadline();
     unawaited(_platformEvents?.cancel());
+    unawaited(_leakCheck.close());
     unawaited(_views.close());
   }
 }

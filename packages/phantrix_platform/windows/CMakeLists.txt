@@ -92,6 +92,17 @@ endif()
 target_link_options(phantrix_ovpn_helper PRIVATE
   "/MANIFESTUAC:level=requireAdministrator")
 
+# The profile parser and IPC frame decoder protect the elevated boundary.
+# Exercise them without UAC, a tunnel or network access in the Windows CI job.
+add_executable(phantrix_ovpn_support_test EXCLUDE_FROM_ALL
+  "phantrix_ovpn_support_test.cpp"
+  "phantrix_ovpn_support.cpp"
+)
+apply_standard_settings(phantrix_ovpn_support_test)
+target_include_directories(phantrix_ovpn_support_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(phantrix_ovpn_support_test PRIVATE advapi32)
+
 # ---------------------------------------------------------------------------
 # The bundled engine
 # ---------------------------------------------------------------------------

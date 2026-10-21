@@ -74,14 +74,27 @@ class ManifestEntry {
         'Manifest entry "$id" has no valid protocol.',
       );
     }
-    final endpoints = (json['endpoints'] as List<Object?>?)
-        ?.map((e) => e?.toString() ?? '')
-        .where((e) => e.isNotEmpty)
-        .toList(growable: false);
-    if (endpoints == null || endpoints.isEmpty) {
+    final rawEndpoints = json['endpoints'];
+    if (rawEndpoints is! List ||
+        rawEndpoints.isEmpty ||
+        rawEndpoints.any((value) => value is! String || value.trim().isEmpty)) {
       return _invalid(
         'manifest.endpoints',
-        'Manifest entry "$id" has no endpoints.',
+        'Manifest entry "$id" has no valid endpoint list.',
+      );
+    }
+    final endpoints = rawEndpoints.cast<String>();
+    final rawNotes = json['notes'];
+    if (rawNotes != null &&
+        (rawNotes is! List || rawNotes.any((value) => value is! String))) {
+      return _invalid('manifest.notes', 'A manifest entry has invalid notes.');
+    }
+    final latitude = json['latitude'];
+    final longitude = json['longitude'];
+    if (!_validCoordinate(latitude, 90) || !_validCoordinate(longitude, 180)) {
+      return _invalid(
+        'manifest.coordinates',
+        'A manifest entry has invalid coordinates.',
       );
     }
     final config = _string(json, 'config');
@@ -107,17 +120,12 @@ class ManifestEntry {
         config: config,
         trustLevel: trust,
         city: _string(json, 'city'),
-        latitude: (json['latitude'] as num?)?.toDouble(),
-        longitude: (json['longitude'] as num?)?.toDouble(),
+        latitude: latitude is num ? latitude.toDouble() : null,
+        longitude: longitude is num ? longitude.toDouble() : null,
         operatorName: _string(json, 'operator'),
         signedBy: _string(json, 'signed_by'),
         expiresAt: _string(json, 'expires_at'),
-        notes:
-            (json['notes'] as List<Object?>?)
-                ?.map((e) => e?.toString() ?? '')
-                .where((e) => e.isNotEmpty)
-                .toList(growable: false) ??
-            const [],
+        notes: rawNotes is List ? rawNotes.cast<String>() : const [],
       ),
     );
   }
@@ -126,6 +134,10 @@ class ManifestEntry {
     final value = json[key];
     return value is String && value.trim().isNotEmpty ? value.trim() : null;
   }
+
+  static bool _validCoordinate(Object? value, int maximum) =>
+      value == null ||
+      (value is num && value.isFinite && value.abs() <= maximum);
 
   static Result<ManifestEntry> _invalid(String code, String message) =>
       Err(AppError(group: ErrorGroup.provider, code: code, message: message));
@@ -150,8 +162,8 @@ class Manifest {
   static const int currentVersion = 1;
 
   static Result<Manifest> fromJson(Map<String, Object?> json) {
-    final version = (json['version'] as num?)?.toInt();
-    if (version == null || version > currentVersion) {
+    final version = json['version'];
+    if (version is! int || version != currentVersion) {
       return const Err(
         AppError(
           group: ErrorGroup.provider,
@@ -185,9 +197,14 @@ class Manifest {
       Manifest(
         version: version,
         entries: entries,
-        signedBy: (json['signed_by'] as String?)?.trim(),
-        signatureVerified: json['signature_verified'] == true,
-        generatedAt: json['generated_at'] as String?,
+        signedBy: json['signed_by'] is String
+            ? (json['signed_by'] as String).trim()
+            : null,
+        // A document cannot attest to its own signature.
+        signatureVerified: false,
+        generatedAt: json['generated_at'] is String
+            ? json['generated_at'] as String
+            : null,
       ),
     );
   }

@@ -42,28 +42,29 @@ constexpr wchar_t kMediumIntegritySid[] = L"S-1-16-8192";
 bool DirectoryExists(const std::wstring& path) {
 	const DWORD attributes = GetFileAttributesW(path.c_str());
 	return attributes != INVALID_FILE_ATTRIBUTES &&
-	       (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+	       (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+	       (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
 }
 
 // Creates `path` and every parent that is missing. Returns false only when the
 // directory could not be created and does not already exist.
 bool CreateDirectoryTree(const std::wstring& path) {
-	if (DirectoryExists(path)) {
-		return true;
+	if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+		return DirectoryExists(path);
 	}
 	size_t cursor = path.find(L'\\', 3);  // Skip the drive root.
 	while (cursor != std::wstring::npos) {
 		const std::wstring parent = path.substr(0, cursor);
 		if (!parent.empty() && !DirectoryExists(parent)) {
-			if (!CreateDirectoryW(parent.c_str(), nullptr) &&
-			    GetLastError() != ERROR_ALREADY_EXISTS) {
+			if ((!CreateDirectoryW(parent.c_str(), nullptr) &&
+			     GetLastError() != ERROR_ALREADY_EXISTS) || !DirectoryExists(parent)) {
 				return false;
 			}
 		}
 		cursor = path.find(L'\\', cursor + 1);
 	}
-	if (!CreateDirectoryW(path.c_str(), nullptr) &&
-	    GetLastError() != ERROR_ALREADY_EXISTS) {
+	if ((!CreateDirectoryW(path.c_str(), nullptr) &&
+	     GetLastError() != ERROR_ALREADY_EXISTS) || !DirectoryExists(path)) {
 		return false;
 	}
 	return true;
@@ -99,6 +100,10 @@ std::wstring AppDataDirectory() {
 }
 
 std::wstring SessionDirectory(const std::wstring& sessionId) {
+	if (sessionId.size() != 40 || sessionId.substr(0, 8) != L"session-" ||
+	    sessionId.find_first_not_of(L"0123456789abcdef", 8) != std::wstring::npos) {
+		return std::wstring();
+	}
 	const std::wstring app = AppDataDirectory();
 	if (app.empty() || sessionId.empty()) {
 		return std::wstring();
@@ -125,6 +130,15 @@ std::wstring SessionDirectory(const std::wstring& sessionId) {
 bool RemoveTree(const std::wstring& path) {
 	if (path.empty()) {
 		return true;
+	}
+	// Never enumerate a junction/symlink: cleanup must remove the link, not
+	// recursively delete the target with the helper's elevated privileges.
+	const DWORD attributes = GetFileAttributesW(path.c_str());
+	if (attributes != INVALID_FILE_ATTRIBUTES &&
+	    (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+		return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+		           ? RemoveDirectoryW(path.c_str()) != FALSE
+		           : DeleteFileW(path.c_str()) != FALSE;
 	}
 	const std::wstring search = path + L"\\*";
 	WIN32_FIND_DATAW entry = {0};
@@ -401,10 +415,9 @@ namespace {
 // Each entry names a directive that can make an *elevated* `openvpn.exe` do
 // something the caller chose: run a program, read or write a file, open a local
 // socket, or ask for a credential this backend cannot supply. The list is
-// deliberately a deny-list rather than an allow-list of what Dart happens to
-// emit today — the file is written by a process running at a lower integrity
-// level than the one reading it, and "the sender does not do that" is not a
-// property of the receiver.
+// named rejections give actionable errors. An allow-list below also rejects
+// every option the normalised profile format does not need, including future
+// engine options. A deny-list alone is not an elevation boundary.
 struct ForbiddenDirective {
 	const char* name;
 	const char* code;
@@ -505,8 +518,15 @@ std::string DirectiveOf(const std::string& line) {
 }
 
 // The remainder of a configuration line after its first token, trimmed.
-std::string ArgumentsOf(const std::string& line, size_t directiveLength) {
-	size_t index = directiveLength;
+std::string ArgumentsOf(const std::string& line) {
+	size_t index = line.find_first_not_of(" \t");
+	if (index == std::string::npos) {
+		return std::string();
+	}
+	index = line.find_first_of(" \t", index);
+	if (index == std::string::npos) {
+		return std::string();
+	}
 	while (index < line.size() &&
 	       std::isspace(static_cast<unsigned char>(line[index])) != 0) {
 		++index;
@@ -542,6 +562,24 @@ const char* kSecretMarkers[] = {
 
 bool RejectUnsafeDirectives(const std::string& profile,
                             ProfileRejection* out) {
+	const auto reject = [out](const char* code, const char* reason) {
+		if (out != nullptr) {
+			*out = {code, reason};
+		}
+		return false;
+	};
+	if (profile.empty() || profile.size() > kMaxProfileBytes) {
+		return reject("ovpn.profile_size", "exceeds the supported profile size");
+	}
+	if (profile.find('\0') != std::string::npos) {
+		return reject("ovpn.profile_invalid", "contains an embedded null byte");
+	}
+	std::string inlineTag;
+	bool client = false;
+	bool tun = false;
+	bool remote = false;
+	bool serverCertificate = false;
+	bool ca = false;
 	size_t cursor = 0;
 	while (cursor <= profile.size()) {
 		const size_t newline = profile.find('\n', cursor);
@@ -553,7 +591,38 @@ bool RejectUnsafeDirectives(const std::string& profile,
 		} else {
 			cursor = newline + 1;
 		}
-		const std::string directive = DirectiveOf(line);
+		const size_t first = line.find_first_not_of(" \t");
+		const size_t last = line.find_last_not_of(" \t");
+		const std::string trimmed = first == std::string::npos
+		                                ? std::string()
+		                                : line.substr(first, last - first + 1);
+		if (trimmed.find('\r') != std::string::npos) {
+			return reject("ovpn.profile_invalid", "contains a misplaced carriage return");
+		}
+		if (!inlineTag.empty()) {
+			if (trimmed == "</" + inlineTag + ">") {
+				inlineTag.clear();
+			} else if (trimmed.find('<') != std::string::npos ||
+			           trimmed.find('>') != std::string::npos) {
+				return reject("ovpn.profile_invalid", "contains an invalid inline block");
+			}
+			continue;
+		}
+		if (!trimmed.empty() && trimmed.front() == '<') {
+			for (const char* tag : {"ca", "cert", "key", "tls-auth", "tls-crypt",
+			                        "tls-crypt-v2", "extra-certs"}) {
+				if (trimmed == std::string("<") + tag + ">") {
+					inlineTag = tag;
+					ca = ca || inlineTag == "ca";
+					break;
+				}
+			}
+			if (inlineTag.empty()) {
+				return reject("ovpn.profile_invalid", "contains an unsupported inline block");
+			}
+			continue;
+		}
+		const std::string directive = DirectiveOf(trimmed);
 		if (directive.empty()) {
 			continue;
 		}
@@ -567,28 +636,143 @@ bool RejectUnsafeDirectives(const std::string& profile,
 			}
 			return false;
 		}
-		// `auth-user-pass` with no argument means the engine will prompt. The
-		// helper runs without a console and writes nothing to the child's
-		// stdin, so a prompt could only hang. The caller reports it as what it
-		// is: a server that needs credentials this build cannot supply.
+		const std::string arguments = ArgumentsOf(trimmed);
 		if (directive == "auth-user-pass") {
-			size_t tokenStart = 0;
-			while (tokenStart < line.size() &&
-			       std::isspace(static_cast<unsigned char>(line[tokenStart])) != 0) {
-				++tokenStart;
+			return arguments.empty()
+			           ? reject("ovpn.credentials_missing",
+			                    "requires credentials this build cannot supply")
+			           : reject("ovpn.unsupported_directive",
+			                    "reads a credential file this helper did not choose");
+		}
+		// No backslash escapes/continuations or quoted directive aliases.
+		// Values may be quoted (pull-filter and certificate names), but a
+		// directive itself must be one of the serializer's literal names.
+		if (trimmed.find('\\') != std::string::npos) {
+			return reject("ovpn.profile_invalid", "contains unsupported escape syntax");
+		}
+		bool allowed = false;
+		for (const char* option : {"remote", "proto", "auth", "data-ciphers",
+		                          "data-ciphers-fallback", "tls-version-min",
+		                          "tls-cert-profile", "verify-x509-name", "verb"}) {
+			allowed = allowed || (directive == option && !arguments.empty());
+		}
+		for (const char* option : {"client", "nobind", "persist-key", "persist-tun",
+		                          "block-ipv6"}) {
+			allowed = allowed || (directive == option && arguments.empty());
+		}
+		allowed = allowed ||
+		          (directive == "dev" && arguments == "tun") ||
+		          (directive == "remote-cert-tls" && arguments == "server") ||
+		          (directive == "key-direction" &&
+		           (arguments == "0" || arguments == "1")) ||
+		          (directive == "resolv-retry" && arguments == "infinite") ||
+		          (directive == "pull-filter" &&
+		           arguments == "ignore \"redirect-gateway\"") ||
+		          (directive == "redirect-gateway" &&
+		           arguments == "def1 bypass-dhcp");
+		if (!allowed) {
+			return reject("ovpn.unsupported_directive",
+			              "contains an option outside the normalised profile format");
+		}
+		client = client || directive == "client";
+		tun = tun || directive == "dev";
+		remote = remote || directive == "remote";
+		serverCertificate = serverCertificate || directive == "remote-cert-tls";
+	}
+	if (!inlineTag.empty() || !client || !tun || !remote || !ca ||
+	    !serverCertificate) {
+		return reject("ovpn.profile_invalid",
+		              "omits required tunnel or server-authentication settings");
+	}
+	return true;
+}
+
+LockedSessionFiles::~LockedSessionFiles() { Close(); }
+
+void LockedSessionFiles::Close() {
+	for (auto it = handles_.rbegin(); it != handles_.rend(); ++it) {
+		CloseHandle(*it);
+	}
+	handles_.clear();
+}
+
+bool LockedSessionFiles::Open(const std::wstring& session,
+                              const std::wstring& profile,
+                              const std::wstring& status,
+                              const std::wstring& log,
+                              ProfileRejection* rejection) {
+	Close();
+	const auto fail = [this, rejection](const char* code, const char* reason) {
+		Close();
+		if (rejection != nullptr) {
+			*rejection = {code, reason};
+		}
+		return false;
+	};
+	if (session.find(L'\0') != std::wstring::npos ||
+	    profile != session + L"\\phantrix.ovpn" ||
+	    status != session + L"\\status.txt" || log != session + L"\\openvpn.log") {
+		return fail("ovpn.paths_rejected", "uses unexpected session file locations");
+	}
+	// Lock the app directory, the OpenVPN root and the session, not merely
+	// their names. OPEN_REPARSE_POINT prevents following a junction.
+	std::wstring directory = session;
+	std::vector<std::wstring> directories;
+	for (int i = 0; i < 3; ++i) {
+		const size_t slash = directory.find_last_of(L'\\');
+		if (slash == std::wstring::npos || slash < 3) {
+			return fail("ovpn.paths_rejected", "uses an invalid session directory");
+		}
+		directories.push_back(directory);
+		directory.resize(slash);
+	}
+	for (auto it = directories.rbegin(); it != directories.rend(); ++it) {
+		HANDLE handle = CreateFileW(
+		    it->c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+		    FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+		if (handle == INVALID_HANDLE_VALUE) {
+			return fail("ovpn.paths_rejected", "cannot lock its session directory");
+		}
+		handles_.push_back(handle);
+		BY_HANDLE_FILE_INFORMATION info = {};
+		if (!GetFileInformationByHandle(handle, &info) ||
+		    (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ||
+		    (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+			return fail("ovpn.paths_rejected", "uses a linked session directory");
+		}
+	}
+	for (const auto& path : {profile, status, log}) {
+		const bool isProfile = path == profile;
+		HANDLE handle = CreateFileW(
+		    path.c_str(), isProfile ? GENERIC_READ : FILE_READ_ATTRIBUTES,
+		    isProfile ? FILE_SHARE_READ : FILE_SHARE_READ | FILE_SHARE_WRITE,
+		    nullptr, isProfile ? OPEN_EXISTING : OPEN_ALWAYS,
+		    FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+		if (handle == INVALID_HANDLE_VALUE) {
+			return fail("ovpn.paths_rejected", "cannot lock a session file");
+		}
+		handles_.push_back(handle);
+		BY_HANDLE_FILE_INFORMATION info = {};
+		if (!GetFileInformationByHandle(handle, &info) ||
+		    (info.dwFileAttributes &
+		     (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) != 0 ||
+		    info.nNumberOfLinks != 1) {
+			return fail("ovpn.paths_rejected", "uses a linked session file");
+		}
+		if (isProfile) {
+			LARGE_INTEGER size = {};
+			if (!GetFileSizeEx(handle, &size) || size.QuadPart <= 0 ||
+			    size.QuadPart > static_cast<LONGLONG>(kMaxProfileBytes)) {
+				return fail("ovpn.profile_size", "exceeds the supported profile size");
 			}
-			size_t tokenEnd = tokenStart;
-			while (tokenEnd < line.size() &&
-			       std::isspace(static_cast<unsigned char>(line[tokenEnd])) == 0) {
-				++tokenEnd;
+			std::string contents(static_cast<size_t>(size.QuadPart), '\0');
+			DWORD read = 0;
+			if (!ReadFile(handle, contents.data(), static_cast<DWORD>(contents.size()),
+			              &read, nullptr) || read != contents.size()) {
+				return fail("ovpn.profile_missing", "cannot read the complete profile");
 			}
-			if (ArgumentsOf(line, tokenEnd - tokenStart).empty()) {
-				if (out != nullptr) {
-					out->code = "ovpn.credentials_missing";
-					out->reason =
-					    "the server asks for a username and password, and this "
-					    "build has no way to supply them";
-				}
+			if (!RejectUnsafeDirectives(contents, rejection)) {
+				Close();
 				return false;
 			}
 		}
@@ -621,13 +805,6 @@ std::wstring MakePipeName() {
 
 std::wstring PipeSecurityDescriptorString() {
 	PSID userSid = nullptr;
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, nullptr) ||
-	    !GetTokenInformation(GetCurrentProcess(), TokenUser, nullptr, 0,
-	                         nullptr)) {
-		// The token query above is expected to fail with a buffer-length error;
-		// it is what establishes that the token can be read at all. The real
-		// read happens below.
-	}
 	HANDLE token = nullptr;
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token) == FALSE) {
 		return std::wstring();
@@ -666,19 +843,41 @@ constexpr uint32_t kMaxPayload = 64 * 1024;
 bool WriteExact(HANDLE pipe, const void* data, size_t size) {
 	const char* cursor = static_cast<const char*>(data);
 	size_t remaining = size;
+	OVERLAPPED overlap = {};
+	overlap.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+	if (overlap.hEvent == nullptr) {
+		return false;
+	}
+	bool ok = true;
 	while (remaining > 0) {
+		ResetEvent(overlap.hEvent);
 		DWORD written = 0;
-		if (WriteFile(pipe, cursor, static_cast<DWORD>(remaining), &written,
-		              nullptr) == FALSE) {
-			return false;
+		if (!WriteFile(pipe, cursor, static_cast<DWORD>(remaining), &written,
+		               &overlap)) {
+			if (GetLastError() != ERROR_IO_PENDING) {
+				ok = false;
+				break;
+			}
+			if (WaitForSingleObject(overlap.hEvent, 10000) != WAIT_OBJECT_0) {
+				CancelIoEx(pipe, &overlap);
+				(void)GetOverlappedResult(pipe, &overlap, &written, TRUE);
+				ok = false;
+				break;
+			}
+			if (!GetOverlappedResult(pipe, &overlap, &written, FALSE)) {
+				ok = false;
+				break;
+			}
 		}
 		if (written == 0) {
-			return false;
+			ok = false;
+			break;
 		}
 		cursor += written;
 		remaining -= written;
 	}
-	return true;
+	CloseHandle(overlap.hEvent);
+	return ok;
 }
 
 bool ReadExact(HANDLE pipe, void* data, size_t size) {
@@ -723,7 +922,7 @@ Message MakeMessage(MessageType type, std::vector<std::string> fields) {
 // assume one read is one message. It reads into a buffer, appends to `carry`,
 // and calls this until it empties.
 bool TakeMessage(std::vector<uint8_t>* carry, Message* message) {
-	if (carry == nullptr || carry->size() < kHeaderSize) {
+	if (carry == nullptr || message == nullptr || carry->size() < kHeaderSize) {
 		return false;
 	}
 	uint32_t magic = 0;
@@ -736,7 +935,14 @@ bool TakeMessage(std::vector<uint8_t>* carry, Message* message) {
 	}
 	uint32_t payloadLength = 0;
 	memcpy(&payloadLength, carry->data() + sizeof(magic) + 4, sizeof(payloadLength));
-	if (payloadLength > kMaxPayload) {
+	uint16_t version = 0;
+	uint16_t type = 0;
+	memcpy(&version, carry->data() + 4, sizeof(version));
+	memcpy(&type, carry->data() + 6, sizeof(type));
+	if (version != kMessageVersion ||
+	    type < static_cast<uint16_t>(MessageType::kStart) ||
+	    type > static_cast<uint16_t>(MessageType::kHello) ||
+	    payloadLength < sizeof(uint32_t) || payloadLength > kMaxPayload) {
 		carry->clear();
 		return false;
 	}
@@ -746,8 +952,7 @@ bool TakeMessage(std::vector<uint8_t>* carry, Message* message) {
 	}
 
 	Message parsed;
-	parsed.type = static_cast<MessageType>(
-	    *reinterpret_cast<const uint16_t*>(carry->data() + sizeof(magic) + 2));
+	parsed.type = static_cast<MessageType>(type);
 	size_t cursor = kHeaderSize;
 	const uint8_t* fields = carry->data() + cursor;
 	const uint8_t* end = carry->data() + total;
@@ -774,6 +979,10 @@ bool TakeMessage(std::vector<uint8_t>* carry, Message* message) {
 			fields += length;
 		}
 	}
+	if (fields != end) {
+		carry->clear();
+		return false;
+	}
 	carry->erase(carry->begin(), carry->begin() + total);
 	*message = std::move(parsed);
 	return true;
@@ -790,6 +999,10 @@ bool WriteMessage(HANDLE pipe, const Message& message) {
 	const uint8_t* countBytes = reinterpret_cast<const uint8_t*>(&fieldCount);
 	payload.insert(payload.end(), countBytes, countBytes + sizeof(fieldCount));
 	for (const std::string& field : message.fields) {
+		if (field.size() > kMaxPayload ||
+		    payload.size() + sizeof(uint32_t) + field.size() > kMaxPayload) {
+			return false;
+		}
 		AppendField(&payload, field);
 	}
 

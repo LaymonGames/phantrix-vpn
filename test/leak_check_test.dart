@@ -180,6 +180,11 @@ void main() {
         '999.999.999.999',
         'localhost',
         'a.b.c.d',
+        ':::',
+        'a:b:c',
+        ':1:2:3:4:5:6:7:8',
+        '1:2:3:4:5:6:7:8:',
+        '+1.2.3.4',
       ]) {
         expect(LeakCheck.isPlausibleAddress(bad), isFalse, reason: bad);
       }
@@ -204,6 +209,17 @@ void main() {
 
     test('is false for genuinely different addresses', () {
       expect(LeakCheck.sameAddress('203.0.113.9', '198.51.100.4'), isFalse);
+    });
+
+    test('compares expanded and compressed IPv6 by value', () {
+      expect(
+        LeakCheck.sameAddress('2001:0DB8:0:0:0:0:0:1', '2001:db8::1'),
+        isTrue,
+      );
+      expect(
+        LeakCheck.sameAddress('0:0:0:0:0:ffff:cb00:7109', '203.0.113.9'),
+        isTrue,
+      );
     });
   });
 
@@ -236,6 +252,19 @@ void main() {
   });
 
   group('verify refuses a stale handshake', () {
+    test('a future handshake cannot verify the connection', () async {
+      final check = _serving('{"ip":"203.0.113.9"}');
+      final outcome = await check.verify(
+        baseline: '198.51.100.4',
+        handshakeAt: now.add(const Duration(minutes: 1)),
+        now: now,
+      );
+      expect(outcome.verified, isFalse);
+      expect(outcome.handshakeFresh, isFalse);
+      expect(outcome.message, contains('future'));
+      await check.close();
+    });
+
     test('the classic bug: interface up, peer long gone', () async {
       // A tunnel whose interface is still nominally up but whose peer
       // stopped answering. Reporting "connected" here is the single most
@@ -431,23 +460,34 @@ void main() {
   });
 
   group('verify without a baseline', () {
-    test('verifies on the handshake but states the limitation', () async {
-      // The pre-connection probe can legitimately fail (offline captive
-      // network). Refusing to connect then would make the feature useless,
-      // but claiming a full check would be dishonest. The message has to
-      // say which evidence was actually used.
+    test('missing routing evidence never becomes success', () async {
       final check = _serving('{"ip":"203.0.113.9"}');
       final outcome = await check.verify(
         baseline: null,
         handshakeAt: now.subtract(const Duration(seconds: 10)),
         now: now,
       );
-      expect(outcome.verified, isTrue);
+      expect(outcome.verified, isFalse);
       expect(outcome.message, contains('could not be read'));
       expect(outcome.message, contains('handshake'));
       await check.close();
     });
   });
+
+  test(
+    'switching address families is not evidence of a working route',
+    () async {
+      final check = _serving('{"ip":"203.0.113.9"}');
+      final outcome = await check.verify(
+        baseline: '2001:db8::1',
+        handshakeAt: now.subtract(const Duration(seconds: 10)),
+        now: now,
+      );
+      expect(outcome.verified, isFalse);
+      expect(outcome.message, contains('different IP families'));
+      await check.close();
+    },
+  );
 
   group('endpoint failover', () {
     test('one provider being down does not block verification', () async {

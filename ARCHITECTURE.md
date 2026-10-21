@@ -192,17 +192,16 @@ stop), and tears the tunnel down. Nothing about it is reported as a failure
 — no error, no retry card — and a launch that answers afterwards finds an
 attempt that no longer exists, so it stops its own tunnel and says nothing.
 
-The `ConnectionController` in `lib/vpn/connection_controller.dart` shows
-the intended host: on `PlatformTunnelState.established` it runs
-`LeakCheck` — a public-IP probe compared against the pre-connection
-baseline — and only a *changed* IP produces `tunnelVerified`. An
-unchanged IP means traffic never left through the tunnel, and the
-controller fails the connection (`leak.unverified`) and tears it down
-rather than showing "connected". Honest status: the probe itself is
-still a stub (`LeakCheck.currentIp()` returns null, on the principle
-that "could not measure" is not "no leak"), so until it is implemented
-the controller cannot reach `connected` through it — which is the
-correct failure direction.
+The `ConnectionController` in `lib/vpn/connection_controller.dart` runs
+`LeakCheck` on `PlatformTunnelState.handshaked`; `established` alone is not
+enough to promote the connection. It requires a recent,
+non-future engine handshake and a changed public address in the same IP family
+as the pre-connection baseline. The default HTTPS probes use IPv4 and fresh
+clients so an old pooled connection cannot supply pre-tunnel evidence.
+An unavailable baseline, failed probe, or unchanged address fails verification
+and requests teardown rather than showing "connected". A refused teardown
+remains an error, not a claimed disconnection. This gate measures the probed
+IPv4 route; it does not verify DNS, IPv6, every application, or a kill switch.
 
 Error codes are stable strings (`wg.handshake_timeout`, `permission.revoked`,
 `server.unreachable`, `dns.failed`, `kill_switch.unsupported`, …),
@@ -231,7 +230,7 @@ and mirrored by every native backend (`PhantrixPlugin.kt`,
 | `capabilities` | none | capability map (6.3) |
 | `requestPermission` | none | `bool`; false when refused. Never throws |
 | `startTunnel` | request map (6.2) | void on acceptance only — **acceptance is not "tunnel up"** |
-| `stopTunnel` | none | void; always cleans up, even mid-connect |
+| `stopTunnel` | none | void on confirmed stop; errors must not be treated as a disconnection |
 | `openVpnSettings` | none | void; opens the OS VPN settings |
 | `appDataDirectory` | none | `String?`; the platform's private per-user directory, or null where none exists |
 
@@ -249,7 +248,7 @@ request". The only way to know the tunnel exists is the event stream —
 exactly the discipline the state machine depends on. Failures come back as
 `PlatformException`s translated to `AppError` by group (`wg.*`/`ovpn.*` →
 tunnel, `permission.*`/`dns.*` → permission, `server.*` → provider).
-A missing native plugin — every platform except Android today — produces
+A missing native plugin produces
 `platform.missing`: "This platform has no Phantrix tunnel implementation."
 
 ### 6.1a Persistence
@@ -266,11 +265,13 @@ lib/settings/settings_controller.dart  what the app remembers between runs
 lib/vpn/connection_controller.dart     re-validates, then starts the tunnel
 ```
 
-The file holds settings and the cached server directories: the chosen country,
-the kill-switch/DNS/IPv6 preferences, the last selected relay, and the public
-relay list the app last fetched. Nothing secret is in it — the app holds no
-key material of its own — and what that does and does not protect is
-discussed in [SECURITY.md §4.0](SECURITY.md#40-at-rest-what-the-store-holds-and-what-it-does-not).
+The settings store holds preferences, favourites, and the last selected relay.
+Separate files cache directory metadata and public VPN Gate profiles. The
+profile cache can contain the feed's shared client private keys; base64 is not
+encryption. Windows also stages a restricted per-session profile on disk and
+retains bounded raw OpenVPN log archives. See
+[SECURITY.md §4.0](SECURITY.md#40-at-rest-what-the-store-holds-and-what-it-does-not)
+and [PRIVACY.md](PRIVACY.md) for retention and protection limits.
 
 ### 6.2 `startTunnel` argument shape
 

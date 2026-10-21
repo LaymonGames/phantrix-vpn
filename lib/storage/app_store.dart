@@ -132,12 +132,20 @@ class FileAppStore implements AppStore {
       _restrict(directory, isDirectory: true);
     }
     final temporary = File('${file.path}.tmp');
-    temporary.writeAsStringSync(jsonEncode(_cache ?? const <String, String>{}));
-    _restrict(temporary, isDirectory: false);
-    // rename over the original: atomic within one directory. The mode
-    // travels with the inode, so the file that appears at the final name
-    // already carries the restriction applied above.
-    temporary.renameSync(file.path);
+    try {
+      temporary.writeAsStringSync(
+        jsonEncode(_cache ?? const <String, String>{}),
+      );
+      _restrict(temporary, isDirectory: false);
+      // rename over the original: atomic within one directory. The mode
+      // travels with the inode, so the file that appears at the final name
+      // already carries the restriction applied above.
+      temporary.renameSync(file.path);
+    } finally {
+      if (temporary.existsSync()) {
+        temporary.deleteSync();
+      }
+    }
   }
 
   /// Applies owner-only permissions, where the platform has them.
@@ -198,7 +206,10 @@ class FileAppStore implements AppStore {
   /// Serialises concurrent writes so two rapid changes cannot interleave
   /// and leave the later one on disk without the earlier.
   Future<void> _schedulePersist() {
-    _pendingWrite = _pendingWrite?.then((_) => _persist()) ?? _persist();
+    final previous = _pendingWrite;
+    _pendingWrite = previous == null
+        ? _persist()
+        : previous.catchError((Object _) {}).then((_) => _persist());
     return _pendingWrite!;
   }
 }

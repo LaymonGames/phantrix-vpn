@@ -44,15 +44,20 @@ class AppHttpFetcher implements HttpFetcher, HttpLineFetcher {
 
   @override
   Future<String> get(Uri url) async {
-    final lines = <String>[];
-    await for (final line in getLines(url)) {
-      lines.add(line);
+    final body = StringBuffer();
+    await for (final chunk in _getTextChunks(url)) {
+      body.write(chunk);
     }
-    return lines.join('\n');
+    // Detached signatures cover the exact UTF-8 body, including CRLF and a
+    // final newline. Line splitting belongs only in the streaming feed API.
+    return body.toString();
   }
 
   @override
-  Stream<String> getLines(Uri url) async* {
+  Stream<String> getLines(Uri url) =>
+      const LineSplitter().bind(_getTextChunks(url));
+
+  Stream<String> _getTextChunks(Uri url) async* {
     if (url.scheme != 'https') {
       throw const AppError(
         group: ErrorGroup.network,
@@ -112,7 +117,16 @@ class AppHttpFetcher implements HttpFetcher, HttpLineFetcher {
             message: 'The server sent a redirect with no destination.',
           );
         }
-        final next = current.resolve(location);
+        final Uri next;
+        try {
+          next = current.resolve(location);
+        } on FormatException {
+          throw const AppError(
+            group: ErrorGroup.network,
+            code: 'http.bad_redirect',
+            message: 'The server sent an invalid redirect destination.',
+          );
+        }
         if (next.scheme != 'https') {
           throw const AppError(
             group: ErrorGroup.network,
@@ -177,8 +191,8 @@ class AppHttpFetcher implements HttpFetcher, HttpLineFetcher {
     try {
       final decoded = const Utf8Decoder(allowMalformed: false)
           .bind(boundedBytes.timeout(remaining));
-      await for (final line in const LineSplitter().bind(decoded)) {
-        yield line;
+      await for (final chunk in decoded) {
+        yield chunk;
       }
     } on TimeoutException {
       throw const AppError(

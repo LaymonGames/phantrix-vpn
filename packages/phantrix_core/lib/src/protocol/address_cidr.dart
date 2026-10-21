@@ -12,7 +12,7 @@ class AddressCidr {
   final String address;
   final int prefixLength;
 
-  bool get isV4 => address.contains('.');
+  bool get isV4 => !address.contains(':');
 
   bool get isV6 => !isV4;
 
@@ -80,42 +80,35 @@ class AddressCidr {
   }
 
   static bool isIpv4(String value) {
-    final parts = value.split('.');
-    if (parts.length != 4) {
+    // The SDK parser checks ranges; require decimal octets as well so signs,
+    // whitespace and ambiguous leading zeroes cannot pass as an address.
+    if (!RegExp(
+      r'^(0|[1-9][0-9]{0,2})(\.(0|[1-9][0-9]{0,2})){3}$',
+    ).hasMatch(value)) {
       return false;
     }
-    for (final part in parts) {
-      final n = int.tryParse(part);
-      if (n == null || n < 0 || n > 255) {
-        return false;
-      }
-      if (part.length > 1 && part.startsWith('0')) {
-        return false;
-      }
+    try {
+      Uri.parseIPv4Address(value);
+      return true;
+    } on FormatException {
+      return false;
     }
-    return true;
   }
 
   static bool isIpv6(String value) {
-    if (!value.contains(':')) {
+    if (!value.contains(':') || !RegExp(r'^[0-9A-Fa-f:.]+$').hasMatch(value)) {
       return false;
     }
-    // `::` may appear at most once and never as part of a longer run, so a
-    // value such as `:::` or `1:::2` is rejected rather than read as one.
-    if (value.contains(':::') || value.split('::').length - 1 > 1) {
+    if (value.contains('.') &&
+        !isIpv4(value.substring(value.lastIndexOf(':') + 1))) {
       return false;
     }
-    var groups = 0;
-    for (final group in value.split(':')) {
-      if (group.isEmpty) {
-        continue;
-      }
-      if (group.length > 4 || !RegExp(r'^[0-9A-Fa-f]+$').hasMatch(group)) {
-        return false;
-      }
-      groups++;
+    try {
+      Uri.parseIPv6Address(value);
+      return true;
+    } on FormatException {
+      return false;
     }
-    return value.contains('::') ? groups < 8 : groups == 8;
   }
 
   static Result<AddressCidr> _fail(String code, String message) =>

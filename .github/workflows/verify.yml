@@ -94,13 +94,7 @@ jobs:
           files=$(find lib test packages/phantrix_core/lib packages/phantrix_core/test \
             packages/phantrix_platform/lib packages/phantrix_platform/test \
             -name '*.dart')
-          unformatted=$(.flutter/bin/dart format --output=none --set-exit-if-changed \
-            $files 2>&1 || true)
-          if echo "$unformatted" | grep -q 'Changed '; then
-            echo "::error::These files are not formatted. Run 'dart format .'"
-            echo "$unformatted"
-            exit 1
-          fi
+          .flutter/bin/dart format --output=none --set-exit-if-changed $files
 
   test:
     name: Tests

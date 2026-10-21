@@ -149,6 +149,7 @@ class AppScope {
   Future<void> dispose() async {
     await discovery.dispose();
     connection.dispose();
+    _platform.dispose();
     _settings.dispose();
     if (_ownsFetcher) {
       (_fetcher as AppHttpFetcher).close();

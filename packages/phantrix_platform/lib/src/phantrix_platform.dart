@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:phantrix_core/phantrix_core.dart';
@@ -36,17 +37,35 @@ class PhantrixPlatform {
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
-  PlatformCapabilities? _cachedCapabilities;
+  bool _disposed = false;
+  StreamSubscription<Object?>? _nativeEvents;
 
   Stream<PlatformEvent> get events {
-    if (!_listening) {
+    if (!_listening && !_disposed && !kIsWeb) {
       _listening = true;
-      _events.receiveBroadcastStream().listen(_onEvent);
+      _nativeEvents = _events.receiveBroadcastStream().listen(
+        _onEvent,
+        onError: (Object error) {
+          if (!_disposed) {
+            _controller.add(
+              const PlatformEvent(
+                state: PlatformTunnelState.failed,
+                traffic: PlatformTraffic.empty,
+                errorCode: 'platform.events_failed',
+                message: 'The tunnel event channel stopped responding.',
+              ),
+            );
+          }
+        },
+      );
     }
     return _controller.stream;
   }
 
   void _onEvent(Object? event) {
+    if (_disposed) {
+      return;
+    }
     final map = event is Map
         ? event.cast<String, Object?>()
         : const <String, Object?>{};
@@ -131,14 +150,19 @@ class PhantrixPlatform {
     if (value is String && value.isNotEmpty) {
       return {'note': value};
     }
+    if (value is List) {
+      return {
+        for (var i = 0; i < value.length; i++)
+          if (value[i] is String) 'note$i': value[i] as String,
+      };
+    }
     return const {};
   }
 
   /// What this host can do.
   Future<PlatformCapabilities> capabilities() async {
-    final cached = _cachedCapabilities;
-    if (cached != null) {
-      return cached;
+    if (kIsWeb) {
+      return PlatformCapabilities.web;
     }
     try {
       final result = await _channel.invokeMapMethod<String, Object?>(
@@ -147,8 +171,7 @@ class PhantrixPlatform {
       if (result == null) {
         return _unknownCapabilities();
       }
-      _cachedCapabilities = _capabilitiesFrom(result);
-      return _cachedCapabilities!;
+      return _capabilitiesFrom(result);
     } on PlatformException catch (error) {
       return _unknownCapabilities(error: error);
     } on MissingPluginException {
@@ -301,6 +324,11 @@ class PhantrixPlatform {
 
   /// Releases the stream. Call on app dispose.
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    unawaited(_nativeEvents?.cancel());
     unawaited(_controller.close());
   }
 }

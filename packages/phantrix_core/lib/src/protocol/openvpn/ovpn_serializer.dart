@@ -15,20 +15,34 @@ class OvpnSerializer {
 
   /// Serialises [config] to `.ovpn` profile text.
   ///
-  /// [blockIpv6] appends OpenVPN's `block-ipv6`, which is how the user's
-  /// IPv6 policy is honoured on platforms where the config cannot carry
-  /// IPv6 itself: blocked rather than silently leaking over the physical
-  /// interface. It is only passed when the policy allows leakage — the
-  /// default is to block.
+  /// [blockIpv6] appends OpenVPN's `block-ipv6`. This only rejects IPv6
+  /// packets routed into the TUN device; it is not a host firewall and does
+  /// not prove that the physical interface's IPv6 route is blocked.
   static String serialize(OvpnConfig config, {bool blockIpv6 = false}) {
     final buffer = StringBuffer(headerComment);
     buffer.writeln();
     buffer.writeln('client');
-    buffer.writeln('dev ${config.dev ?? 'tun'}');
+    buffer.writeln('dev tun');
     final proto = config.proto ?? 'udp';
     buffer.writeln('proto $proto');
     for (final remote in config.remotes) {
-      buffer.writeln('remote ${remote.host} ${remote.port}');
+      final transport = remote.proto == null ? '' : ' ${remote.proto}';
+      buffer.writeln('remote ${remote.host} ${remote.port}$transport');
+    }
+    // A CA alone does not distinguish a VPN server from another client
+    // certificate issued by that CA.
+    buffer.writeln('remote-cert-tls server');
+    if (config.verifyX509Name != null) {
+      buffer.writeln('verify-x509-name ${config.verifyX509Name}');
+    }
+    if (config.tlsVersionMin != null) {
+      buffer.writeln('tls-version-min ${config.tlsVersionMin}');
+    }
+    if (config.tlsCertProfile != null) {
+      buffer.writeln('tls-cert-profile ${config.tlsCertProfile}');
+    }
+    if (config.keyDirection != null) {
+      buffer.writeln('key-direction ${config.keyDirection}');
     }
     buffer.writeln('resolv-retry infinite');
     buffer.writeln('nobind');
@@ -45,13 +59,24 @@ class OvpnSerializer {
       buffer.writeln('auth $auth');
     }
     final cipher = config.cipher;
-    if (cipher != null && cipher.isNotEmpty) {
-      buffer.writeln('data-ciphers $cipher');
-      buffer.writeln('data-ciphers-fallback $cipher');
-    } else if (config.dataCiphers.isNotEmpty) {
+    if (config.dataCiphers.isNotEmpty) {
       buffer.writeln('data-ciphers ${config.dataCiphers.join(':')}');
+    } else if (cipher != null && cipher.isNotEmpty) {
+      buffer.writeln('data-ciphers $cipher');
     }
-    for (final tag in const ['ca', 'cert', 'key', 'tls-auth', 'tls-crypt']) {
+    final fallback = config.dataCiphersFallback ?? cipher;
+    if (fallback != null && fallback.isNotEmpty) {
+      buffer.writeln('data-ciphers-fallback $fallback');
+    }
+    for (final tag in const [
+      'ca',
+      'cert',
+      'key',
+      'tls-auth',
+      'tls-crypt',
+      'tls-crypt-v2',
+      'extra-certs',
+    ]) {
       final block = config.inlineBlocks[tag];
       if (block == null) {
         continue;

@@ -5,6 +5,7 @@ import 'package:phantrix_core/src/model/trust_level.dart';
 import 'package:phantrix_core/src/protocol/protocol_kind.dart';
 import 'package:phantrix_core/src/providers/common/http_fetcher.dart';
 import 'package:phantrix_core/src/providers/manifest/manifest_provider.dart';
+import 'package:phantrix_core/src/providers/manifest/manifest_schema.dart';
 import 'package:test/test.dart';
 
 const String kPrivateKey = '02R31BtVMJe/5r8cMd8uRVf6DysDrWKFXxDlMdRDU6c=';
@@ -107,55 +108,136 @@ ManifestProvider providerFor(String body, {String? manifestUrl}) =>
 
 void main() {
   group('ManifestProvider.refresh', () {
-    test('offers project-verified servers from a valid manifest', () async {
-      final body = manifestJson([
-        serverEntry(
-          id: 'nl-1',
-          hostname: 'vpn1.example.org',
-          country: 'nl',
-          trust: 'project',
-          city: 'Amsterdam',
-          latitude: 52.3676,
-          longitude: 4.9041,
-          operator: 'Phantrix Foundation',
-          notes: ['Audited 2026-01'],
-        ),
-        serverEntry(
-          id: 'de-1',
-          hostname: 'vpn2.example.org',
-          country: 'DE',
-          trust: 'project',
-        ),
-      ]);
+    test(
+      'malformed field types skip one entry instead of crashing refresh',
+      () async {
+        for (final fields in <Map<String, Object?>>[
+          {'endpoints': 'not a list'},
+          {
+            'endpoints': [1],
+          },
+          {'notes': false},
+          {'latitude': 'north'},
+          {'longitude': 181},
+        ]) {
+          final body = manifestJson([
+            {
+              ...serverEntry(
+                id: 'bad',
+                hostname: 'bad.example.org',
+                country: 'NL',
+              ),
+              ...fields,
+            },
+            serverEntry(
+              id: 'good',
+              hostname: 'good.example.org',
+              country: 'NL',
+            ),
+          ]);
+          final outcome = await providerFor(body).refresh();
+          expect(outcome.isOk, isTrue);
+          expect(outcome.servers.map((server) => server.id), ['good']);
+        }
+      },
+    );
 
-      final outcome = await providerFor(body).refresh();
+    test(
+      'version must be the supported integer, not a coerced number',
+      () async {
+        for (final version in <Object>['1', 0, -1, 1.5, 2]) {
+          final outcome = await providerFor(
+            jsonEncode({'version': version, 'servers': <Object?>[]}),
+          ).refresh();
+          expect(outcome.error?.code, 'manifest.version', reason: '$version');
+        }
+      },
+    );
 
-      expect(outcome.isOk, isTrue);
-      expect(outcome.usedCache, isFalse);
-      expect(outcome.fetchedAt, isNotNull);
-      expect(outcome.servers, hasLength(2));
+    test(
+      'expired entries and duplicate ids do not supply mismatched configs',
+      () async {
+        final valid = serverEntry(
+          id: 'same',
+          hostname: 'first.example.org',
+          country: 'NL',
+        );
+        final outcome = await providerFor(
+          manifestJson([
+            valid,
+            {...valid, 'hostname': 'second.example.org'},
+            {...valid, 'id': 'expired', 'expires_at': '2000-01-01T00:00:00Z'},
+            {...valid, 'id': 'bad-expiry', 'expires_at': 'invalid'},
+          ]),
+        ).refresh();
+        expect(outcome.servers, hasLength(1));
+        expect(outcome.servers.single.hostname, 'first.example.org');
+      },
+    );
 
-      final byId = {for (final s in outcome.servers) s.id: s};
-      expect(byId.keys, containsAll(['nl-1', 'de-1']));
-
-      final first = byId['nl-1']!;
-      expect(first.hostname, 'vpn1.example.org');
-      expect(first.countryCode, 'NL');
-      expect(first.city, 'Amsterdam');
-      expect(first.latitude, closeTo(52.3676, 0.0001));
-      expect(first.longitude, closeTo(4.9041, 0.0001));
-      expect(first.operatorName, 'Phantrix Foundation');
-      expect(first.protocol, ProtocolKind.wireGuard);
-      expect(first.providerId, 'manifest');
-      expect(first.trustLevel, TrustLevel.projectVerified);
-      expect(first.trustLevel.requiresWarning, isFalse);
-      expect(first.status.isUsable, isFalse);
-      expect(first.fingerprint, 'nl-1');
-      expect(first.notes, contains('Audited 2026-01'));
-
-      // Every entry, however it spelled the country, is normalised.
-      expect(byId['de-1']!.countryCode, 'DE');
+    test('signature verification cannot be asserted by document content', () {
+      final manifest = Manifest.fromJson({
+        'version': 1,
+        'servers': <Object?>[],
+        'signature_verified': true,
+        'signed_by': 7,
+      }).valueOrNull!;
+      expect(manifest.signatureVerified, isFalse);
+      expect(manifest.signedBy, isNull);
     });
+
+    test(
+      'offers valid unsigned entries without promoting their trust',
+      () async {
+        final body = manifestJson([
+          serverEntry(
+            id: 'nl-1',
+            hostname: 'vpn1.example.org',
+            country: 'nl',
+            trust: 'project',
+            city: 'Amsterdam',
+            latitude: 52.3676,
+            longitude: 4.9041,
+            operator: 'Phantrix Foundation',
+            notes: ['Audited 2026-01'],
+          ),
+          serverEntry(
+            id: 'de-1',
+            hostname: 'vpn2.example.org',
+            country: 'DE',
+            trust: 'project',
+          ),
+        ]);
+
+        final outcome = await providerFor(body).refresh();
+
+        expect(outcome.isOk, isTrue);
+        expect(outcome.usedCache, isFalse);
+        expect(outcome.fetchedAt, isNotNull);
+        expect(outcome.servers, hasLength(2));
+
+        final byId = {for (final s in outcome.servers) s.id: s};
+        expect(byId.keys, containsAll(['nl-1', 'de-1']));
+
+        final first = byId['nl-1']!;
+        expect(first.hostname, 'vpn1.example.org');
+        expect(first.countryCode, 'NL');
+        expect(first.city, 'Amsterdam');
+        expect(first.latitude, closeTo(52.3676, 0.0001));
+        expect(first.longitude, closeTo(4.9041, 0.0001));
+        expect(first.operatorName, 'Phantrix Foundation');
+        expect(first.protocol, ProtocolKind.wireGuard);
+        expect(first.providerId, 'manifest');
+        expect(first.trustLevel, TrustLevel.unknown);
+        expect(first.trustLevel.requiresWarning, isTrue);
+        expect(first.status.isUsable, isFalse);
+        expect(first.fingerprint, 'nl-1');
+        expect(first.notes, contains('Audited 2026-01'));
+
+        // Every entry, however it spelled the country, is normalised.
+        expect(byId['de-1']!.countryCode, 'DE');
+      },
+    );
 
     test(
       'skips an entry with an unusable protocol and keeps the rest',
@@ -328,6 +410,20 @@ void main() {
   });
 
   group('ManifestProvider trust', () {
+    test('signature URLs must use HTTPS before consulting a fetcher', () async {
+      final fetcher = _FakeFetcher();
+      expect(
+        await SignatureVerifier.verifyManifest(
+          fetcher: fetcher,
+          body: '{}',
+          signatureUrl: 'http://example.test/manifest.sig',
+          publicKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        ),
+        isFalse,
+      );
+      expect(fetcher.requested, isEmpty);
+    });
+
     test(
       'marks every server unverified when no signature is configured',
       () async {
@@ -367,30 +463,33 @@ void main() {
       expect(fetcher.requested, [Uri.parse(kManifestUrl)]);
     });
 
-    test('honours the trust level each entry declares', () async {
-      final body = manifestJson([
-        serverEntry(
-          id: 'a',
-          hostname: 'a.example.org',
-          country: 'nl',
-          trust: 'project',
-        ),
-        serverEntry(
-          id: 'b',
-          hostname: 'b.example.org',
-          country: 'de',
-          trust: 'community',
-        ),
-        serverEntry(id: 'c', hostname: 'c.example.org', country: 'fr'),
-      ]);
+    test(
+      'an unsigned entry cannot grant itself project or community trust',
+      () async {
+        final body = manifestJson([
+          serverEntry(
+            id: 'a',
+            hostname: 'a.example.org',
+            country: 'nl',
+            trust: 'project',
+          ),
+          serverEntry(
+            id: 'b',
+            hostname: 'b.example.org',
+            country: 'de',
+            trust: 'community',
+          ),
+          serverEntry(id: 'c', hostname: 'c.example.org', country: 'fr'),
+        ]);
 
-      final outcome = await providerFor(body).refresh();
-      final byId = {for (final s in outcome.servers) s.id: s.trustLevel};
+        final outcome = await providerFor(body).refresh();
+        final byId = {for (final s in outcome.servers) s.id: s.trustLevel};
 
-      expect(byId['a'], TrustLevel.projectVerified);
-      expect(byId['b'], TrustLevel.community);
-      expect(byId['c'], TrustLevel.unknown);
-    });
+        expect(byId['a'], TrustLevel.unknown);
+        expect(byId['b'], TrustLevel.unknown);
+        expect(byId['c'], TrustLevel.unknown);
+      },
+    );
 
     test('drops the unverified note once a signature verifies', () async {
       final algorithm = Ed25519();
@@ -435,87 +534,68 @@ void main() {
       expect(fetcher.requested, contains(Uri.parse(signatureUrl)));
     });
 
-    test(
-      'keeps the unverified note when the signature does not match',
-      () async {
-        final algorithm = Ed25519();
-        final keyPair = await algorithm.newKeyPairFromSeed(
-          List<int>.filled(32, 7),
-        );
-        final publicKey = await keyPair.extractPublicKey();
-        final body = manifestJson([
-          serverEntry(id: 'nl-1', hostname: 'vpn1.example.org', country: 'nl'),
-        ]);
-        // A valid signature, but signed over a different document.
-        final tamperedBody = manifestJson([
-          serverEntry(
-            id: 'nl-1',
-            hostname: 'attacker.example.org',
-            country: 'nl',
-          ),
-        ]);
-        final signature = await algorithm.sign(
-          utf8.encode(tamperedBody),
-          keyPair: keyPair,
-        );
+    test('rejects a configured signature that does not match', () async {
+      final algorithm = Ed25519();
+      final keyPair = await algorithm.newKeyPairFromSeed(
+        List<int>.filled(32, 7),
+      );
+      final publicKey = await keyPair.extractPublicKey();
+      final body = manifestJson([
+        serverEntry(id: 'nl-1', hostname: 'vpn1.example.org', country: 'nl'),
+      ]);
+      // A valid signature, but signed over a different document.
+      final tamperedBody = manifestJson([
+        serverEntry(
+          id: 'nl-1',
+          hostname: 'attacker.example.org',
+          country: 'nl',
+        ),
+      ]);
+      final signature = await algorithm.sign(
+        utf8.encode(tamperedBody),
+        keyPair: keyPair,
+      );
 
-        const signatureUrl = 'https://servers.phantrix.example/manifest.sig';
-        final provider = ManifestProvider(
-          fetcher: _FakeFetcher({
-            kManifestUrl: body,
-            signatureUrl: base64Url.encode(signature.bytes),
-          }),
-          manifestUrl: kManifestUrl,
-          signatureUrl: signatureUrl,
-          trustedSigningKey: base64Url.encode(publicKey.bytes),
-        );
+      const signatureUrl = 'https://servers.phantrix.example/manifest.sig';
+      final provider = ManifestProvider(
+        fetcher: _FakeFetcher({
+          kManifestUrl: body,
+          signatureUrl: base64Url.encode(signature.bytes),
+        }),
+        manifestUrl: kManifestUrl,
+        signatureUrl: signatureUrl,
+        trustedSigningKey: base64Url.encode(publicKey.bytes),
+      );
 
-        final outcome = await provider.refresh();
+      final outcome = await provider.refresh();
 
-        expect(outcome.isOk, isTrue);
-        expect(outcome.servers, hasLength(1));
-        expect(
-          outcome.servers.single.notes.any((n) => n.contains('unverified')),
-          isTrue,
-        );
-      },
-    );
+      expect(outcome.isOk, isFalse);
+      expect(outcome.servers, isEmpty);
+      expect(outcome.error?.code, 'manifest.signature_invalid');
+    });
 
-    test(
-      'keeps the unverified note when only one of the pair is configured',
-      () async {
-        final body = manifestJson([
-          serverEntry(id: 'nl-1', hostname: 'vpn1.example.org', country: 'nl'),
-        ]);
-        const signatureUrl = 'https://servers.phantrix.example/manifest.sig';
+    test('rejects an incomplete signing configuration', () async {
+      final body = manifestJson([
+        serverEntry(id: 'nl-1', hostname: 'vpn1.example.org', country: 'nl'),
+      ]);
+      const signatureUrl = 'https://servers.phantrix.example/manifest.sig';
 
-        // A signature URL with no trusted key.
-        final noKey = ManifestProvider(
-          fetcher: _FakeFetcher({kManifestUrl: body, signatureUrl: ''}),
-          manifestUrl: kManifestUrl,
-          signatureUrl: signatureUrl,
-        );
-        expect(
-          (await noKey.refresh()).servers.single.notes.any(
-            (n) => n.contains('unverified'),
-          ),
-          isTrue,
-        );
+      // A signature URL with no trusted key.
+      final noKey = ManifestProvider(
+        fetcher: _FakeFetcher({kManifestUrl: body, signatureUrl: ''}),
+        manifestUrl: kManifestUrl,
+        signatureUrl: signatureUrl,
+      );
+      expect((await noKey.refresh()).error?.code, 'manifest.signature_invalid');
 
-        // A trusted key with no signature URL.
-        final noUrl = ManifestProvider(
-          fetcher: _FakeFetcher({kManifestUrl: body}),
-          manifestUrl: kManifestUrl,
-          trustedSigningKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-        );
-        expect(
-          (await noUrl.refresh()).servers.single.notes.any(
-            (n) => n.contains('unverified'),
-          ),
-          isTrue,
-        );
-      },
-    );
+      // A trusted key with no signature URL.
+      final noUrl = ManifestProvider(
+        fetcher: _FakeFetcher({kManifestUrl: body}),
+        manifestUrl: kManifestUrl,
+        trustedSigningKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      );
+      expect((await noUrl.refresh()).error?.code, 'manifest.signature_invalid');
+    });
   });
 
   group('ManifestProvider metadata', () {

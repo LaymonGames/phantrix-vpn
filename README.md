@@ -119,6 +119,10 @@ may be unreachable from your network.
 Android release builds are **debug-signed** unless you provide your own upload
 key; see [BUILDING.md](BUILDING.md).
 
+**Release blockers:** the pinned OpenVPN 2.6.17 runtime has upstream security
+advisories and must be upgraded and revalidated before distribution. See
+[the project audit](docs/PROJECT_AUDIT.md) for fixes, checks, and remaining gaps.
+
 ## What a VPN does and does not do
 
 A VPN hides your traffic from the local network and your ISP, and shows sites
@@ -127,8 +131,9 @@ operator of the exit server can see the traffic that leaves it, and for public
 relays that operator is an unknown volunteer. It also does not protect your
 accounts, your device, or you from application-level tracking.
 
-Other limits worth knowing: the strict kill switch is reported as unsupported on
-Android, and IPv6 is blocked by default.
+No backend implements a strict traffic-blocking kill switch. The default IPv6
+setting is a preference, not proof of host-level blocking. A changed IPv4 address
+does not prove DNS or IPv6 leak protection; these remain unverified.
 
 ## Privacy
 

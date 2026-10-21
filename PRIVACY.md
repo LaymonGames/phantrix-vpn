@@ -14,8 +14,9 @@ not yet implemented, it says so.
 	package. `AppSettings.diagnosticsOptIn` defaults to **false**.
 - **No browsing history.** The app never sees which sites you visit: it
 	moves packets; it does not proxy, inspect or log them.
-- **No DNS history.** DNS queries travel through the tunnel to whatever
-	resolver the server's profile pushes. Nothing is recorded.
+- **No DNS history in the app.** Phantrix does not record DNS queries.
+	Resolver routing and DNS leak protection have not been verified; this is
+	not a promise that DNS always travels through the tunnel.
 - **No keys or credentials of yours.** The app has no account, no sign-in and
 	never asks for a secret. The OpenVPN profiles it downloads from the public
 	relay list carry the relay's own shared certificate, not anything of
@@ -32,37 +33,36 @@ copy of any of it, because there is no server side.
 | Settings (`AppSettings`, `settings/app_settings.dart`) | Kill-switch mode, DNS mode, IPv6 mode, favourites, theme, language (`en`/`ar`), onboarding flags | App-private local storage. Defaults: kill switch `automatic`, IPv6 `block`, diagnostics opt-in **false** |
 | Cached server lists (`DirectoryCache`, `discovery/`) | Public server metadata from the last successful provider response, so the list can still render when the feed is unreachable | App-private local storage; versioned metadata cache |
 | Recent connections (`recentServers`, `favoriteServers`) | Server ids, most-recent-first, local only | Settings storage |
-| VPN Gate profile cache (`vpn-gate-profiles-cache.json`) | Base64 OpenVPN profile payloads published by VPN Gate, so previously listed relays can still be attempted during a feed outage | Separate, bounded file in app-private storage; profiles are untrusted and are parsed and security-validated again before every tunnel use. The file is not encrypted by Phantrix itself |
+| VPN Gate profile cache (`vpn-gate-profiles-cache.json`) | Base64 OpenVPN profiles published by VPN Gate, including any public shared client keys in those profiles | Separate, bounded file in app-private storage; profiles are untrusted and are parsed and security-validated again before every tunnel use. Base64 is not encryption |
 | Connection log (`Logger`, `logging/logger.dart`) | A bounded ring buffer of what the app did, for the in-app viewer | Memory only (512 records); every line passes through `Redactor` |
+| Windows OpenVPN logs | Raw engine diagnostics, which can include addresses, names, and connection metadata | Up to three archives, each holding 512 KiB of engine output plus a possible trim marker, beneath `%LOCALAPPDATA%\Phantrix\logs\`; not passed through the Dart redactor and not cleared by the in-app log action |
 | Diagnostics results (`diagnostics/`) | The outcome of checks you ran on demand, including the public IP an external service saw | Memory, shown in the app; stored only if the host persists it (it does not today) |
 
-`Redactor` runs over every log line before it is kept or displayed:
+`Redactor` runs over structured application log lines before display:
 PEM blocks, credential assignments, full URLs
 (collapsed to `scheme://host/…`) and IPv6 addresses (truncated to /48) are
-removed. A log line is never a way for a secret to escape — and because that
-claim once failed silently (see SECURITY.md §6, "The redactor once leaked"),
-the tests assert the secret's *absence*, not just the marker's presence.
+removed. Tests assert the secret's *absence*, not just a marker's presence.
+This filter does not cover raw native log archives and is not proof that all
+possible metadata is removed. Review logs before sharing them.
 
 ## 3. The one unavoidable disclosure — the leak check
 
-To answer "is my tunnel actually working?", the app must ask an external
-service what IP address it sees, and compare it to the address seen
-before connecting. That single request necessarily reveals your current
-public IP address (which, while connected, is the VPN server's address —
-not yours) to that one service. That is the only unavoidable disclosure
-in a leak check, and it is the only one the design permits.
+To compare the route before and after connection, the app asks external HTTPS
+services what public IP they see. Each contacted service learns that address:
+the normal-network address before the tunnel, and whatever route the request
+actually takes afterwards. A successful tunnel should show the exit address,
+but the check cannot assume that in advance.
 
-- The endpoints are well-known echo services (the first is
-	`https://api.ipify.org`), tried in order until one answers, and the
-	list is **configurable** so you can point it at a service you trust
-	(`LeakCheck` in `lib/vpn/leak_check.dart`).
-- Each is one request, with no path and no query string, made when you
-	connect and when you ask the diagnostics screen to run it — never in
-	the background, never on a timer. A pre-tunnel baseline probe is capped
-	at three seconds so it can never hold up a connection.
-- The diagnostics model says so in its own field documentation: "This is
-	the only honest way to check whether an IP is exposed, and it does leak
-	the IP to that one service, which the UI states."
+- Defaults are `https://api.ipify.org?format=json` and
+	`https://checkip.amazonaws.com/`, contacted in parallel. Tests and
+	embedding code can inject another endpoint list.
+- The pre-tunnel baseline waits up to three seconds. Post-handshake
+	verification can make up to four rounds, with 1.5-second pauses when an
+	address is unchanged or unavailable. Reconnects can run verification again.
+	These are connection/diagnostic checks, not analytics uploads.
+- Default probes measure IPv4, not DNS or IPv6 leak protection. HTTPS hides
+	request content in transit, but the provider still sees the source address
+	and ordinary connection metadata.
 
 The app treats a failed probe as **no evidence, not as safety**: without a
 changed address and a recent engine handshake the tunnel is never reported
@@ -107,15 +107,17 @@ All of it is on your device, and you can remove it:
 	`lib/settings/settings_controller.dart`) that resets settings to
 	defaults; `AppSettings.clearedHistoryAt` records when you last
 	cleared history.
-- **Clear the connection log:** the `Logger` ring buffer is memory-only;
+- **Clear the application connection log:** the `Logger` ring buffer is memory-only;
 	it dies with the process (`Logger.clear()` empties it for the in-app
 	viewer).
-- **Nuclear option:** uninstalling the app removes its entire private
-	storage directory (settings, cached lists, cached profiles). Verified on Android
-	14 by uninstalling and confirming the package directory is gone, not
-	merely inaccessible. Expected on the other platforms by OS convention
-	but not verified there. There is nothing on any server to delete, and no
-	account to close, because no account ever existed.
+- **Windows native files:** the in-app clear action does not delete archived
+	OpenVPN logs. After stopping the tunnel and closing the app, you can remove
+	the app-owned `%LOCALAPPDATA%\Phantrix` directory to remove its local files.
+	A portable app or an uninstaller may leave that directory behind.
+- **Uninstall on Android:** removes the app sandbox (settings and caches).
+	Do not assume the same cleanup behavior on desktop. A crash may also leave
+	temporary native session files. Phantrix has no account or server-side
+	database to delete; third-party relay/echo operators have their own policies.
 
 ## 7. Changes to this policy
 

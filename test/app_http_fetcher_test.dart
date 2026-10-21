@@ -7,6 +7,18 @@ import 'package:phantrix/net/app_http_fetcher.dart';
 
 void main() {
   group('AppHttpFetcher', () {
+    test(
+      'preserves the exact signed body rather than normalizing lines',
+      () async {
+        const body = '{\r\n  "version": 1\r\n}\r\n';
+        final fetcher = AppHttpFetcher(
+          client: MockClient((_) async => http.Response(body, 200)),
+        );
+        addTearDown(fetcher.close);
+        expect(await fetcher.get(Uri.parse('https://example.test/feed')), body);
+      },
+    );
+
     test('fetches a text feed with the expected headers', () async {
       late http.Request captured;
       final fetcher = AppHttpFetcher(

@@ -106,6 +106,28 @@ struct ProfileRejection {
 // "the other side already checked" is not a security property.
 bool RejectUnsafeDirectives(const std::string& profile, ProfileRejection* out);
 
+// Validate the whole profile, never a prefix, on both sides of elevation.
+constexpr size_t kMaxProfileBytes = 64 * 1024;
+
+// Holds the session directories and files open until the engine stops. The
+// profile cannot be rewritten or replaced between validation and OpenVPN's
+// read; outputs cannot be redirected through links to privileged files.
+class LockedSessionFiles {
+ public:
+  LockedSessionFiles() = default;
+  ~LockedSessionFiles();
+  LockedSessionFiles(const LockedSessionFiles&) = delete;
+  LockedSessionFiles& operator=(const LockedSessionFiles&) = delete;
+
+  bool Open(const std::wstring& session, const std::wstring& profile,
+            const std::wstring& status, const std::wstring& log,
+            ProfileRejection* rejection);
+  void Close();
+
+ private:
+  std::vector<HANDLE> handles_;
+};
+
 // ---------------------------------------------------------------------------
 // Report safety
 // ---------------------------------------------------------------------------

@@ -33,6 +33,15 @@ String withDirective(String directive) => baseConfig() + directive;
 
 void main() {
   group('OvpnParser', () {
+    test('default and global ports do not depend on directive order', () {
+      final tcp = OvpnParser.parse('proto tcp\nremote vpn.example.net').valueOr;
+      expect(tcp.remotes.single.port, 1194);
+      final global = OvpnParser.parse(
+        'remote vpn.example.net\nport 8443',
+      ).valueOr;
+      expect(global.remotes.single.port, 8443);
+    });
+
     test('reads remotes, ciphers and inline blocks', () {
       final result = OvpnParser.parse(baseConfig());
       expect(result.isOk, isTrue);
@@ -57,6 +66,42 @@ $kCa
   });
 
   group('OvpnValidator', () {
+    test('rejects a non-numeric explicit remote port', () {
+      final parsed = OvpnParser.parse(
+        baseConfig().replaceFirst('1194', 'not-a-port'),
+      ).valueOr;
+      expect(
+        OvpnValidator.validate(parsed).errorOrNull?.code,
+        'ovpn.remote_port',
+      );
+    });
+
+    test('does not silently remove a null data cipher', () {
+      for (final option in ['data-ciphers', 'data-ciphers-fallback']) {
+        final parsed = OvpnParser.parse(
+          withDirective('\n$option none'),
+        ).valueOr;
+        expect(
+          OvpnValidator.validate(parsed).errorOrNull?.code,
+          'ovpn.broken_cipher',
+        );
+      }
+    });
+
+    test('rejects server-mode transports and malformed IPv6', () {
+      final transport = OvpnParser.parse(
+        baseConfig().replaceFirst('proto udp', 'proto tcp-server'),
+      ).valueOr;
+      expect(OvpnValidator.validate(transport).isOk, isFalse);
+      final host = OvpnParser.parse(
+        baseConfig().replaceFirst('vpn.example.net', ':::'),
+      ).valueOr;
+      expect(
+        OvpnValidator.validate(host).errorOrNull?.code,
+        'ovpn.remote_host',
+      );
+    });
+
     test('accepts a sane configuration', () {
       final parsed = OvpnParser.parse(baseConfig()).valueOr;
       final verdict = OvpnValidator.validate(parsed);
@@ -162,6 +207,35 @@ cipher AES-256-GCM
   });
 
   group('OvpnSerializer', () {
+    test('preserves server authentication, TLS and remote transport', () {
+      final profile =
+          '''
+${baseConfig().replaceFirst('remote vpn.example.net 1194', 'remote vpn.example.net 443 tcp-client')}
+key-direction 1
+tls-version-min 1.2
+tls-cert-profile preferred
+verify-x509-name vpn.example.net name
+data-ciphers AES-256-GCM:AES-128-GCM
+data-ciphers-fallback AES-128-CBC
+''';
+      final parsed = OvpnParser.parse(profile).valueOr;
+      final verdict = OvpnValidator.validate(parsed);
+      expect(verdict.isOk, isTrue);
+      final out = OvpnSerializer.serialize(verdict.valueOr.config);
+      for (final line in [
+        'remote-cert-tls server',
+        'remote vpn.example.net 443 tcp-client',
+        'key-direction 1',
+        'tls-version-min 1.2',
+        'tls-cert-profile preferred',
+        'verify-x509-name vpn.example.net name',
+        'data-ciphers AES-256-GCM:AES-128-GCM',
+        'data-ciphers-fallback AES-128-CBC',
+      ]) {
+        expect(out, contains('$line\n'));
+      }
+    });
+
     test('a live-feed row survives validation and serialisation intact', () {
       // The shape of a real VPN Gate row as published (TCP variant):
       // no pull, no redirect-gateway, commented-out auth-user-pass,

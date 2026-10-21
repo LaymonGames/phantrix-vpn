@@ -113,6 +113,9 @@ jobs:
       - name: Build the release bundle
         run: flutter build windows --release
 
+      - name: Test the elevated tunnel profile and IPC boundary
+        run: tools/test_windows_support.ps1 -Configuration Release
+
       - name: Check the built artifacts
         run: tools/check_windows_build.ps1 -RequireOpenVpn
 
