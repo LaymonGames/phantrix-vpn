@@ -11,23 +11,23 @@
 
 Phantrix is a free, vibe-coded, account-free VPN client for **OpenVPN**, built
 with Flutter. There is no sign-up, no subscription and no analytics.
-It is a client only: you bring a server (your own, your provider's, or a public
-relay from the built-in VPN Gate list).
+It is a client only: it ships no servers, and the relay list comes from VPN
+Gate, a network of volunteer-run public relays.
 
 Phantrix's own code is licensed under **GPL-3.0-only** (see [License](#license)).
 
-> **Status: early and mostly unverified.** An OpenVPN tunnel has been observed
-> working once on Windows. Read [Platform status](#platform-status) before
-> relying on it.
+> **Status: early and mostly unverified.** A live OpenVPN tunnel was observed
+> working on Windows in October 2026. Read [Platform status](#platform-status)
+> before relying on it.
 
 ## Features
 
 - **Nothing to sign up for.** No account, no subscription, no analytics SDK.
 - **OpenVPN through the official upstream engine.** Phantrix implements no VPN
-  cryptography itself; on Windows the engine runs as a separate elevated
-  helper process.
-- **Public relays built in.** The bundled list is VPN Gate, run by volunteers;
-  Phantrix brings no servers of its own.
+  cryptography itself; on Windows a separate elevated helper process runs the
+  engine.
+- **Public relays from VPN Gate.** The server list is fetched from VPN Gate at
+  runtime and cached; Phantrix runs no servers of its own.
 - **Honest state.** "Connected" appears only after the engine completes a
   handshake and your public address changes; anything else is said explicitly.
 - **English and Arabic**, with the layout mirrored for right-to-left.
@@ -51,8 +51,8 @@ not captured from a live tunnel.
 
 ## Quick start (build from source)
 
-These steps are for **Windows**, the only platform where the built-in VPN Gate
-relays can connect. Other platforms are covered in [BUILDING.md](BUILDING.md).
+These steps are for **Windows**, the only platform where the VPN Gate relays
+can connect. Other platforms are covered in [BUILDING.md](BUILDING.md).
 
 **You need:** Flutter (3.47.0 or newer), and Visual Studio 2022 with the
 "Desktop development with C++" workload.
@@ -74,8 +74,7 @@ Notes:
 - **Do not skip the fetch step.** The OpenVPN engine is deliberately *not* in
   git (everything under `packages/phantrix_platform/windows/bundle/` is
   ignored). A checkout without it still builds, but the app reports OpenVPN as
-  unavailable and cannot connect to relays, so it looks like "nothing happens"
-  when you press Connect.
+  unavailable and declines every relay with an explanation.
 - If you already built before fetching, run `flutter clean` and build again so
   CMake picks up the new files.
 - To re-check the downloaded files without downloading anything, add
@@ -83,15 +82,17 @@ Notes:
 - The command uses the PowerShell that ships with Windows. PowerShell 7
   (`pwsh`) is not required.
 - OpenVPN connections ask for administrator approval (a UAC prompt) because the
-  engine runs in a separate elevated helper. The app itself is not elevated.
+  engine runs inside a separate elevated helper. The app itself is not elevated.
 
 ## Using it
 
 - **OpenVPN** is the only protocol, on Windows only. Pick a relay from the
-  built-in VPN Gate list. The profile is validated before the engine sees it.
+  VPN Gate list. The profile is validated before the engine sees it.
+- **VPN Gate is the only server source.** There is no profile import yet, so
+  every connection uses a relay from that list.
 - Servers are listed with their country, and **Choose a location** remembers
-  yours. The app walks down the ranked list of relays until one accepts a
-  connection, and says which relay it settled on.
+  yours. When it picks automatically, the app tries the top-ranked relays in
+  turn and tells you which location it settled on.
 
 Phantrix reports **Connected** only after the engine confirms a completed
 handshake **and** your public address has changed. Otherwise it says why it is
@@ -103,18 +104,19 @@ not connected rather than showing a green tick.
 
 | Platform | Engine the app can use | Verified |
 | --- | --- | --- |
-| Windows | Official OpenVPN 2.6 binaries + wintun, run as a separate helper process | OpenVPN: one live tunnel observed, 6.5 minutes, exit address changed (`docs/evidence/openvpn/`) |
+| Windows | Official OpenVPN 2.6 binaries + wintun, run as a separate helper process | OpenVPN: live tunnels observed; a 6.5-minute session on 2026-10-11 was verified with a changed exit address (`docs/evidence/openvpn/`) |
 | Android | None. No engine on Android — OpenVPN is not shippable there and the WireGuard backend was removed — so the app declines every relay with an explanation | Recorded: app tests pass on an Android 14 emulator, before the app became OpenVPN-only |
 | Linux | None | Compiled in CI. Never run on a live system |
 | macOS / iOS | None | Apple source exists in `packages/phantrix_platform/apple/` but has never been compiled and is not a build target |
 | Web | None | A browser cannot tunnel system traffic. The app builds, and Connect fails explicitly |
 
 "Official engine" means Phantrix uses the upstream engine and implements no VPN
-cryptography itself. It is not a claim that a tunnel has been verified.
+cryptography itself. It says nothing about whether a tunnel works on a given
+platform.
 
-The public VPN Gate relays publish OpenVPN profiles only, so on Android and
-Linux they are listed but cannot be connected. Relays are run by volunteers and
-may be unreachable from your network.
+The public VPN Gate relays publish OpenVPN profiles only, so on platforms
+without an OpenVPN engine they are listed but cannot be connected. Relays are
+run by volunteers and may be unreachable from your network.
 
 Android release builds are **debug-signed** unless you provide your own upload
 key; see [BUILDING.md](BUILDING.md).
@@ -131,9 +133,10 @@ operator of the exit server can see the traffic that leaves it, and for public
 relays that operator is an unknown volunteer. It also does not protect your
 accounts, your device, or you from application-level tracking.
 
-No backend implements a strict traffic-blocking kill switch. The default IPv6
-setting is a preference, not proof of host-level blocking. A changed IPv4 address
-does not prove DNS or IPv6 leak protection; these remain unverified.
+No backend implements a strict traffic-blocking kill switch. The IPv6 setting
+is a preference, not proof of host-level blocking — on Windows the app reports
+that it cannot block IPv6 at the host level. A changed IPv4 address does not
+prove DNS or IPv6 leak protection; these remain unverified.
 
 ## Privacy
 
@@ -197,7 +200,8 @@ before it has been observed working.
 Some small, useful ways in: run it on a platform nobody has tried yet and say
 what happened; say when a relay no longer answers; improve the Arabic; or
 tighten a sentence above that claims more than the code does. Reports about
-documentation overstating a protection count as ordinary issues.
+documentation that overstates what the code does are welcome and treated as
+ordinary issues.
 
 ## License
 
