@@ -75,16 +75,50 @@ class _LocationsScreenState extends State<LocationsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
-                      controller: _search,
-                      onChanged: (v) => setState(() => _query = v),
-                      decoration: InputDecoration(
-                        hintText: l10n.get('searchCountries'),
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          size: VgIcon.md,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _search,
+                            onChanged: (v) => setState(() => _query = v),
+                            decoration: InputDecoration(
+                              hintText: l10n.get('searchCountries'),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: VgIcon.md,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: VgSpace.sm),
+                        // The list is refetched from the provider, not just
+                        // re-sorted: a relay that came up since the last fetch
+                        // is the point of pressing this. The spinner replaces
+                        // the icon while the request is in flight so the
+                        // control also reports that it was heard.
+                        IconButton(
+                          tooltip: l10n.get(
+                            widget.isRefreshing
+                                ? 'refreshingServers'
+                                : 'refresh',
+                          ),
+                          onPressed: widget.isRefreshing
+                              ? null
+                              : widget.onRefresh,
+                          icon: widget.isRefreshing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.refresh_rounded,
+                                  size: VgIcon.md,
+                                ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: VgSpace.sm),
                     // A Wrap, not a Row: the sort controls do not fit a

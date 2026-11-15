@@ -4,6 +4,7 @@
 /// it, and the JSON encoding shared with the native side.
 library;
 
+export 'src/installed_app.dart';
 export 'src/phantrix_platform.dart';
 export 'src/platform_capabilities.dart';
 export 'src/platform_event.dart';

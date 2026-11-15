@@ -52,6 +52,7 @@ class SettingsCodec {
     'clearedHistoryAt': settings.clearedHistoryAt?.toUtc().toIso8601String(),
     'onboardingComplete': settings.onboardingComplete,
     'privacyNoticeAccepted': settings.privacyNoticeAccepted,
+    'splitTunnel': settings.splitTunnel.toJson(),
   });
 
   /// Reads the stored form back.
@@ -135,6 +136,7 @@ class SettingsCodec {
         decoded['privacyNoticeAccepted'],
         d.privacyNoticeAccepted,
       ),
+      splitTunnel: SplitTunnelSettings.fromJson(decoded['splitTunnel']),
     );
   }
 

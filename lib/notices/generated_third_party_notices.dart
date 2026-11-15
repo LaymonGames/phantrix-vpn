@@ -15,7 +15,7 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
   ThirdPartyNoticeData(
     component: 'app',
     name: 'phantrix',
-    version: '1.0.1+2',
+    version: '1.1.0+3',
     sourceUrl: 'https://github.com/LaymonGames/phantrix-vpn',
     licenseId: 'GPL-3.0-only',
     licenseKey: 'phantrix-gpl-3-0-only',

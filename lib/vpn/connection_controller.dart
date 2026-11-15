@@ -197,6 +197,18 @@ class ConnectionController {
   /// the machine would not make.
   Future<bool> setStartOnBoot(bool enabled) => platform.setStartOnBoot(enabled);
 
+  /// Whether a tunnel is up and routing rules can be changed right now.
+  bool get hasLiveTunnel => _current == VpnState.connected;
+
+  /// Applies a split-tunnel policy to a running tunnel.
+  ///
+  /// The caller persists the preference separately: this only answers whether
+  /// the machine accepted the rules. Refused while nothing is connected, which
+  /// the screen turns into "saved for the next connection" rather than an
+  /// error, because that is exactly what happened.
+  Future<Result<void>> applySplitTunnel(SplitTunnelSettings policy) =>
+      platform.applySplitTunnel(policy);
+
   VpnState _current = VpnState.disconnected;
   ConnectionSession _session = ConnectionSession.none;
   String _statusMessage = 'Not connected.';
@@ -426,7 +438,16 @@ class ConnectionController {
         // it into an error card would blame the user for the stop they
         // asked for.
         if (_current.isTransitioning || _current.isConnected) {
-          _fail('tunnel.failed', event.message ?? _tr('flowTunnelFailed'));
+          // Keep the engine's own code when it has one. Collapsing every
+          // failure to `tunnel.failed` loses the distinction between a relay
+          // that refused TLS, a profile the build will not run, and a driver
+          // the machine does not have — and only the first of those is worth
+          // walking past. `tunnel.failed` remains the fallback for a platform
+          // that reports only a human message.
+          _fail(
+            event.errorCode ?? 'tunnel.failed',
+            event.message ?? _tr('flowTunnelFailed'),
+          );
         }
       case PlatformTunnelState.preparing:
         // A normal start-up state, not a problem. The service has been
@@ -520,6 +541,9 @@ class ConnectionController {
         handshakeAt: _lastHandshakeAt,
         protocol: _activeKind ?? ProtocolKind.openVpn,
         l10n: _l10n,
+        exitAddressObservable:
+            !(settings.data.splitTunnel.enabled &&
+                settings.data.splitTunnel.mode == SplitTunnelMode.include),
       );
       developer.log(
         'phase=post_handshake_verification duration_ms=${verifyWatch.elapsedMilliseconds} '
@@ -932,6 +956,15 @@ class ConnectionController {
       reportSelectionFailure(_tr('selNoneSelected'));
       return;
     }
+    final split = settings.data.splitTunnel;
+    if (split.enabled &&
+        split.mode == SplitTunnelMode.include &&
+        split.apps.isEmpty) {
+      // Include mode with no applications would route nothing. Refusing here
+      // is more honest than connecting with a policy that means nothing.
+      reportSelectionFailure(_tr('splitNeedsApps'));
+      return;
+    }
 
     // The attempt is recorded before anything can fail, because `retry`
     // replays exactly this server and configuration rather than starting
@@ -968,7 +1001,16 @@ class ConnectionController {
     _armConnectDeadline(_attemptBudget);
     _apply(VpnEvent.connectRequested(), _tr('flowPreparing'));
     final preflightWatch = Stopwatch()..start();
-    final baseline = await _leakCheck.currentIp();
+    // Include-mode split tunnelling sends only the selected applications
+    // through the tunnel, so this app's own address read leaves by the normal
+    // route either way. Verifying that case already skips the address
+    // comparison, which makes the baseline a network round trip that nothing
+    // reads — up to three seconds in front of every connect. Exclude mode and
+    // a full tunnel still need it.
+    final splitInclude =
+        settings.data.splitTunnel.enabled &&
+        settings.data.splitTunnel.mode == SplitTunnelMode.include;
+    final baseline = splitInclude ? null : await _leakCheck.currentIp();
     if (epoch != _attemptEpoch || _current != VpnState.preparing) {
       // A cancelled/superseded or timed-out preflight must not update the
       // baseline or proceed to launch a tunnel for an attempt no longer live.
@@ -1018,6 +1060,20 @@ class ConnectionController {
         effective,
         ipv6Mode: settings.data.ipv6,
       ),
+      // Split tunnelling travels with the launch, not after it: the helper has
+      // to reject a policy it cannot enforce before the engine is started, and
+      // the mode is carried by which list is present. The two lists are never
+      // both set — a request that named both would have no defined direction.
+      allowedApps:
+          settings.data.splitTunnel.enabled &&
+              settings.data.splitTunnel.mode == SplitTunnelMode.include
+          ? settings.data.splitTunnel.paths
+          : null,
+      disallowedApps:
+          settings.data.splitTunnel.enabled &&
+              settings.data.splitTunnel.mode == SplitTunnelMode.exclude
+          ? settings.data.splitTunnel.paths
+          : null,
     );
     // The handshake clock does not run while the native side is still
     // launching the tunnel — on Windows that includes the administrator

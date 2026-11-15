@@ -45,13 +45,18 @@
 #include <flutter/event_stream_handler_functions.h>
 #include <windows.h>
 #include <shellapi.h>
+#include <shlobj.h>
+#include <shobjidl.h>
 #include <tchar.h>
+#include <wincodec.h>
 
 #include <aclapi.h>
 #include <sddl.h>
 
-#include <cstdlib>
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <cwctype>
 #include <condition_variable>
 #include <deque>
 #include <memory>
@@ -64,10 +69,14 @@
 #include "phantrix_ovpn_support.h"
 
 #pragma comment(lib, "Advapi32.lib")
+#pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "Ole32.lib")
 #pragma comment(lib, "Shell32.lib")
+#pragma comment(lib, "Windowscodecs.lib")
 
 namespace {
 
+using flutter::EncodableList;
 using flutter::EncodableMap;
 using flutter::EncodableValue;
 
@@ -109,6 +118,24 @@ std::string getString(const EncodableMap& root, const char* key) {
 	}
 	const auto* text = std::get_if<std::string>(&it->second);
 	return text == nullptr ? std::string() : *text;
+}
+
+std::vector<std::string> getStrings(const EncodableMap& root, const char* key) {
+	std::vector<std::string> values;
+	const auto it = root.find(EncodableValue(key));
+	if (it == root.end()) {
+		return values;
+	}
+	const auto* list = std::get_if<EncodableList>(&it->second);
+	if (list == nullptr) {
+		return values;
+	}
+	for (const EncodableValue& item : *list) {
+		if (const auto* text = std::get_if<std::string>(&item)) {
+			values.push_back(*text);
+		}
+	}
+	return values;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +222,26 @@ struct PendingEvent {
 	// completed reply. A stop during an attempt that already reported `failed`
 	// must not claim that a tunnel came down.
 	bool publishDisconnected = false;
+	// The value a method reply carries when the work was a query rather than a
+	// state change. Only the platform thread touches it, like every other field
+	// here.
+	EncodableValue payload;
+	bool hasPayload = false;
+};
+
+// The rendezvous between a worker waiting for a policy acknowledgement and the
+// platform thread that receives it from the helper's reader.
+//
+// Shared rather than stored by value because the reader may answer after the
+// wait has timed out and moved on; the shared object lets the late answer be
+// discarded instead of written into freed memory.
+struct SplitWait {
+	std::mutex mutex;
+	std::condition_variable ready;
+	bool done = false;
+	bool ok = false;
+	std::string code;
+	std::string message;
 };
 
 // One unit of work for the tunnel worker thread.
@@ -206,9 +253,15 @@ struct PendingEvent {
 // while a slow tunnel is torn down. Dart still gets its reply: the worker
 // posts it back through the message window.
 struct TunnelJob {
-	enum class Kind { start, stop, teardownOnly };
+	enum class Kind { start, stop, teardownOnly, listApps, appIcon, splitPolicy };
 	Kind kind = Kind::teardownOnly;
 	std::string profile;
+	// A single string argument for the icon and policy jobs.
+	std::string text;
+	// Split-tunnel policy travelling with a start request, or on its own.
+	bool splitEnabled = false;
+	std::string splitMode;
+	std::vector<std::string> splitApps;
 	flutter::MethodResult<EncodableValue>* result = nullptr;
 	bool publishDisconnected = false;
 };
@@ -237,6 +290,484 @@ std::wstring pluginDirectory() {
 	}
 	directory.resize(slash);
 	return directory;
+}
+
+// ---------------------------------------------------------------------------
+// Installed-application discovery and icons
+// ---------------------------------------------------------------------------
+
+// One application either the registry or the Start Menu named.
+//
+// The path is the only fact that reaches the driver, so a candidate is kept
+// only when it names an existing `.exe` outside a short list of things nobody
+// means to route: uninstallers, updaters, crash reporters and documentation
+// viewers.
+struct DiscoveredApp {
+	std::wstring name;
+	std::wstring path;
+};
+
+std::wstring Lower(std::wstring value) {
+	std::transform(value.begin(), value.end(), value.begin(),
+	               [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+	return value;
+}
+
+bool IsPlausibleApplicationPath(const std::wstring& path) {
+	if (path.size() < 5 || path.size() > 1024) {
+		return false;
+	}
+	const std::wstring lower = Lower(path);
+	if (lower.size() < 4 ||
+	    lower.compare(lower.size() - 4, 4, L".exe") != 0) {
+		return false;
+	}
+	// The Windows directory holds the operating system's own programs. A user
+	// picking `svchost.exe` would be routing something they cannot identify, and
+	// those images are already covered by the system policy.
+	wchar_t windows[MAX_PATH + 1] = {0};
+	if (GetWindowsDirectoryW(windows, MAX_PATH) != 0) {
+		const std::wstring system = Lower(std::wstring(windows) + L"\\");
+		if (lower.rfind(system, 0) == 0) {
+			return false;
+		}
+	}
+	static const wchar_t* const noise[] = {
+	    L"unins", L"uninstall", L"setup", L"update", L"updater",
+	    L"crash", L"report", L"readme", L"help", L"vcredist",
+	};
+	for (const wchar_t* fragment : noise) {
+		if (lower.find(fragment) != std::wstring::npos) {
+			return false;
+		}
+	}
+	const DWORD attributes = GetFileAttributesW(path.c_str());
+	return attributes != INVALID_FILE_ATTRIBUTES &&
+	       (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+
+std::wstring DisplayIconToPath(const std::wstring& icon) {
+	std::wstring value = icon;
+	const size_t comma = value.find_last_of(L',');
+	if (comma != std::wstring::npos) {
+		const std::wstring suffix = value.substr(comma + 1);
+		if (!suffix.empty() &&
+		    suffix.find_first_not_of(L"0123456789- ") == std::wstring::npos) {
+			value.resize(comma);
+		}
+	}
+	value = value.size() >= 2 && value.front() == L'"' && value.back() == L'"'
+	            ? value.substr(1, value.size() - 2)
+	            : value;
+	while (!value.empty() && (value.back() == L' ' || value.back() == L'\t')) {
+		value.pop_back();
+	}
+	return value;
+}
+
+std::wstring ReadRegistryString(HKEY root, const std::wstring& key,
+                                const wchar_t* name) {
+	HKEY handle = nullptr;
+	if (RegOpenKeyExW(root, key.c_str(), 0, KEY_READ, &handle) !=
+	    ERROR_SUCCESS) {
+		return std::wstring();
+	}
+	DWORD type = 0;
+	DWORD bytes = 0;
+	std::wstring result;
+	if (RegQueryValueExW(handle, name, nullptr, &type, nullptr, &bytes) ==
+	        ERROR_SUCCESS &&
+	    (type == REG_SZ || type == REG_EXPAND_SZ) && bytes >= sizeof(wchar_t) &&
+	    bytes <= 32 * 1024) {
+		std::vector<wchar_t> buffer(bytes / sizeof(wchar_t) + 1, L'\0');
+		if (RegQueryValueExW(handle, name, nullptr, &type,
+		                     reinterpret_cast<LPBYTE>(buffer.data()),
+		                     &bytes) == ERROR_SUCCESS) {
+			result.assign(buffer.data());
+			if (type == REG_EXPAND_SZ) {
+				wchar_t expanded[2048] = {0};
+				if (ExpandEnvironmentStringsW(result.c_str(), expanded,
+				                              2048) > 0) {
+					result.assign(expanded);
+				}
+			}
+		}
+	}
+	RegCloseKey(handle);
+	return result;
+}
+
+DWORD ReadRegistryDword(HKEY root, const std::wstring& key,
+                        const wchar_t* name) {
+	HKEY handle = nullptr;
+	if (RegOpenKeyExW(root, key.c_str(), 0, KEY_READ, &handle) !=
+	    ERROR_SUCCESS) {
+		return 0;
+	}
+	DWORD type = 0;
+	DWORD value = 0;
+	DWORD bytes = sizeof(value);
+	const bool ok = RegQueryValueExW(handle, name, nullptr, &type,
+	                                 reinterpret_cast<LPBYTE>(&value),
+	                                 &bytes) == ERROR_SUCCESS &&
+	                type == REG_DWORD;
+	RegCloseKey(handle);
+	return ok ? value : 0;
+}
+
+void AddDiscovered(std::vector<DiscoveredApp>* apps, std::wstring name,
+                   std::wstring path) {
+	if (apps == nullptr || !IsPlausibleApplicationPath(path)) {
+		return;
+	}
+	const std::wstring canonical = Lower(path);
+	for (const DiscoveredApp& existing : *apps) {
+		if (Lower(existing.path) == canonical) {
+			return;
+		}
+	}
+	if (name.empty()) {
+		const size_t separator = path.find_last_of(L'\\');
+		name = separator == std::wstring::npos ? path : path.substr(separator + 1);
+	}
+	name = name.size() > 160 ? name.substr(0, 160) : name;
+	apps->push_back(DiscoveredApp{std::move(name), std::move(path)});
+}
+
+// Finds a single executable inside an install directory.
+//
+// Installers put the program at the top level far more often than in a nested
+// directory, and a bounded scan keeps enumeration from turning into a walk of
+// every file in Program Files.
+std::wstring FindExecutableIn(const std::wstring& directory) {
+	if (directory.empty()) {
+		return std::wstring();
+	}
+	WIN32_FIND_DATAW data = {0};
+	const std::wstring pattern = directory + L"\\*.exe";
+	HANDLE search = FindFirstFileW(pattern.c_str(), &data);
+	if (search == INVALID_HANDLE_VALUE) {
+		return std::wstring();
+	}
+	std::wstring best;
+	int inspected = 0;
+	do {
+		if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+			continue;
+		}
+		const std::wstring candidate = directory + L"\\" + data.cFileName;
+		if (IsPlausibleApplicationPath(candidate)) {
+			best = candidate;
+			break;
+		}
+		++inspected;
+	} while (inspected < 64 && FindNextFileW(search, &data) != FALSE);
+	FindClose(search);
+	return best;
+}
+
+void EnumerateUninstallKey(HKEY root, REGSAM view, std::vector<DiscoveredApp>* apps) {
+	const wchar_t* paths[] = {
+	    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+	    L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+	};
+	for (const wchar_t* base : paths) {
+		HKEY key = nullptr;
+		if (RegOpenKeyExW(root, base, 0, KEY_READ | view, &key) !=
+		    ERROR_SUCCESS) {
+			continue;
+		}
+		DWORD index = 0;
+		wchar_t name[512] = {0};
+		DWORD nameLength = 512;
+		while (RegEnumKeyExW(key, index++, name, &nameLength, nullptr, nullptr,
+		                     nullptr, nullptr) == ERROR_SUCCESS) {
+			const std::wstring subkey = std::wstring(base) + L"\\" + name;
+			nameLength = 512;
+			if (ReadRegistryDword(root, subkey, L"SystemComponent") == 1 ||
+			    !ReadRegistryString(root, subkey, L"ParentKeyName").empty()) {
+				continue;
+			}
+			const std::wstring release =
+			    ReadRegistryString(root, subkey, L"ReleaseType");
+			if (!release.empty() &&
+			    Lower(release).find(L"update") != std::wstring::npos) {
+				continue;
+			}
+			const std::wstring displayName =
+			    ReadRegistryString(root, subkey, L"DisplayName");
+			if (displayName.empty() ||
+			    Lower(displayName).find(L"phantrix") != std::wstring::npos) {
+				continue;
+			}
+			std::wstring path = DisplayIconToPath(
+			    ReadRegistryString(root, subkey, L"DisplayIcon"));
+			if (!IsPlausibleApplicationPath(path)) {
+				path = FindExecutableIn(
+				    ReadRegistryString(root, subkey, L"InstallLocation"));
+			}
+			AddDiscovered(apps, displayName, path);
+		}
+		RegCloseKey(key);
+	}
+}
+
+void EnumerateShortcutFolder(REFKNOWNFOLDERID folder,
+                             std::vector<DiscoveredApp>* apps, int* budget) {
+	PWSTR folderPath = nullptr;
+	if (SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &folderPath) !=
+	    S_OK) {
+		return;
+	}
+	const std::wstring root(folderPath);
+	CoTaskMemFree(folderPath);
+	if (root.empty() || budget == nullptr || *budget <= 0) {
+		return;
+	}
+
+	std::vector<std::wstring> pending = {root};
+	while (!pending.empty() && *budget > 0) {
+		const std::wstring directory = pending.back();
+		pending.pop_back();
+		const std::wstring pattern = directory + L"\\*";
+		WIN32_FIND_DATAW data = {0};
+		HANDLE search = FindFirstFileW(pattern.c_str(), &data);
+		if (search == INVALID_HANDLE_VALUE) {
+			continue;
+		}
+		do {
+			if (*budget <= 0) {
+				break;
+			}
+			if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+				if (wcscmp(data.cFileName, L".") != 0 &&
+				    wcscmp(data.cFileName, L"..") != 0) {
+					pending.push_back(directory + L"\\" + data.cFileName);
+				}
+				continue;
+			}
+			const std::wstring lower = Lower(data.cFileName);
+			if (lower.size() < 4 ||
+			    lower.compare(lower.size() - 4, 4, L".lnk") != 0) {
+				continue;
+			}
+			--*budget;
+			const std::wstring shortcut = directory + L"\\" + data.cFileName;
+			IShellLinkW* link = nullptr;
+			if (CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
+			                     IID_PPV_ARGS(&link)) != S_OK ||
+			    link == nullptr) {
+				continue;
+			}
+			IPersistFile* file = nullptr;
+			if (SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&file))) &&
+			    file != nullptr) {
+				if (SUCCEEDED(file->Load(shortcut.c_str(), STGM_READ))) {
+					wchar_t target[1024] = {0};
+					if (SUCCEEDED(link->GetPath(target, 1024, nullptr,
+					                            SLGP_RAWPATH))) {
+						std::wstring name = data.cFileName;
+						name.resize(name.size() - 4);
+						if (Lower(name).find(L"uninstall") ==
+						    std::wstring::npos) {
+							AddDiscovered(apps, name, target);
+						}
+					}
+				}
+				file->Release();
+			}
+			link->Release();
+		} while (FindNextFileW(search, &data) != FALSE);
+		FindClose(search);
+	}
+}
+
+std::vector<DiscoveredApp> DiscoverInstalledApps() {
+	std::vector<DiscoveredApp> apps;
+	EnumerateUninstallKey(HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY, &apps);
+	EnumerateUninstallKey(HKEY_LOCAL_MACHINE, KEY_WOW64_32KEY, &apps);
+	EnumerateUninstallKey(HKEY_CURRENT_USER, 0, &apps);
+	int budget = 600;
+	EnumerateShortcutFolder(FOLDERID_CommonPrograms, &apps, &budget);
+	EnumerateShortcutFolder(FOLDERID_Programs, &apps, &budget);
+	std::sort(apps.begin(), apps.end(),
+	          [](const DiscoveredApp& left, const DiscoveredApp& right) {
+		          return Lower(left.name) < Lower(right.name);
+	          });
+	return apps;
+}
+
+std::string Base64Encode(const std::vector<uint8_t>& bytes) {
+	static const char kAlphabet[] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	std::string out;
+	out.reserve(((bytes.size() + 2) / 3) * 4);
+	for (size_t i = 0; i < bytes.size(); i += 3) {
+		const uint32_t first = bytes[i];
+		const uint32_t second = i + 1 < bytes.size() ? bytes[i + 1] : 0;
+		const uint32_t third = i + 2 < bytes.size() ? bytes[i + 2] : 0;
+		const uint32_t value = (first << 16) | (second << 8) | third;
+		out.push_back(kAlphabet[(value >> 18) & 0x3F]);
+		out.push_back(kAlphabet[(value >> 12) & 0x3F]);
+		out.push_back(i + 1 < bytes.size() ? kAlphabet[(value >> 6) & 0x3F]
+		                                  : '=');
+		out.push_back(i + 2 < bytes.size() ? kAlphabet[value & 0x3F] : '=');
+	}
+	return out;
+}
+
+// Extracts a file's icon as a PNG.
+//
+// The bytes are base64 rather than a raw blob because the standard method
+// channel carries strings and typed lists comfortably but not arbitrary binary
+// buffers, and a 32x32 PNG is small enough that base64's third is irrelevant.
+std::string IconPngBase64(const std::wstring& path) {
+	SHFILEINFOW info = {0};
+	if (SHGetFileInfoW(path.c_str(), 0, &info, sizeof(info),
+	                   SHGFI_ICON | SHGFI_LARGEICON) == 0 ||
+	    info.hIcon == nullptr) {
+		return std::string();
+	}
+	std::string result;
+	IWICImagingFactory* factory = nullptr;
+	IWICBitmap* bitmap = nullptr;
+	IWICStream* stream = nullptr;
+	IWICBitmapEncoder* encoder = nullptr;
+	IWICBitmapFrameEncode* frame = nullptr;
+	IStream* memory = nullptr;
+	do {
+		if (CoCreateInstance(CLSID_WICImagingFactory, nullptr,
+		                     CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)) !=
+		    S_OK) {
+			break;
+		}
+		if (factory->CreateBitmapFromHICON(info.hIcon, &bitmap) != S_OK) {
+			break;
+		}
+		if (CreateStreamOnHGlobal(nullptr, TRUE, &memory) != S_OK) {
+			break;
+		}
+		if (factory->CreateStream(&stream) != S_OK) {
+			break;
+		}
+		if (stream->InitializeFromIStream(memory) != S_OK) {
+			break;
+		}
+		if (factory->CreateEncoder(GUID_ContainerFormatPng, nullptr, &encoder) !=
+		    S_OK) {
+			break;
+		}
+		if (encoder->Initialize(stream, WICBitmapEncoderNoCache) != S_OK) {
+			break;
+		}
+		IPropertyBag2* properties = nullptr;
+		if (encoder->CreateNewFrame(&frame, &properties) != S_OK) {
+			break;
+		}
+		if (properties != nullptr) {
+			properties->Release();
+			properties = nullptr;
+		}
+		if (frame->Initialize(nullptr) != S_OK ||
+		    frame->WriteSource(bitmap, nullptr) != S_OK ||
+		    frame->Commit() != S_OK || encoder->Commit() != S_OK) {
+			break;
+		}
+		STATSTG stat = {0};
+		if (memory->Stat(&stat, STATFLAG_NONAME) != S_OK ||
+		    stat.cbSize.QuadPart <= 0 ||
+		    stat.cbSize.QuadPart > 1024 * 1024) {
+			break;
+		}
+		LARGE_INTEGER start = {0};
+		if (memory->Seek(start, STREAM_SEEK_SET, nullptr) != S_OK) {
+			break;
+		}
+		std::vector<uint8_t> bytes(static_cast<size_t>(stat.cbSize.QuadPart));
+		ULONG read = 0;
+		if (memory->Read(bytes.data(), static_cast<ULONG>(bytes.size()),
+		                 &read) != S_OK ||
+		    read != bytes.size()) {
+			break;
+		}
+		result = Base64Encode(bytes);
+	} while (false);
+	if (frame != nullptr) {
+		frame->Release();
+	}
+	if (encoder != nullptr) {
+		encoder->Release();
+	}
+	if (stream != nullptr) {
+		stream->Release();
+	}
+	if (memory != nullptr) {
+		memory->Release();
+	}
+	if (bitmap != nullptr) {
+		bitmap->Release();
+	}
+	if (factory != nullptr) {
+		factory->Release();
+	}
+	DestroyIcon(info.hIcon);
+	return result;
+}
+
+// Ensures COM is ready on the calling thread and reverses only its own
+// initialization. Flutter's platform thread may already be apartment-threaded;
+// an RPC_E_CHANGED_MODE answer means someone else owns that decision and this
+// function must not undo it.
+struct ComScope {
+	HRESULT result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+	~ComScope() {
+		if (SUCCEEDED(result)) {
+			CoUninitialize();
+		}
+	}
+};
+
+std::wstring PickExecutableFile() {
+	ComScope com;
+	IFileOpenDialog* dialog = nullptr;
+	if (CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+	                     IID_PPV_ARGS(&dialog)) != S_OK ||
+	    dialog == nullptr) {
+		return std::wstring();
+	}
+	std::wstring chosen;
+	do {
+		COMDLG_FILTERSPEC filters[] = {
+		    {L"Applications", L"*.exe"},
+		    {L"All files", L"*.*"},
+		};
+		dialog->SetFileTypes(2, filters);
+		dialog->SetTitle(L"Choose an application");
+		FILEOPENDIALOGOPTIONS options = 0;
+		if (FAILED(dialog->GetOptions(&options))) {
+			break;
+		}
+		options |= FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST;
+		if (FAILED(dialog->SetOptions(options))) {
+			break;
+		}
+		if (FAILED(dialog->Show(GetActiveWindow()))) {
+			break;
+		}
+		IShellItem* item = nullptr;
+		if (FAILED(dialog->GetResult(&item)) || item == nullptr) {
+			break;
+		}
+		PWSTR path = nullptr;
+		if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) &&
+		    path != nullptr) {
+			chosen.assign(path);
+			CoTaskMemFree(path);
+		}
+		item->Release();
+	} while (false);
+	dialog->Release();
+	return chosen;
 }
 
 // Launches the helper and waits for it to say the engine is running.
@@ -448,10 +979,55 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				queue_.pop_front();
 			}
 			switch (job.kind) {
+				case TunnelJob::Kind::listApps: {
+					EncodableList list;
+					for (const DiscoveredApp& app : DiscoverInstalledApps()) {
+						EncodableMap entry;
+						entry[EncodableValue("name")] =
+						    EncodableValue(phantrix::ovpn::WideToUtf8(app.name));
+						entry[EncodableValue("path")] =
+						    EncodableValue(phantrix::ovpn::WideToUtf8(app.path));
+						list.push_back(EncodableValue(entry));
+					}
+					auto* pending = new PendingEvent();
+					pending->state = "value";
+					pending->hasPayload = true;
+					pending->payload = EncodableValue(list);
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
+				case TunnelJob::Kind::appIcon: {
+					auto* pending = new PendingEvent();
+					pending->state = "value";
+					pending->hasPayload = true;
+					const std::string icon =
+					    IconPngBase64(phantrix::ovpn::Utf8ToWide(job.text));
+					pending->payload =
+					    icon.empty() ? EncodableValue() : EncodableValue(icon);
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
+				case TunnelJob::Kind::splitPolicy: {
+					std::string code;
+					std::string message;
+					(void)ApplySplitPolicy(job.splitEnabled, job.splitMode,
+					                       job.splitApps, &code, &message);
+					auto* pending = new PendingEvent();
+					pending->state = "start-finished";
+					pending->errorCode = code;
+					pending->message = message;
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
 				case TunnelJob::Kind::start: {
 					std::string code;
 					std::string message;
-					const bool started = StartOpenVpn(job.profile, &code, &message);
+					const bool started = StartOpenVpn(
+					    job.profile, job.splitEnabled, job.splitMode, job.splitApps,
+					    &code, &message);
 					if (!started) {
 						// The same failure the helper would have reported,
 						// through the same path, so Dart sees one shape.
@@ -525,8 +1101,19 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 	// Returns false with a code and a user-facing sentence. The profile is not
 	// parsed here: it is written to a private file and its path, never its
 	// contents, travels to the engine.
-	bool StartOpenVpn(const std::string& profile, std::string* errorCode,
-	                  std::string* errorMessage);
+	bool StartOpenVpn(const std::string& profile, bool splitEnabled,
+	                  const std::string& splitMode,
+	                  const std::vector<std::string>& splitApps,
+	                  std::string* errorCode, std::string* errorMessage);
+
+	// Sends one policy to the running helper and waits for its acknowledgement.
+	//
+	// The acknowledgement is the point: a write that succeeded only means the
+	// bytes entered the pipe, not that the driver installed a filter. The method
+	// result is completed from the platform thread when the helper answers.
+	bool ApplySplitPolicy(bool enabled, const std::string& mode,
+	                      const std::vector<std::string>& apps,
+	                      std::string* errorCode, std::string* errorMessage);
 
 	// Handles one message from the helper. Runs on the reader thread and fills
 	// in the event that is posted to the platform thread.
@@ -552,6 +1139,49 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 	            std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
 		const auto& method = call.method_name();
 
+		if (method == "listInstalledApps") {
+			// Enumerating the shell is the one part of this feature that can be
+			// slow on a machine with many applications, so it runs on a worker
+			// and answers through the same window every other cross-thread reply
+			// uses. A list is not worth a frozen window.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::listApps;
+			job.result = result.release();
+			EnqueueJob(std::move(job));
+			return;
+		}
+
+		if (method == "appIcon") {
+			const auto* path = std::get_if<std::string>(call.arguments());
+			if (path == nullptr || path->empty()) {
+				result->Success(EncodableValue());
+				return;
+			}
+			// Icon extraction costs a COM round trip and a PNG encode. It runs
+			// on the worker for the same reason discovery does; the UI asks
+			// only for rows it is about to draw.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::appIcon;
+			job.text = *path;
+			job.result = result.release();
+			EnqueueJob(std::move(job));
+			return;
+		}
+
+		if (method == "pickExecutable") {
+			// The dialog needs an owner window and a message pump, so it stays
+			// on the platform thread. It blocks that thread only while the user
+			// is actually choosing, which is the one time a frozen window is
+			// the dialog itself.
+			const std::wstring chosen = PickExecutableFile();
+			if (chosen.empty()) {
+				result->Success(EncodableValue());
+				return;
+			}
+			result->Success(EncodableValue(phantrix::ovpn::WideToUtf8(chosen)));
+			return;
+		}
+
 		if (method == "capabilities") {
 			// Honest about what this backend can actually do. No kill switch and
 			// no per-app routing: Windows has no equivalent of Android's per-app
@@ -567,6 +1197,11 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			const std::wstring directory = pluginDirectory();
 			const bool openVpnPresent =
 			    phantrix::ovpn::OpenVpnBundlePresent(directory);
+			const bool splitDriverPresent =
+			    !directory.empty() &&
+			    GetFileAttributesW(
+			        (directory + L"\\phantrix_split_tunnel.sys").c_str()) !=
+			        INVALID_FILE_ATTRIBUTES;
 			const std::string engineName =
 			    openVpnPresent ? "openvpn-community" : "none";
 			std::string limitations;
@@ -576,8 +1211,15 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				    "through a small helper that asks for administrator rights; "
 				    "the profile is written to a private file and the engine "
 				    "reads that file, so IPv6 policy is whatever the server's "
-				    "configuration carried. There is no kill switch and no "
-				    "per-app routing.";
+				    "configuration carried. Split tunnelling uses a signed WFP "
+				    "callout driver and applies only while a tunnel is up. "
+				    "Windows' DNS client multiplexes every process through one "
+				    "service, so per-application DNS cannot be separated; DNS "
+				    "stays on the tunnel while split tunnelling is active.";
+				if (!splitDriverPresent) {
+					limitations +=
+					    " The split-tunnel driver is not bundled in this build.";
+				}
 			} else {
 				limitations =
 				    "The OpenVPN engine is not bundled in this build, so no "
@@ -589,7 +1231,8 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			map[EncodableValue("killSwitch")] = EncodableValue(false);
 			map[EncodableValue("ipv6Block")] = EncodableValue(false);
 			map[EncodableValue("vpnDns")] = EncodableValue(true);
-			map[EncodableValue("perApp")] = EncodableValue(false);
+			map[EncodableValue("perApp")] =
+			    EncodableValue(openVpnPresent && splitDriverPresent);
 			map[EncodableValue("lanBypass")] = EncodableValue(false);
 			map[EncodableValue("alwaysOn")] = EncodableValue(false);
 			map[EncodableValue("tray")] = EncodableValue(false);
@@ -683,6 +1326,44 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			return;
 		}
 
+		if (method == "applySplitTunnel") {
+			// A live policy change is a pipe message, not a new tunnel. It is
+			// refused when nothing is running: there is no interface to route
+			// into, and answering success for rules that are not in force is
+			// the one lie this feature cannot afford.
+			const auto* root = std::get_if<EncodableMap>(call.arguments());
+			if (root == nullptr || !openVpn_.started) {
+				result->Error(
+				    "split.not_connected",
+				    "Split tunnelling can only be changed while a tunnel is "
+				    "connected.");
+				return;
+			}
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::splitPolicy;
+			job.splitEnabled = false;
+			if (const auto it = root->find(EncodableValue("enabled"));
+			    it != root->end()) {
+				if (const auto* value = std::get_if<bool>(&it->second)) {
+					job.splitEnabled = *value;
+				}
+			}
+			job.splitMode = getString(*root, "mode");
+			if (const auto it = root->find(EncodableValue("apps"));
+			    it != root->end()) {
+				if (const auto* list = std::get_if<EncodableList>(&it->second)) {
+					for (const EncodableValue& item : *list) {
+						if (const auto* app = std::get_if<std::string>(&item)) {
+							job.splitApps.push_back(*app);
+						}
+					}
+				}
+			}
+			job.result = result.release();
+			EnqueueJob(std::move(job));
+			return;
+		}
+
 		if (method == "startTunnel") {
 			// The request carries a complete serialized profile. Nothing else
 			// can start a tunnel on this backend.
@@ -703,6 +1384,23 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			TunnelJob job;
 			job.kind = TunnelJob::Kind::start;
 			job.profile = ovpnConfig;
+			// The routing mode is carried by which list is present, which is
+			// the shape the bridge has always described: a request names either
+			// the apps that use the tunnel or the apps that bypass it, never
+			// both. No list means split tunnelling stays off for this attempt.
+			const std::vector<std::string> allowed =
+			    getStrings(*root, "allowedApps");
+			const std::vector<std::string> disallowed =
+			    getStrings(*root, "disallowedApps");
+			if (!allowed.empty() && disallowed.empty()) {
+				job.splitEnabled = true;
+				job.splitMode = "include";
+				job.splitApps = allowed;
+			} else if (!disallowed.empty() && allowed.empty()) {
+				job.splitEnabled = true;
+				job.splitMode = "exclude";
+				job.splitApps = disallowed;
+			}
 			job.result = result.release();
 			EnqueueJob(std::move(job));
 			return;
@@ -781,6 +1479,10 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 	OpenVpnSession openVpn_;
 	bool openVpnReportedFailure_ = false;
 
+	// The policy acknowledgement currently awaited, if any.
+	std::mutex splitWaitMutex_;
+	std::shared_ptr<SplitWait> splitWait_;
+
 	// The message-only window every cross-thread report lands on. Created once
 	// on the platform thread and never destroyed until the plugin is.
 	HWND messageWindow_ = nullptr;
@@ -814,6 +1516,26 @@ LRESULT CALLBACK PhantrixWindowsPlugin::MessageWindowProc(HWND window,
 	if (plugin == nullptr) {
 		// The window outlived the plugin, which can only happen during teardown.
 		// The event is dropped rather than answered from a stale pointer.
+		delete pending;
+		return 0;
+	}
+	if (pending->state == "split-result") {
+		// The wait was answered on the reader thread; this thread only retires
+		// the event. A refusal is already carried into the method result by the
+		// worker that waited for it.
+		delete pending;
+		return 0;
+	}
+	if (pending->state == "value") {
+		// A query answered on the worker: discovery, an icon, a policy change.
+		if (pending->result != nullptr) {
+			if (pending->hasPayload) {
+				pending->result->Success(pending->payload);
+			} else {
+				pending->result->Success();
+			}
+			delete pending->result;
+		}
 		delete pending;
 		return 0;
 	}
@@ -1076,6 +1798,31 @@ void PhantrixWindowsPlugin::OnHelperMessage(
 			pending->state = "disconnected";
 			return;
 		}
+		case phantrix::ovpn::MessageType::kSplitApplied: {
+			// The helper answers the policy request it was sent. The update is
+			// delivered to whichever worker is waiting, then the platform thread
+			// is told so the event can be retired.
+			const bool ok = field(0) == "1";
+			const std::string code = field(1);
+			const std::string splitMessage = field(2);
+			std::shared_ptr<SplitWait> wait;
+			{
+				std::lock_guard<std::mutex> lock(splitWaitMutex_);
+				wait = splitWait_;
+			}
+			if (wait != nullptr) {
+				std::lock_guard<std::mutex> lock(wait->mutex);
+				wait->done = true;
+				wait->ok = ok;
+				wait->code = code;
+				wait->message = splitMessage;
+				wait->ready.notify_all();
+			}
+			pending->state = "split-result";
+			pending->errorCode = ok ? std::string() : code;
+			pending->message = splitMessage;
+			return;
+		}
 		default:
 			// A message this plugin has no response to. The helper only sends the
 			// types above, so reaching here means the two sides disagree.
@@ -1119,7 +1866,78 @@ void PhantrixWindowsPlugin::PublishHandshaked(int64_t handshakeAtMillis) {
 	events_->Success(EncodableValue(map));
 }
 
+bool PhantrixWindowsPlugin::ApplySplitPolicy(
+    bool enabled, const std::string& mode,
+    const std::vector<std::string>& apps, std::string* errorCode,
+    std::string* errorMessage) {
+	if (openVpn_.pipe == nullptr || openVpn_.pipe == INVALID_HANDLE_VALUE ||
+	    !openVpn_.started) {
+		*errorCode = "split.not_connected";
+		*errorMessage =
+		    "Split tunnelling can only be changed while a tunnel is connected.";
+		return false;
+	}
+	if (enabled && mode != "include" && mode != "exclude") {
+		*errorCode = "split.policy_rejected";
+		*errorMessage = "The split-tunnel request named no routing mode.";
+		return false;
+	}
+	auto wait = std::make_shared<SplitWait>();
+	{
+		std::lock_guard<std::mutex> lock(splitWaitMutex_);
+		splitWait_ = wait;
+	}
+	std::vector<std::string> fields = {enabled ? "1" : "0", mode};
+	fields.insert(fields.end(), apps.begin(), apps.end());
+	if (!phantrix::ovpn::WriteMessage(
+	        openVpn_.pipe,
+	        phantrix::ovpn::MakeMessage(
+	            phantrix::ovpn::MessageType::kSplitPolicy, fields))) {
+		{
+			std::lock_guard<std::mutex> lock(splitWaitMutex_);
+			if (splitWait_ == wait) {
+				splitWait_.reset();
+			}
+		}
+		*errorCode = "ovpn.helper_lost";
+		*errorMessage = "The tunnel helper stopped before the policy arrived.";
+		return false;
+	}
+	bool ok = false;
+	{
+		std::unique_lock<std::mutex> lock(wait->mutex);
+		const bool answered =
+		    wait->ready.wait_for(lock, std::chrono::seconds(30),
+		                         [&wait] { return wait->done; });
+		if (answered) {
+			ok = wait->ok;
+			if (!ok) {
+				*errorCode = wait->code.empty() ? "split.policy_rejected"
+				                                : wait->code;
+				*errorMessage = wait->message.empty()
+				                    ? "The platform refused the split-tunnel policy."
+				                    : wait->message;
+			}
+		}
+	}
+	{
+		std::lock_guard<std::mutex> lock(splitWaitMutex_);
+		if (splitWait_ == wait) {
+			splitWait_.reset();
+		}
+	}
+	if (!ok && errorCode->empty()) {
+		*errorCode = "split.policy_timeout";
+		*errorMessage =
+		    "The split-tunnel driver did not confirm the policy in time.";
+	}
+	return ok;
+}
+
 bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
+                                         bool splitEnabled,
+                                         const std::string& splitMode,
+                                         const std::vector<std::string>& splitApps,
                                          std::string* errorCode,
                                          std::string* errorMessage) {
 	// A second request must not create a second tunnel. The first is still
@@ -1327,11 +2145,17 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 		return false;
 	}
 
-	const std::vector<std::string> startFields = {
+	std::vector<std::string> startFields = {
 	    phantrix::ovpn::WideToUtf8(openVpn_.profile),
 	    phantrix::ovpn::WideToUtf8(openVpn_.status),
 	    phantrix::ovpn::WideToUtf8(openVpn_.log),
+	    splitEnabled ? "1" : "0",
+	    splitEnabled ? splitMode : std::string(),
 	};
+	if (splitEnabled) {
+		startFields.insert(startFields.end(), splitApps.begin(),
+		                   splitApps.end());
+	}
 	if (!phantrix::ovpn::WriteMessage(
 	        openVpn_.pipe,
 	        phantrix::ovpn::MakeMessage(phantrix::ovpn::MessageType::kStart,

@@ -52,6 +52,7 @@ export 'src/scoring/selection_mode.dart';
 export 'src/scoring/server_scorer.dart';
 export 'src/scoring/server_selector.dart';
 export 'src/settings/app_settings.dart';
+export 'src/settings/split_tunnel.dart';
 export 'src/vpn/connection_session.dart';
 export 'src/vpn/vpn_engine.dart';
 export 'src/vpn/vpn_state_machine.dart';

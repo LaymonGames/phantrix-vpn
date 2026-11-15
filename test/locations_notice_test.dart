@@ -41,6 +41,8 @@ void main() {
   Future<void> pumpLocations(
     WidgetTester tester, {
     required bool openVpnSupported,
+    Future<void> Function()? onRefresh,
+    bool isRefreshing = false,
   }) async {
     tester.view.physicalSize = const Size(400, 850);
     tester.view.devicePixelRatio = 1;
@@ -52,11 +54,18 @@ void main() {
             onCountrySelected: (_) {},
             snapshot: feed(),
             openVpnSupported: openVpnSupported,
+            onRefresh: onRefresh,
+            isRefreshing: isRefreshing,
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (isRefreshing) {
+      // A spinner never settles, so the harness must not wait for one.
+      await tester.pump();
+    } else {
+      await tester.pumpAndSettle();
+    }
   }
 
   testWidgets('a build that can start OpenVPN is not told it cannot', (
@@ -76,6 +85,50 @@ void main() {
 
     expect(find.textContaining(noticeFragment), findsOneWidget);
     expect(find.textContaining('Japan'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the refresh button above the list refetches the servers', (
+    tester,
+  ) async {
+    var refreshes = 0;
+    await pumpLocations(
+      tester,
+      openVpnSupported: true,
+      onRefresh: () async => refreshes++,
+    );
+
+    final refresh = find.byTooltip('Refresh');
+    expect(refresh, findsOneWidget);
+    await tester.tap(refresh);
+    await tester.pump();
+
+    expect(refreshes, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the refresh button reports and blocks a refresh in flight', (
+    tester,
+  ) async {
+    await pumpLocations(
+      tester,
+      openVpnSupported: true,
+      onRefresh: () async {},
+      isRefreshing: true,
+    );
+
+    // One spinner in the button, one in the directory banner.
+    expect(find.byType(CircularProgressIndicator), findsNWidgets(2));
+    final button = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.descendant(
+          of: find.byType(IconButton),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(button.onPressed, isNull);
     expect(tester.takeException(), isNull);
   });
 }

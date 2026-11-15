@@ -33,17 +33,21 @@
 // process handle for its entire life and exits with it, stopping the engine on
 // the way out.
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 
 #include <iphlpapi.h>
 #include <objbase.h>
 
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "phantrix_ovpn_engine.h"
 #include "phantrix_ovpn_support.h"
+#include "phantrix_split_tunnel.h"
 
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "iphlpapi.lib")
@@ -270,6 +274,9 @@ typedef void(WINAPI* WintunGetAdapterLuidFn)(void*, NET_LUID*);
 HMODULE g_wintun = nullptr;
 void* g_adapter = nullptr;
 WintunCloseAdapterFn g_closeAdapter = nullptr;
+// The adapter this session created. Kept because split tunneling addresses it
+// by identity: an index or a name can be reused by Windows, a LUID cannot.
+NET_LUID g_adapterLuid = {};
 // The class subkey this session wrote `ComponentId` into, so it can be put back
 // exactly as it was found. Empty when nothing was changed.
 std::wstring g_componentIdKey;
@@ -282,6 +289,7 @@ void ReleaseAdapter() {
 		g_closeAdapter(g_adapter);
 	}
 	g_adapter = nullptr;
+	g_adapterLuid = NET_LUID{};
 	if (g_wintun != nullptr) {
 		FreeLibrary(g_wintun);
 		g_wintun = nullptr;
@@ -490,6 +498,7 @@ bool EnsureAdapter(const std::wstring& moduleDirectory, std::string* reason,
 	// needs to know to check the machine's Wintun state instead of the relay.
 	NET_LUID adapterLuid = {0};
 	luid(g_adapter, &adapterLuid);
+	g_adapterLuid = adapterLuid;
 	GUID instanceGuid = {0};
 	// `ConvertInterfaceLuidToGuid` reads the interface table, which the driver
 	// populates asynchronously relative to when `WintunCreateAdapter` returned.
@@ -576,13 +585,26 @@ void EnsureHiddenConsole() {
 void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirectory,
                  const std::wstring& sessionDirectory, const std::wstring& profile,
                  const std::wstring& status, const std::wstring& log,
-                 phantrix::ovpn::LockedSessionFiles& files) {
+                 phantrix::ovpn::LockedSessionFiles& files,
+                 phantrix::split::Controller& split,
+                 const phantrix::split::Policy& splitPolicy) {
 	ProfileRejection rejection = {nullptr, nullptr};
 	if (!files.Open(sessionDirectory, profile, status, log, &rejection)) {
 		Reject(pipe, rejection.code,
 		       std::string("The server's configuration asks for something "
 		                   "Phantrix will not do: it ") +
 		           rejection.reason + std::string("."));
+		return;
+	}
+
+	// The split-tunnel policy is prepared before the engine starts. A machine
+	// that cannot honour it refuses the connection here rather than bringing a
+	// tunnel up and discovering at handshake time that its rules cannot be
+	// installed.
+	std::string splitCode;
+	std::string splitMessage;
+	if (!split.Prepare(moduleDirectory, splitPolicy, &splitCode, &splitMessage)) {
+		Reject(pipe, splitCode.c_str(), splitMessage);
 		return;
 	}
 
@@ -732,12 +754,50 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	}
 
 	std::atomic<bool> stoppingEngine{false};
+	std::atomic<bool> splitHandshaked{false};
+	std::mutex splitMutex;
+	// Serialises the controller itself: the engine's monitor thread applies the
+	// policy at handshake, while this thread may apply a live change or clear
+	// the rules on stop.
+	std::mutex splitOperationMutex;
+	phantrix::split::Controller split;
+	phantrix::split::Policy splitPolicy;
+	HANDLE splitFailed = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 	Engine engine(
-	    [&pipe](const std::string& state, int64_t handshakeAtMillis) {
+	    [&pipe, &split, &splitPolicy, &splitMutex, &splitOperationMutex,
+	     &splitHandshaked, &stoppingEngine,
+	     splitFailed](const std::string& state,
+	                                   int64_t handshakeAtMillis) {
 		    WriteToPipe(
 		        pipe,
 		        MakeMessage(MessageType::kState,
 		                    {state, std::to_string(handshakeAtMillis)}));
+		    if (state != "handshaked" || stoppingEngine.load()) {
+			    return;
+		    }
+		    splitHandshaked = true;
+		    phantrix::split::Policy current;
+		    {
+			    std::lock_guard<std::mutex> lock(splitMutex);
+			    current = splitPolicy;
+		    }
+		    if (!current.enabled) {
+			    return;
+		    }
+		    std::string code;
+		    std::string message;
+		    // The engine reports the handshake once the adapter has an
+		    // address. Applying here is what makes include mode possible:
+		    // the redirect target is an address, not a name.
+		    std::lock_guard<std::mutex> operation(splitOperationMutex);
+		    if (!split.Apply(g_adapterLuid, &code, &message)) {
+			    WriteToPipe(pipe, MakeMessage(MessageType::kFailed,
+			                                  {code, message}));
+			    stoppingEngine = true;
+			    if (splitFailed != nullptr) {
+				    SetEvent(splitFailed);
+			    }
+		    }
 	    },
 	    [&pipe](int64_t rxBytes, int64_t txBytes) {
 		    WriteToPipe(
@@ -766,14 +826,20 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	phantrix::ovpn::LockedSessionFiles files;
 	reader.Start(pipe);
 
-	HANDLE waits[2] = {reader.messageReady, parentProcess};
+	HANDLE waits[3] = {reader.messageReady, parentProcess, splitFailed};
+	DWORD count = 1;
+	if (parentProcess != nullptr) {
+		waits[count++] = parentProcess;
+	}
+	waits[count++] = splitFailed;
+	const DWORD parentIndex = parentProcess != nullptr ? 1 : 0;
+	const DWORD splitFailureIndex = parentIndex == 1 ? 2 : 1;
 	while (!shuttingDown) {
-		const DWORD count = parentProcess == nullptr ? 1 : 2;
 		const DWORD wait = WaitForMultipleObjects(count, waits, FALSE, INFINITE);
 		if (wait == WAIT_FAILED) {
 			break;
 		}
-		if (parentProcess != nullptr && wait == WAIT_OBJECT_0 + 1) {
+		if (wait == WAIT_OBJECT_0 + parentIndex && parentProcess != nullptr) {
 			// The application is gone. Stop the engine and leave: an elevated
 			// tunnel with nothing left to report to is exactly what must not
 			// survive the app.
@@ -781,6 +847,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 			if (engine.running()) {
 				(void)engine.Stop();
 			}
+			break;
+		}
+		if (wait == WAIT_OBJECT_0 + splitFailureIndex) {
+			// A policy that could not be applied is a failed connection, not a
+			// tunnel that quietly runs without the routing the user asked for.
+			// The failure was reported before this event was set.
+			stoppingEngine = true;
+			if (engine.running()) {
+				(void)engine.Stop();
+			}
+			shuttingDown = true;
 			break;
 		}
 		if (reader.IsClosed()) {
@@ -816,6 +893,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					break;
 				}
 				if (message.type == MessageType::kStop) {
+					// Rules go first: the engine's tunnel is about to cease to
+					// exist, and a redirect pointing at an adapter that is gone
+					// is a broken connection for every selected application.
+					std::lock_guard<std::mutex> operation(splitOperationMutex);
+					split.Shutdown();
 					if (engine.running()) {
 						stoppingEngine = true;
 						(void)engine.Stop();
@@ -835,10 +917,72 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 						       "The tunnel request was incomplete.");
 						continue;
 					}
+					phantrix::split::Policy requested;
+					if (message.fields.size() >= 5) {
+						requested.enabled = message.fields[3] == "1";
+						requested.include_mode = message.fields[4] == "include";
+						for (size_t index = 5; index < message.fields.size();
+						     ++index) {
+							if (!message.fields[index].empty()) {
+								requested.apps.push_back(
+								    Utf8ToWide(message.fields[index]));
+							}
+						}
+					}
+					{
+						std::lock_guard<std::mutex> lock(splitMutex);
+						splitPolicy = requested;
+					}
 					StartEngine(pipe, engine, moduleDirectory, sessionDirectory,
 					            Utf8ToWide(message.fields[0]),
 					            Utf8ToWide(message.fields[1]),
-					            Utf8ToWide(message.fields[2]), files);
+					            Utf8ToWide(message.fields[2]), files, split,
+					            requested);
+					continue;
+				}
+				if (message.type == MessageType::kSplitPolicy) {
+					if (message.fields.size() < 2) {
+						WriteToPipe(pipe,
+						            MakeMessage(MessageType::kSplitApplied,
+						                        {"0", "split.policy_rejected",
+						                         "The policy message was "
+						                         "incomplete."}));
+						continue;
+					}
+					phantrix::split::Policy requested;
+					requested.enabled = message.fields[0] == "1";
+					requested.include_mode = message.fields[1] == "include";
+					for (size_t index = 2; index < message.fields.size();
+					     ++index) {
+						if (!message.fields[index].empty()) {
+							requested.apps.push_back(
+							    Utf8ToWide(message.fields[index]));
+						}
+					}
+					{
+						std::lock_guard<std::mutex> lock(splitMutex);
+						splitPolicy = requested;
+					}
+					std::string code;
+					std::string reason;
+					bool ok = true;
+					{
+						std::lock_guard<std::mutex> operation(
+						    splitOperationMutex);
+						if (!requested.enabled) {
+							split.Clear();
+						} else if (!split.Prepare(moduleDirectory, requested,
+						                          &code, &reason)) {
+							ok = false;
+						} else if (splitHandshaked.load()) {
+							ok = split.Apply(g_adapterLuid, &code, &reason);
+						}
+					}
+					WriteToPipe(
+					    pipe,
+					    MakeMessage(MessageType::kSplitApplied,
+					                {ok ? "1" : "0", ok ? "" : code,
+					                 ok ? "" : reason}));
 					continue;
 				}
 				// Any other type is ignored. This program takes one instruction
@@ -850,6 +994,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	if (engine.running()) {
 		stoppingEngine = true;
 		(void)engine.Stop();
+	}
+	// Filters first, then the adapter they pointed at, then the driver. In that
+	// order no window exists where a rule names an interface that is gone.
+	{
+		std::lock_guard<std::mutex> operation(splitOperationMutex);
+		split.Shutdown();
+	}
+	if (splitFailed != nullptr) {
+		CloseHandle(splitFailed);
+		splitFailed = nullptr;
 	}
 	// Closing the adapter handle also removes the adapter this session made.
 	RestoreAdapterRegistration();

@@ -48,9 +48,22 @@ add_executable(phantrix_ovpn_helper WIN32
   "phantrix_ovpn_helper.cpp"
   "phantrix_ovpn_engine.cpp"
   "phantrix_ovpn_support.cpp"
+  "phantrix_split_tunnel.cpp"
+  "driver/phantrix_split_tunnel/phantrix_split_tunnel_public.h"
 )
 
 apply_standard_settings(phantrix_ovpn_helper)
+
+# The split-tunnel policy agent is user-mode WFP: it creates the filters and
+# provider contexts that the callout driver consumes. These are the documented
+# management APIs, not a driver-side protocol.
+target_link_libraries(phantrix_ovpn_helper PRIVATE
+  fwpuclnt
+  ws2_32
+  iphlpapi
+  rpcrt4
+  advapi32
+)
 
 # WIN32 rather than CONSOLE: this program has nothing to show a user and must not
 # flash a console window when the plugin starts it. The Windows subsystem entry
@@ -148,6 +161,18 @@ set(OPENVPN_BUNDLE_FILES
 # missing bundle is a documented configuration state rather than a build
 # failure. Only the files that are actually present are listed for installation,
 # because `install(FILES)` on a path that does not exist is a configure error.
+# The split-tunnel driver is built by the WDK project, not by CMake: kernel
+# targets need the WDK's own toolset and signing step. A build script places
+# the signed (or test-signed) .sys beside this file, and the bundle below
+# installs it next to the helper that starts it. A missing driver is a
+# documented configuration, not a build failure: the capability reports false
+# and the UI refuses to enable split tunneling.
+set(PHANTRIX_SPLIT_DRIVER
+  "${CMAKE_CURRENT_SOURCE_DIR}/driver/phantrix_split_tunnel/phantrix_split_tunnel.sys")
+if(EXISTS "${PHANTRIX_SPLIT_DRIVER}")
+  list(APPEND OPENVPN_BUNDLE_FILES "${PHANTRIX_SPLIT_DRIVER}")
+endif()
+
 set(phantrix_platform_bundled_libraries "")
 foreach(bundle_file IN LISTS OPENVPN_BUNDLE_FILES)
   if(EXISTS "${bundle_file}")

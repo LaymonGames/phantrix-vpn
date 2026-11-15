@@ -59,6 +59,37 @@ const Map<String, String> _stringsValuesAr = {
   'settingsAppearance': 'المظهر',
   'settingsAdvanced': 'متقدم',
   'settingsAbout': 'حول التطبيق',
+  'settingsSplitTunneling': 'تقسيم النفق',
+  'settingsSplitTunnelingHint': 'اختر التطبيقات التي تستخدم VPN',
+  'splitEnable': 'تفعيل تقسيم النفق',
+  'splitEnableHint': 'تُطبَّق قواعد التوجيه فقط أثناء اتصال النفق.',
+  'splitMode': 'وضع التوجيه',
+  'splitModeInclude': 'التطبيقات المحددة فقط تستخدم VPN',
+  'splitModeExclude': 'التطبيقات المحددة تتجاوز VPN',
+  'splitModeIncludeHint': 'كل ما عداها يستخدم اتصالك العادي.',
+  'splitModeExcludeHint': 'كل ما عداها يستخدم VPN.',
+  'splitSearchHint': 'ابحث عن التطبيقات',
+  'splitBrowse': 'اختيار ملف .exe',
+  'splitSave': 'حفظ وتطبيق',
+  'splitSaved': 'تم حفظ تقسيم النفق.',
+  'splitSavedNext': 'تم الحفظ. تُطبَّق القواعد عند الاتصال التالي.',
+  'splitLiveApplied': 'طُبِّقت القواعد على النفق الحالي.',
+  'splitApplyFailed': 'لم تُطبَّق قواعد التوجيه: {message}',
+  'splitUnsupported':
+      'يحتاج تقسيم النفق إلى برنامج تشغيل Phantrix الموقّع، وهو غير متوفر '
+      'في هذه النسخة.',
+  'splitNeedsApps':
+      'اختر تطبيقًا واحدًا على الأقل، أو أوقف تقسيم النفق.',
+  'splitSelected': 'المحدد: {count}',
+  'splitNoSelection': 'لم تُحدَّد تطبيقات',
+  'splitNoMatches': 'لا توجد تطبيقات مطابقة.',
+  'splitLoading': 'جارٍ البحث عن التطبيقات المثبّتة…',
+  'splitEmpty': 'لم يُعثر على تطبيقات. استخدم «اختيار ملف .exe» لإضافة واحد.',
+  'splitRemove': 'إزالة',
+  'splitMissingHint':
+      'تُتجاهل التطبيقات التي أُزيلت عند تطبيق القواعد.',
+  'splitAppsUseVpn': 'التطبيقات المحددة تستخدم VPN',
+  'splitAppsBypassVpn': 'التطبيقات المحددة تستخدم اتصالك العادي',
   'settingsDiagnostics': 'التشخيص',
   'settingsDiagnosticsHint': 'حالة النفق وحركة البيانات وأدلة المصافحة',
   'settingsPrivacyNotice': 'إشعار الخصوصية',
@@ -241,6 +272,8 @@ const Map<String, String> _stringsValuesAr = {
   'flowHandshakeStale':
       'كانت آخر مصافحة ناجحة قبل {minutes} دقيقة. توقف الخادم عن '
       'الاستجابة، لذا لم يعد هذا نفقًا عاملًا حتى لو بدت الواجهة قائمة.',
+  'flowVerifiedSplitInclude':
+      'النفق يعمل. التطبيقات التي اخترتها فقط تستخدمه، لذلك لا يتغير عنوان هذا التطبيق.',
   'flowVerifyCancelled': 'أُلغي التحقق قبل تأكيد عنوان الخروج.',
   'flowVerifyUnreachable':
       'نجحت المصافحة، لكن تعذّر الوصول إلى أي خدمة عناوين خارجية حتى بعد '

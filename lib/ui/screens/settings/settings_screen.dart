@@ -36,6 +36,7 @@ class SettingsScreen extends StatelessWidget {
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
     required this.onStartOnBootChanged,
+    required this.onOpenSplitTunneling,
     super.key,
   });
 
@@ -73,6 +74,9 @@ class SettingsScreen extends StatelessWidget {
   /// answering whether the machine accepted the choice.
   final Future<bool> Function(bool) onStartOnBootChanged;
 
+  /// Opens the per-application split-tunnel screen.
+  final VoidCallback onOpenSplitTunneling;
+
   /// Resets every local preference, keeping the onboarding flags.
   final VoidCallback onClearLocalData;
 
@@ -99,6 +103,7 @@ class SettingsScreen extends StatelessWidget {
                 onOpenSystemVpnSettings: onOpenSystemVpnSettings,
                 systemLockdownActive: systemLockdownActive,
                 onStartOnBootChanged: onStartOnBootChanged,
+                onOpenSplitTunneling: onOpenSplitTunneling,
               ),
               const SizedBox(height: VgSpace.lg),
               PrivacyPanel(settings: settings),

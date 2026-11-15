@@ -62,6 +62,41 @@ const Map<String, String> _stringsValuesEn = {
   'settingsAppearance': 'Appearance',
   'settingsAdvanced': 'Advanced',
   'settingsAbout': 'About',
+  'settingsSplitTunneling': 'Split tunneling',
+  'settingsSplitTunnelingHint': 'Choose which applications use the VPN',
+  'splitEnable': 'Enable split tunneling',
+  'splitEnableHint':
+      'Routing rules apply only while a VPN tunnel is connected.',
+  'splitMode': 'Routing mode',
+  'splitModeInclude': 'Only selected apps use VPN',
+  'splitModeExclude': 'Selected apps bypass VPN',
+  'splitModeIncludeHint':
+      'Everything else keeps your normal internet connection.',
+  'splitModeExcludeHint': 'Everything else uses the VPN.',
+  'splitSearchHint': 'Search applications',
+  'splitBrowse': 'Choose an .exe',
+  'splitSave': 'Save and apply',
+  'splitSaved': 'Split tunneling saved.',
+  'splitSavedNext': 'Saved. The rules apply on the next connection.',
+  'splitLiveApplied': 'Rules applied to the running tunnel.',
+  'splitApplyFailed': 'The routing rules were not applied: {message}',
+  'splitUnsupported':
+      'Split tunneling needs the signed Phantrix driver, which is not '
+      'available in this build.',
+  'splitNeedsApps':
+      'Select at least one application, or turn split tunneling off.',
+  'splitSelected': '{count} selected',
+  'splitNoSelection': 'No applications selected',
+  'splitNoMatches': 'No matching applications.',
+  'splitLoading': 'Finding installed applications…',
+  'splitEmpty':
+      'No applications were found. Use "Choose an .exe" to add one.',
+  'splitRemove': 'Remove',
+  'splitMissingHint':
+      'Applications that have been uninstalled are skipped when the rules '
+      'are applied.',
+  'splitAppsUseVpn': 'Selected applications use the VPN',
+  'splitAppsBypassVpn': 'Selected applications use your normal connection',
   'settingsDiagnostics': 'Diagnostics',
   'settingsDiagnosticsHint': 'Tunnel state, traffic and handshake evidence',
   'settingsPrivacyNotice': 'Privacy notice',
@@ -269,6 +304,8 @@ const Map<String, String> _stringsValuesEn = {
       'The last successful handshake was {minutes} minutes ago. The '
       'server has stopped responding, so this is no longer a working '
       'tunnel even though the interface is still showing as up.',
+  'flowVerifiedSplitInclude':
+      'Tunnel is up. Only the applications you chose use it, so this app\'s own address is unchanged.',
   'flowVerifyCancelled':
       'Verification was cancelled before the exit address could be '
       'confirmed.',

@@ -59,6 +59,20 @@ List<Destination> _destinations(
       builder: (context) => LicensesScreen(reducedMotion: reducedMotion),
     ),
     Destination(
+      id: 'split-tunneling',
+      label: l10n.get('settingsSplitTunneling'),
+      icon: Icons.call_split_outlined,
+      selectedIcon: Icons.call_split_rounded,
+      // Secondary: opened from the Connection panel, which is where a user
+      // looks for a routing preference, and kept out of the tabs because the
+      // screen is a picker rather than a destination to live in.
+      parentId: 'settings',
+      builder: (context) => SplitTunnelingScreen(
+        settings: scope.settingsController,
+        connection: scope.connection,
+      ),
+    ),
+    Destination(
       id: 'settings',
       label: l10n.get('settings'),
       icon: Icons.settings_outlined,
@@ -72,6 +86,7 @@ List<Destination> _destinations(
             unawaited(scope.connection.openSystemVpnSettings()),
         systemLockdownActive: scope.connection.systemLockdownActive,
         onStartOnBootChanged: scope.connection.setStartOnBoot,
+        onOpenSplitTunneling: () => navigation.go('split-tunneling'),
         onClearLocalData: scope.settingsController.clearLocalData,
       ),
     ),

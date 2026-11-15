@@ -71,6 +71,7 @@ class SettingsController extends ChangeNotifier {
         selectedCountryCode: 'AUTO',
         favoriteServers: const [],
         recentServers: const [],
+        splitTunnel: const SplitTunnelSettings(),
         clearedHistoryAt: DateTime.now(),
       ),
     );

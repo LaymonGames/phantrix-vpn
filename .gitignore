@@ -11,6 +11,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+.opencode/
 
 # IntelliJ related
 *.iml
@@ -61,3 +62,8 @@ app.*.map.json
 android/key.properties
 *.jks
 *.keystore
+
+# Split-tunnel driver build output
+packages/phantrix_platform/windows/driver/**/*.sys
+packages/phantrix_platform/windows/driver/**/bin/
+packages/phantrix_platform/windows/driver/**/obj/

@@ -269,6 +269,7 @@ class LeakCheck {
     DateTime? now,
     ProtocolKind protocol = ProtocolKind.openVpn,
     L10n l10n = L10n.en,
+    bool exitAddressObservable = true,
   }) async {
     final at = now ?? DateTime.now();
     final observed = handshakeAt != null;
@@ -299,6 +300,20 @@ class LeakCheck {
         message: l10n.get('flowHandshakeStale', {
           'minutes': '${age.inMinutes}',
         }),
+      );
+    }
+
+    // Include-mode split tunneling sends only the chosen applications
+    // through the tunnel. This app is not one of them, so its own address
+    // read leaves by the normal route and can never differ from the
+    // baseline. The fresh handshake is the evidence available; a changed
+    // address would be a wrong thing to demand.
+    if (!exitAddressObservable) {
+      return VerificationOutcome(
+        verified: true,
+        handshakeObserved: true,
+        handshakeFresh: true,
+        message: l10n.get('flowVerifiedSplitInclude'),
       );
     }
 

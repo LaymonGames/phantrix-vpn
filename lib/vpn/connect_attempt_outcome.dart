@@ -60,9 +60,41 @@ class ConnectAttemptOutcome {
   /// the walk on the first refuser would strand the user exactly where a
   /// healthy relay sat one rank below. Measured live: one US relay challenged
   /// while its neighbour completed the handshake untouched.
-  bool get walkable =>
-      code == 'tunnel.timeout' ||
-      code == 'tunnel.died' ||
-      code == 'ovpn.auth_failed' ||
-      (code != null && code!.startsWith('leak.'));
+  ///
+  /// The same reasoning covers the engine's own relay-facing failures:
+  /// `ovpn.tls_failed` (the peer refused or dropped the TLS handshake),
+  /// `ovpn.engine_exited` (the engine ended under a relay that stopped
+  /// answering), and the generic `tunnel.failed` / `tunnel.start_failed` /
+  /// `tunnel.launch_timeout` (an engine that never came up for this relay).
+  /// Volunteer relays outside the busiest countries are few and frequently
+  /// broken, so treating one such failure as a verdict on the whole country
+  /// left every other relay in it unvisited.
+  ///
+  /// Split-tunnel failures split the same way. A driver or policy-engine
+  /// failure (`split.driver_missing`, `split.filter_failed`, …) belongs to the
+  /// machine and recurs on every relay, so it stays terminal. A policy that
+  /// could not be applied to *this* tunnel (`split.policy_rejected`,
+  /// `split.route_failed`) may be a property of this adapter and is walked
+  /// past: the next relay brings up its own adapter and its own address.
+  ///
+  /// Unknown codes stay terminal. Walking a failure whose cause is not known
+  /// spends a full step per relay on something that may never change.
+  bool get walkable => _relayScoped.contains(code) || _isLeak(code);
+
+  static bool _isLeak(String? value) =>
+      value != null && value.startsWith('leak.');
+
+  /// Failures that describe the relay or its interface, not the attempt.
+  static const Set<String> _relayScoped = {
+    'tunnel.timeout',
+    'tunnel.died',
+    'tunnel.failed',
+    'tunnel.start_failed',
+    'tunnel.launch_timeout',
+    'ovpn.auth_failed',
+    'ovpn.tls_failed',
+    'ovpn.engine_exited',
+    'split.policy_rejected',
+    'split.route_failed',
+  };
 }

@@ -190,6 +190,9 @@ enum class MessageType : uint16_t {
   kDisconnected = 8, // helper -> plugin: teardown complete, exiting
   kShutdown = 9,     // plugin -> helper: exit without touching the tunnel
   kHello = 10,       // helper -> plugin: the session token, echoed
+  kSplitPolicy = 11, // plugin -> helper: apply or clear split-tunnel policy
+  kSplitApplied = 12,// helper -> plugin: the policy is in force, or refused
+  kSplitCleared = 13,// helper -> plugin: no split-tunnel rules remain
 };
 
 // One framed message.

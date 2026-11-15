@@ -20,6 +20,7 @@ class ConnectionPanel extends StatelessWidget {
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
     required this.onStartOnBootChanged,
+    required this.onOpenSplitTunneling,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class ConnectionPanel extends StatelessWidget {
   final PlatformCapabilities platform;
   final VoidCallback onOpenSystemVpnSettings;
   final Future<bool> Function() systemLockdownActive;
+
+  /// Opens the per-application routing screen.
+  final VoidCallback onOpenSplitTunneling;
 
   /// Asks the platform to start (or to stop starting) the app at sign-in,
   /// answering whether the machine accepted the choice.
@@ -86,6 +90,22 @@ class ConnectionPanel extends StatelessWidget {
             onChanged: (v) {
               unawaited(_setStartOnBoot(context, v));
             },
+          ),
+          Divider(
+            color: theme.colorScheme.outline,
+            height: 1,
+            indent: VgSpace.lg,
+            endIndent: VgSpace.lg,
+          ),
+          VgListRow(
+            title: l10n.get('settingsSplitTunneling'),
+            subtitle: l10n.get('settingsSplitTunnelingHint'),
+            leading: Icon(
+              Icons.call_split_rounded,
+              size: VgIcon.sm,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            onTap: onOpenSplitTunneling,
           ),
         ],
       ),

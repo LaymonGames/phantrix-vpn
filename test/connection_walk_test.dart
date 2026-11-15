@@ -194,6 +194,37 @@ class WalkBridge extends PhantrixPlatform {
             message: 'Authentication rejected by the server.',
           ),
         );
+      case 'tlsFailed':
+        // The relay answered TCP and then dropped the TLS handshake. This is
+        // a fact about that relay, not about the country it sits in.
+        events2.add(
+          PlatformEvent(
+            state: PlatformTunnelState.failed,
+            traffic: PlatformTraffic.empty,
+            errorCode: 'ovpn.tls_failed',
+            message: 'The relay closed the handshake.',
+          ),
+        );
+      case 'engineExited':
+        events2.add(
+          PlatformEvent(
+            state: PlatformTunnelState.failed,
+            traffic: PlatformTraffic.empty,
+            errorCode: 'ovpn.engine_exited',
+            message: 'The engine exited before the handshake.',
+          ),
+        );
+      case 'driverFailed':
+        // A machine-level failure: the adapter driver would not start. Walking
+        // to the next relay cannot change this and must not hide it.
+        events2.add(
+          PlatformEvent(
+            state: PlatformTunnelState.failed,
+            traffic: PlatformTraffic.empty,
+            errorCode: 'ovpn.driver_failed',
+            message: 'The tunnel adapter driver would not start.',
+          ),
+        );
       case 'configRejected':
         events2.add(
           PlatformEvent(
@@ -285,12 +316,15 @@ Future<void> waitForError(
 }
 
 /// The rule these tests protect: an automatic connect must not bet the whole
-/// attempt on one relay that never answers.
+/// attempt on one relay that does not work.
 ///
 /// The ranking is built from measurements taken elsewhere — the provider's
 /// ping and uptime columns — so the top-ranked server can be a black hole
-/// from this network. A silent server costs one bounded step; a *diagnosed*
-/// failure stops the walk instead of being buried under identical retries.
+/// from this network. A silent server costs one bounded step. A failure the
+/// relay itself caused — refused TLS, an engine that exited, an auth refusal
+/// — is walked past too, because the next relay answers its own question.
+/// Only a failure that would recur identically on every relay (a rejected
+/// profile, a missing driver, a refused permission) ends the walk.
 void main() {
   const stepTimeout = Duration(milliseconds: 150);
 
@@ -512,6 +546,50 @@ void main() {
       expect(harness.controller.currentView.state.isConnected, isTrue);
     });
 
+    test('a TLS failure walks to the next ranked relay', () async {
+      // Sporadic relays outside the busiest countries usually fail on TLS or
+      // by dropping the engine, not by staying silent. Treating either as a
+      // verdict on the whole country leaves every other relay in it unvisited.
+      final harness = await build(script: ['tlsFailed', 'handshake']);
+
+      await harness.resolver.resolveAndConnect(
+        const SelectionRequest(mode: SelectionMode.recommended),
+        connection: harness.controller,
+      );
+      await waitForConnected(harness.controller);
+
+      expect(harness.bridge.startedTo, hasLength(2));
+      expect(harness.controller.currentView.state.isConnected, isTrue);
+    });
+
+    test('an engine exit walks to the next ranked relay', () async {
+      final harness = await build(script: ['engineExited', 'handshake']);
+
+      await harness.resolver.resolveAndConnect(
+        const SelectionRequest(mode: SelectionMode.recommended),
+        connection: harness.controller,
+      );
+      await waitForConnected(harness.controller);
+
+      expect(harness.bridge.startedTo, hasLength(2));
+      expect(harness.controller.currentView.state.isConnected, isTrue);
+    });
+
+    test('a machine-level driver failure still ends the walk', () async {
+      // Walking past this would dial every relay in the country to rediscover
+      // that the adapter driver is missing.
+      final harness = await build(script: ['driverFailed']);
+
+      await harness.resolver.resolveAndConnect(
+        const SelectionRequest(mode: SelectionMode.recommended),
+        connection: harness.controller,
+      );
+      await waitForError(harness.controller);
+
+      expect(harness.bridge.startedTo, hasLength(1));
+      expect(harness.controller.currentView.errorCode, 'ovpn.driver_failed');
+    });
+
     test(
       'a relay whose handshake was never confirmed is tried once more',
       () async {
@@ -612,6 +690,37 @@ void main() {
           timeout: const Duration(milliseconds: 1500),
         );
         expect(harness.bridge.startedTo, hasLength(1));
+      },
+    );
+
+    test(
+      'a live relay behind silent candidates starts the dial immediately',
+      () async {
+        // Two candidates ranked above it never answer their probes. The dial
+        // must not wait for them in turn: the relay that did answer is the
+        // one this network can actually reach, and it is ready now.
+        final harness = await build(
+          script: ['handshake'],
+          relayProbe: (host, port, timeout) =>
+              host == '192.0.2.${_octetFor('c')}'
+              ? Future<bool>.value(true)
+              : Completer<bool>().future,
+        );
+
+        await harness.resolver.resolveAndConnect(
+          const SelectionRequest(mode: SelectionMode.recommended),
+          connection: harness.controller,
+        );
+        await waitForConnected(
+          harness.controller,
+          timeout: const Duration(milliseconds: 1500),
+        );
+        expect(harness.bridge.startedTo, hasLength(1));
+        expect(
+          harness.bridge.startedTo.single,
+          contains('192.0.2.${_octetFor('c')}'),
+          reason: 'the relay that answered the probe was dialled',
+        );
       },
     );
 

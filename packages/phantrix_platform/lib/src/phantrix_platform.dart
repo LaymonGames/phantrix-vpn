@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:phantrix_core/phantrix_core.dart';
 
+import 'installed_app.dart';
 import 'platform_capabilities.dart';
 import 'platform_event.dart';
 import 'platform_traffic.dart';
@@ -34,6 +35,10 @@ class PhantrixPlatform {
   static const String _methodDataDirectory = 'appDataDirectory';
   static const String _methodSystemLockdown = 'systemLockdown';
   static const String _methodSetBootStart = 'setBootStart';
+  static const String _methodListApps = 'listInstalledApps';
+  static const String _methodAppIcon = 'appIcon';
+  static const String _methodPickExecutable = 'pickExecutable';
+  static const String _methodApplySplitTunnel = 'applySplitTunnel';
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
@@ -322,6 +327,104 @@ class PhantrixPlatform {
     }
   }
 
+  /// Every executable the platform can offer the split-tunnel picker.
+  ///
+  /// Windows walks the uninstall registry keys and the Start Menu. The result
+  /// is deduplicated by path, and a host that cannot enumerate returns an empty
+  /// list rather than throwing: an empty picker still lets the user browse for
+  /// an `.exe`, which is the path that must keep working.
+  Future<List<InstalledApp>> listInstalledApps() async {
+    if (kIsWeb) {
+      return const [];
+    }
+    try {
+      final raw = await _channel.invokeListMethod<Object?>(_methodListApps);
+      if (raw == null) {
+        return const [];
+      }
+      final apps = <InstalledApp>[];
+      final seen = <String>{};
+      for (final item in raw) {
+        if (item is! Map) {
+          continue;
+        }
+        final map = item.cast<String, Object?>();
+        final path = map['path'];
+        if (path is! String || path.isEmpty) {
+          continue;
+        }
+        if (!seen.add(path.toLowerCase())) {
+          continue;
+        }
+        apps.add(
+          InstalledApp(
+            name: map['name'] as String? ?? path,
+            path: path,
+            iconPng: map['icon'] as String?,
+          ),
+        );
+      }
+      return apps;
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
+  }
+
+  /// A base64 PNG icon for [path], or null when the platform has none.
+  ///
+  /// Cached by the caller, not here: the screen knows which rows it has drawn,
+  /// and a platform call per rebuild would be one COM round trip per frame.
+  Future<String?> appIcon(String path) async {
+    if (kIsWeb) {
+      return null;
+    }
+    try {
+      return await _channel.invokeMethod<String>(_methodAppIcon, path);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Opens the platform's file picker and returns the chosen `.exe`, or null
+  /// when the user cancelled.
+  Future<String?> pickExecutable() async {
+    if (kIsWeb) {
+      return null;
+    }
+    try {
+      return await _channel.invokeMethod<String>(_methodPickExecutable);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Applies [policy] to a running tunnel.
+  ///
+  /// Called when the user saves while connected. The platform refuses when no
+  /// tunnel is up: there is no interface to route into, and reporting success
+  /// for rules that are not in force would be the one lie this feature cannot
+  /// afford.
+  Future<Result<void>> applySplitTunnel(SplitTunnelSettings policy) async {
+    try {
+      await _channel.invokeMethod<void>(_methodApplySplitTunnel, {
+        'enabled': policy.enabled,
+        'mode': policy.mode.name,
+        'apps': policy.paths,
+      });
+      return const Ok(null);
+    } on PlatformException catch (error) {
+      return Err(_fromPlatformException(error));
+    } on MissingPluginException {
+      return const Ok(null);
+    }
+  }
+
   /// Releases the stream. Call on app dispose.
   void dispose() {
     if (_disposed) {
@@ -341,7 +444,9 @@ AppError _fromPlatformException(PlatformException error) => AppError(
 );
 
 ErrorGroup _groupFor(String code) {
-  if (code.startsWith('wg.') || code.startsWith('ovpn.')) {
+  if (code.startsWith('wg.') ||
+      code.startsWith('ovpn.') ||
+      code.startsWith('split.')) {
     return ErrorGroup.tunnel;
   }
   if (code.startsWith('permission.') || code.startsWith('dns.')) {
@@ -376,6 +481,16 @@ String _messageFor(String code, String? raw) {
     'network.changed' => 'The network changed while connecting.',
     'kill_switch.unsupported' =>
       'This platform cannot enforce a strict kill switch.',
+    'split.driver_missing' =>
+      'The split-tunnel driver is not installed. Reinstall Phantrix to '
+          'restore it, then try again.',
+    'split.driver_failed' =>
+      'The split-tunnel driver would not start, so no application routing '
+          'was applied.',
+    'split.not_connected' =>
+      'Split tunnelling can only be changed while a tunnel is connected.',
+    'split.policy_rejected' =>
+      'The split-tunnel policy was refused by the platform.',
     _ =>
       detail == null || detail.isEmpty
           ? 'The tunnel could not be started.'

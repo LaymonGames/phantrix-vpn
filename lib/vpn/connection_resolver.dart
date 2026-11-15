@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:phantrix_core/phantrix_core.dart';
 import 'package:phantrix_platform/phantrix_platform.dart';
 
@@ -970,15 +972,19 @@ class ConnectionResolver {
       }),
     );
 
-    var answers = const <(ResolvedTarget, Future<bool?>)>[];
+    // One entry per probe: the target, its answer, the clock that measured
+    // how long that answer took, and the ranking position used to break a tie
+    // between relays that measured equally well.
+    var answers = const <(ResolvedTarget, Future<bool?>, Stopwatch, int)>[];
     Future<void> prepareProbes = configs.then((targets) {
-      final probed = <(ResolvedTarget, Future<bool?>)>[];
-      for (final entry in targets) {
-        final target = entry.target;
+      final probed = <(ResolvedTarget, Future<bool?>, Stopwatch, int)>[];
+      for (var rank = 0; rank < targets.length; rank++) {
+        final target = targets[rank].target;
         if (target == null) {
           continue;
         }
         resolved[target.server.id] = target;
+        final watch = Stopwatch()..start();
         try {
           // One budget per probe, tighter than the probe's own timeout on
           // purpose: a relay slow to accept a TCP connection must not hold
@@ -990,10 +996,12 @@ class ConnectionResolver {
             target,
             _probeRelay(target.config)
                 .timeout(probeAnswerBudget, onTimeout: () => null),
+            watch,
+            rank,
           ));
         } on Object {
           // The ask itself failing proves nothing about the relay.
-          probed.add((target, Future<bool?>.value(null)));
+          probed.add((target, Future<bool?>.value(null), watch, rank));
         }
       }
       answers = probed;
@@ -1001,33 +1009,91 @@ class ConnectionResolver {
 
     Future<ResolvedTarget?> dialPick() async {
       await prepareProbes;
-      // Read the answers in rank order: the ranking is the only opinion
-      // about which relay the user would want to be on. A future that
-      // already completed answers instantly, so a silent best candidate
-      // does not stack its budget on the relay ranked after it.
-      for (final (target, answer) in answers) {
-        if (await answer == true) {
-          return target;
-        }
+      // The first relay to prove alive starts the dial. Scanning the answers
+      // in rank order spent a full budget on each silent candidate ahead of a
+      // live one — three silent relays cost 7.5 s at the default before the
+      // dial could start, which is the latency this sweep exists to remove.
+      // Every probe starts together, so the first "yes" is also the relay
+      // that answered this network fastest. A candidate that answers "no"
+      // does not end the wait: a later answer may still be the live one.
+      if (answers.isEmpty) {
+        return null;
       }
-      return null;
+      final picked = Completer<ResolvedTarget?>();
+      var outstanding = answers.length;
+      for (final (target, answer, _, _) in answers) {
+        unawaited(
+          answer
+              .then((alive) {
+                if (picked.isCompleted) {
+                  return;
+                }
+                if (alive == true) {
+                  picked.complete(target);
+                  return;
+                }
+                outstanding--;
+                if (outstanding == 0) {
+                  picked.complete(null);
+                }
+              })
+              .catchError((Object _) {
+                // A probe that itself broke proves nothing about the relay;
+                // the dial falls back to the ranking's first choice.
+                outstanding--;
+                if (outstanding == 0 && !picked.isCompleted) {
+                  picked.complete(null);
+                }
+              }),
+        );
+      }
+      return picked.future.timeout(probeAnswerBudget, onTimeout: () => null);
     }
 
     Future<({List<VpnServer> ordered, Set<String> silent})> full() async {
       await prepareProbes;
-      final alive = <VpnServer>[];
+      // Alive relays carry the round trip their probe measured, so the next
+      // step after a failed dial goes to the relay this network answered
+      // fastest — not to the one a publisher's ping column liked best from
+      // somewhere else. Relays the probe could not ask (UDP) keep the
+      // ranking's order behind the measured ones.
+      final alive = <({VpnServer server, int? ms, int rank})>[];
       final dead = <VpnServer>[];
       final silent = <String>{};
-      for (final (target, answer) in answers) {
-        if (await answer == false) {
+      for (final (target, answer, watch, rank) in answers) {
+        final answered = await answer;
+        if (answered == false) {
           silent.add(target.server.id);
           dead.add(target.server);
         } else {
-          alive.add(target.server);
+          alive.add((
+            server: target.server,
+            ms: answered == true ? watch.elapsedMilliseconds : null,
+            rank: rank,
+          ));
         }
       }
+      alive.sort((a, b) {
+        final am = a.ms;
+        final bm = b.ms;
+        if (am == null && bm == null) {
+          return a.rank.compareTo(b.rank);
+        }
+        if (am == null) {
+          return 1;
+        }
+        if (bm == null) {
+          return -1;
+        }
+        final byTime = am.compareTo(bm);
+        return byTime != 0 ? byTime : a.rank.compareTo(b.rank);
+      });
       return (
-        ordered: <VpnServer>[...alive, ...dead, ...beyond],
+        ordered: <VpnServer>[
+          for (final entry in alive) entry.server,
+          ...dead,
+          ...beyond,
+        ],
         silent: silent,
       );
     }

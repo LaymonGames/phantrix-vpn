@@ -1,3 +1,5 @@
+import 'split_tunnel.dart';
+
 /// How traffic is prevented from escaping when the tunnel is down.
 enum KillSwitchMode {
   /// No kill switch.
@@ -77,6 +79,7 @@ class AppSettings {
     this.clearedHistoryAt,
     this.onboardingComplete = false,
     this.privacyNoticeAccepted = false,
+    this.splitTunnel = const SplitTunnelSettings(),
   });
 
   final KillSwitchMode killSwitch;
@@ -118,6 +121,11 @@ class AppSettings {
   final bool onboardingComplete;
   final bool privacyNoticeAccepted;
 
+  /// Which applications use the tunnel, and which way round the policy works.
+  /// Persisted with the rest of the settings and handed to the native side
+  /// only while a tunnel is being started.
+  final SplitTunnelSettings splitTunnel;
+
   static const AppSettings defaults = AppSettings();
 
   static const Set<String> supportedLanguages = {'en', 'ar'};
@@ -156,6 +164,7 @@ class AppSettings {
     DateTime? clearedHistoryAt,
     bool? onboardingComplete,
     bool? privacyNoticeAccepted,
+    SplitTunnelSettings? splitTunnel,
   }) => AppSettings(
     killSwitch: killSwitch ?? this.killSwitch,
     strictMode: strictMode ?? this.strictMode,
@@ -182,5 +191,6 @@ class AppSettings {
     clearedHistoryAt: clearedHistoryAt ?? this.clearedHistoryAt,
     onboardingComplete: onboardingComplete ?? this.onboardingComplete,
     privacyNoticeAccepted: privacyNoticeAccepted ?? this.privacyNoticeAccepted,
+    splitTunnel: splitTunnel ?? this.splitTunnel,
   );
 }

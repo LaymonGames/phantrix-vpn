@@ -2,7 +2,7 @@ name: phantrix
 description: "Phantrix - a free, account-free, privacy-focused VPN client. This build runs OpenVPN, on Windows; the WireGuard backends for Linux and Apple are present as source but are not enabled."
 repository: https://github.com/LaymonGames/phantrix-vpn
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.1.0+3
 
 environment:
   sdk: ^3.13.0
