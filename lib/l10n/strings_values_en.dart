@@ -136,10 +136,6 @@ const Map<String, String> _stringsValuesEn = {
       'after Phantrix closes and across restarts, until you connect again '
       'or turn the kill switch off. Local network devices such as printers '
       'stay reachable.',
-  'killSwitchSplitPaused':
-      'Paused while split tunneling is on: the applications that skip the VPN '
-      'need a normal connection. The setting applies again when split '
-      'tunneling is turned off.',
   'killSwitchStrictConfirmTitle': 'Turn on the strict kill switch?',
   'killSwitchStrictConfirmBody':
       'This device will have no internet at all while Phantrix is not '

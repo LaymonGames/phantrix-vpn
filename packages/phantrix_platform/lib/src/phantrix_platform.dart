@@ -41,6 +41,7 @@ class PhantrixPlatform {
   static const String _methodApplySplitTunnel = 'applySplitTunnel';
   static const String _methodKillSwitchState = 'killSwitchState';
   static const String _methodReleaseKillSwitch = 'releaseKillSwitch';
+  static const String _methodEngageKillSwitch = 'engageKillSwitch';
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
@@ -457,6 +458,22 @@ class PhantrixPlatform {
   Future<Result<void>> releaseKillSwitch() async {
     try {
       await _channel.invokeMethod<void>(_methodReleaseKillSwitch);
+      return const Ok(null);
+    } on PlatformException catch (error) {
+      return Err(_fromPlatformException(error));
+    } on MissingPluginException {
+      return const Ok(null);
+    }
+  }
+
+  /// Installs the strict kill switch's blocking rules while no tunnel is
+  /// running, so traffic is blocked as soon as strict mode is chosen.
+  ///
+  /// On Windows this asks for administrator rights. A no-op where the
+  /// platform has no kill switch.
+  Future<Result<void>> engageKillSwitch() async {
+    try {
+      await _channel.invokeMethod<void>(_methodEngageKillSwitch);
       return const Ok(null);
     } on PlatformException catch (error) {
       return Err(_fromPlatformException(error));

@@ -41,7 +41,15 @@ class _KillSwitchBridge extends PhantrixPlatform {
 
   KillSwitchState state = KillSwitchState.inactive;
   int releaseCalls = 0;
+  int engageCalls = 0;
   Completer<Result<void>>? releaseGate;
+
+  @override
+  Future<Result<void>> engageKillSwitch() async {
+    engageCalls++;
+    state = const KillSwitchState(active: true, mode: 'strict');
+    return const Ok(null);
+  }
 
   @override
   Stream<PlatformEvent> get events => _events.stream;
@@ -77,6 +85,7 @@ Widget _panel({
   required SettingsController settings,
   bool blocking = false,
   Future<Result<void>> Function()? onRelease,
+  Future<Result<void>> Function()? onEngage,
   Future<void> Function()? onRefresh,
 }) {
   return MaterialApp(
@@ -93,6 +102,7 @@ Widget _panel({
             onStartOnBootChanged: (_) async => true,
             killSwitchBlocking: () => blocking,
             onReleaseKillSwitch: onRelease,
+            onEngageKillSwitch: onEngage,
             onRefreshKillSwitch: onRefresh,
           ),
         ),
@@ -140,6 +150,25 @@ void main() {
       expect(settings.data.killSwitch, KillSwitchMode.strict);
       expect(refreshes, 1);
       expect(find.text(en.get('killSwitchStrictHint')), findsOneWidget);
+    });
+
+    testWidgets('confirmed Strict installs the block at once', (tester) async {
+      final settings = SettingsController();
+      var engages = 0;
+      await tester.pumpWidget(
+        _panel(
+          settings: settings,
+          onEngage: () async {
+            engages++;
+            return const Ok(null);
+          },
+        ),
+      );
+      await tester.tap(find.text(en.get('killSwitchStrict')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.get('killSwitchStrictConfirm')));
+      await tester.pumpAndSettle();
+      expect(engages, 1);
     });
 
     testWidgets('Off while blocking lifts the block; a failure is said', (
@@ -228,6 +257,26 @@ void main() {
     });
 
     tearDown(() => controller.dispose());
+
+    test(
+      'strict engage asks the platform only when not already strict',
+      () async {
+        final settings = SettingsController();
+        final strictController = ConnectionController(
+          platform: bridge,
+          settings: settings,
+        );
+        addTearDown(strictController.dispose);
+        await strictController.engageStrictKillSwitch();
+        expect(bridge.engageCalls, 0, reason: 'automatic mode never engages');
+
+        settings.update((s) => s.copyWith(killSwitch: KillSwitchMode.strict));
+        await strictController.engageStrictKillSwitch();
+        expect(bridge.engageCalls, 1);
+        await strictController.engageStrictKillSwitch();
+        expect(bridge.engageCalls, 1, reason: 'already strict');
+      },
+    );
 
     testWidgets('no card while the kill switch is not blocking', (
       tester,

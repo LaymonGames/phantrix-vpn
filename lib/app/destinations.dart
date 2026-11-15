@@ -98,6 +98,7 @@ List<Destination> _destinations(
         killSwitchBlocking: () =>
             scope.connection.currentView.killSwitchBlocking,
         onReleaseKillSwitch: scope.connection.releaseKillSwitch,
+        onEngageKillSwitch: scope.connection.engageStrictKillSwitch,
         onRefreshKillSwitch: scope.connection.refreshKillSwitch,
         onClearLocalData: scope.settingsController.clearLocalData,
       ),

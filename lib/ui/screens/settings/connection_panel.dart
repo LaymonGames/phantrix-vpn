@@ -22,6 +22,7 @@ class ConnectionPanel extends StatelessWidget {
     required this.onStartOnBootChanged,
     this.killSwitchBlocking,
     this.onReleaseKillSwitch,
+    this.onEngageKillSwitch,
     this.onRefreshKillSwitch,
     super.key,
   });
@@ -42,6 +43,10 @@ class ConnectionPanel extends StatelessWidget {
   /// Lifts the kill switch's blocking rules. On Windows this asks for
   /// administrator approval.
   final Future<Result<void>> Function()? onReleaseKillSwitch;
+
+  /// Installs the strict kill switch's rules while nothing is connected, so
+  /// choosing strict mode blocks traffic at once.
+  final Future<Result<void>> Function()? onEngageKillSwitch;
 
   /// Re-reads the kill switch's state after the setting changed, so the
   /// home screen's warning matches what the firewall is doing.
@@ -67,15 +72,12 @@ class ConnectionPanel extends StatelessWidget {
               KillSwitchMode.strict => l10n.get('killSwitchStrict'),
             },
             options: {
-              l10n.get('killSwitchOff'): () => unawaited(
-                _setKillSwitch(context, KillSwitchMode.off),
-              ),
-              l10n.get('killSwitchAutomatic'): () => unawaited(
-                _setKillSwitch(context, KillSwitchMode.automatic),
-              ),
-              l10n.get('killSwitchStrict'): () => unawaited(
-                _setKillSwitch(context, KillSwitchMode.strict),
-              ),
+              l10n.get('killSwitchOff'): () =>
+                  unawaited(_setKillSwitch(context, KillSwitchMode.off)),
+              l10n.get('killSwitchAutomatic'): () =>
+                  unawaited(_setKillSwitch(context, KillSwitchMode.automatic)),
+              l10n.get('killSwitchStrict'): () =>
+                  unawaited(_setKillSwitch(context, KillSwitchMode.strict)),
             },
             enabled: platform.supportsKillSwitch,
             note: platform.supportsKillSwitch
@@ -85,17 +87,8 @@ class ConnectionPanel extends StatelessWidget {
                       KillSwitchMode.automatic => l10n.get(
                         'killSwitchAutomaticHint',
                       ),
-                      KillSwitchMode.strict => l10n.get(
-                        'killSwitchStrictHint',
-                      ),
+                      KillSwitchMode.strict => l10n.get('killSwitchStrictHint'),
                     },
-                    // The helper does not install the block while a split
-                    // policy is active, because the policy's direct route and
-                    // the blanket block contradict each other. Say so here
-                    // rather than let the user believe they are protected.
-                    if (d.killSwitch != KillSwitchMode.off &&
-                        d.splitTunnel.enabled)
-                      l10n.get('killSwitchSplitPaused'),
                   ].join('\n\n')
                 : l10n.get('settingsKillSwitchUnsupported'),
           ),
@@ -151,8 +144,7 @@ class ConnectionPanel extends StatelessWidget {
 
     final leavesBlocking =
         next == KillSwitchMode.off ||
-        (previous == KillSwitchMode.strict &&
-            next == KillSwitchMode.automatic);
+        (previous == KillSwitchMode.strict && next == KillSwitchMode.automatic);
     final release = onReleaseKillSwitch;
     if (leavesBlocking &&
         release != null &&
@@ -162,6 +154,16 @@ class ConnectionPanel extends StatelessWidget {
         messenger
           ?..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(failedText)));
+      }
+    }
+    final engage = onEngageKillSwitch;
+    if (next == KillSwitchMode.strict && engage != null) {
+      final result = await engage();
+      final error = result.errorOrNull;
+      if (error != null) {
+        messenger
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
     await onRefreshKillSwitch?.call();

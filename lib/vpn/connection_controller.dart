@@ -209,6 +209,34 @@ class ConnectionController {
     }
   }
 
+  /// Makes the strict kill switch block now when no tunnel is up.
+  ///
+  /// Strict mode promises that nothing leaves the machine outside the VPN.
+  /// The platform installs its rules with every connection and keeps them
+  /// after it, but a user who picks strict mode while disconnected — or
+  /// whose last session ran without them — would otherwise browse freely
+  /// until the next connection. Does nothing while a tunnel is running or
+  /// coming up, or when the rules are already strict.
+  Future<Result<void>> engageStrictKillSwitch() async {
+    if (settings.data.killSwitch != KillSwitchMode.strict ||
+        _current.isConnected ||
+        _current.isTransitioning) {
+      return const Ok(null);
+    }
+    await refreshKillSwitch();
+    // A connection that started meanwhile (a server switch) installs its
+    // own rules; asking for administrator rights on top would only race it.
+    if ((_killSwitch.active && _killSwitch.strict) ||
+        _disposed ||
+        _current.isConnected ||
+        _current.isTransitioning) {
+      return const Ok(null);
+    }
+    final result = await platform.engageKillSwitch();
+    await refreshKillSwitch();
+    return result;
+  }
+
   /// Lifts the kill switch's blocking rules while no tunnel is up.
   ///
   /// Refused while connected: the rules are what protects that tunnel.
@@ -1296,6 +1324,9 @@ class ConnectionController {
       unawaited(refreshKillSwitch());
     }
     _emit();
+    if (_current == VpnState.disconnected) {
+      unawaited(engageStrictKillSwitch());
+    }
   }
 
   /// Abandons whatever is in flight and brings the tunnel down.

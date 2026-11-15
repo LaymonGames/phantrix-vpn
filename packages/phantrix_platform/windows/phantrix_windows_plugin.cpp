@@ -260,7 +260,8 @@ struct TunnelJob {
 		listApps,
 		appIcon,
 		splitPolicy,
-		releaseKillSwitch
+		releaseKillSwitch,
+		engageKillSwitch
 	};
 	Kind kind = Kind::teardownOnly;
 	std::string profile;
@@ -346,8 +347,33 @@ std::string ReadKillSwitchMarker() {
 
 // Runs the helper elevated with `--release-firewall` and waits for it. Used
 // when no tunnel session is running to carry the request.
+bool LaunchFirewallHelper(const std::wstring& directory,
+                          const std::wstring& parameters, bool engage,
+                          std::string* errorCode, std::string* errorMessage);
+
 bool LaunchFirewallRelease(const std::wstring& directory, std::string* errorCode,
                            std::string* errorMessage) {
+	return LaunchFirewallHelper(directory, L"--release-firewall", false,
+	                            errorCode, errorMessage);
+}
+
+// Runs the helper elevated with `--engage-firewall`, installing the strict
+// kill switch's rules while no tunnel is running.
+bool LaunchFirewallEngage(const std::wstring& directory, std::string* errorCode,
+                          std::string* errorMessage) {
+	wchar_t appPath[MAX_PATH + 1] = {0};
+	const DWORD length = GetModuleFileNameW(nullptr, appPath, MAX_PATH);
+	std::wstring parameters = L"--engage-firewall";
+	if (length > 0 && length < MAX_PATH) {
+		parameters += L" --app \"" + std::wstring(appPath, length) + L"\"";
+	}
+	return LaunchFirewallHelper(directory, parameters, true, errorCode,
+	                            errorMessage);
+}
+
+bool LaunchFirewallHelper(const std::wstring& directory,
+                          const std::wstring& parameters, bool engage,
+                          std::string* errorCode, std::string* errorMessage) {
 	const std::wstring helper = phantrix::ovpn::HelperExecutable(directory);
 	if (helper.empty() ||
 	    GetFileAttributesW(helper.c_str()) == INVALID_FILE_ATTRIBUTES) {
@@ -360,14 +386,16 @@ bool LaunchFirewallRelease(const std::wstring& directory, std::string* errorCode
 	execute.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
 	execute.lpVerb = L"runas";
 	execute.lpFile = helper.c_str();
-	execute.lpParameters = L"--release-firewall";
+	execute.lpParameters = parameters.c_str();
 	execute.lpDirectory = directory.c_str();
 	execute.nShow = SW_HIDE;
 	if (ShellExecuteExW(&execute) == FALSE || execute.hProcess == nullptr) {
 		*errorCode = "permission.denied";
 		*errorMessage =
-		    "Windows did not grant administrator rights, so the kill switch "
-		    "is still blocking traffic.";
+		    engage ? "Windows did not grant administrator rights, so the "
+		             "strict kill switch is not blocking traffic yet."
+		           : "Windows did not grant administrator rights, so the kill "
+		             "switch is still blocking traffic.";
 		return false;
 	}
 	const DWORD waited = WaitForSingleObject(execute.hProcess, 60000);
@@ -376,7 +404,9 @@ bool LaunchFirewallRelease(const std::wstring& directory, std::string* errorCode
 	CloseHandle(execute.hProcess);
 	if (waited != WAIT_OBJECT_0 || exitCode != 0) {
 		*errorCode = "kill_switch.failed";
-		*errorMessage = "The kill switch's firewall rules could not be removed.";
+		*errorMessage =
+		    engage ? "The kill switch's firewall rules could not be installed."
+		           : "The kill switch's firewall rules could not be removed.";
 		return false;
 	}
 	return true;
@@ -1181,6 +1211,25 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 					PostEvent(pending);
 					break;
 				}
+				case TunnelJob::Kind::engageKillSwitch: {
+					// Only without a tunnel: a running session already carries
+					// its own rules and decides what stays when it ends.
+					std::string code;
+					std::string message;
+					const bool sessionRunning =
+					    openVpn_.pipe != nullptr || openVpn_.helper != nullptr;
+					if (!sessionRunning && ReadKillSwitchMarker() != "strict") {
+						(void)LaunchFirewallEngage(pluginDirectory(), &code,
+						                           &message);
+					}
+					auto* pending = new PendingEvent();
+					pending->state = "start-finished";
+					pending->errorCode = code;
+					pending->message = message;
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
 			}
 		}
 	}
@@ -1544,6 +1593,16 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			map[EncodableValue("mode")] =
 			    mode.empty() ? EncodableValue() : EncodableValue(mode);
 			result->Success(EncodableValue(map));
+			return;
+		}
+
+		if (method == "engageKillSwitch") {
+			// Installs strict rules without a tunnel. Needs administrator
+			// rights, so it runs on the worker like the release.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::engageKillSwitch;
+			job.result = result.release();
+			EnqueueJob(std::move(job));
 			return;
 		}
 

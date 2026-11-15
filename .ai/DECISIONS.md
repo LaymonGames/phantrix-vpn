@@ -18,3 +18,6 @@ User wants disconnect/switch instant. OpenVPN's polite exit (explicit-exit-notif
 
 ## 2026-11-15 Split router: IPv6 only when both paths have it
 sing-box tun always has an IPv6 address, so apps assumed IPv6 works. Without IPv6 on tunnel and physical, DNS is ipv4_only and IPv6 destinations are rejected before accept (pre-match), so browsers fall back to IPv4.
+
+## 2026-11-15 Kill switch stays on with split tunneling
+Earlier the helper disabled it while split was active. Reverted: direct-routed traffic leaves as sing-box.exe (permitted), so there is no conflict, and the user expects strict to block. Strict mode also engages immediately when chosen while disconnected (elevated `--engage-firewall`).

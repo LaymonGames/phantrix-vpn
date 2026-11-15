@@ -43,6 +43,7 @@ class SettingsScreen extends StatelessWidget {
     this.onApplySplitTunnelLive,
     this.killSwitchBlocking,
     this.onReleaseKillSwitch,
+    this.onEngageKillSwitch,
     this.onRefreshKillSwitch,
     super.key,
   });
@@ -94,6 +95,9 @@ class SettingsScreen extends StatelessWidget {
   /// Lifts the kill switch's blocking rules (admin approval on Windows).
   final Future<Result<void>> Function()? onReleaseKillSwitch;
 
+  /// Installs the strict kill switch's rules while nothing is connected.
+  final Future<Result<void>> Function()? onEngageKillSwitch;
+
   /// Re-reads the kill switch's state after its setting changed.
   final Future<void> Function()? onRefreshKillSwitch;
 
@@ -130,6 +134,7 @@ class SettingsScreen extends StatelessWidget {
                 onStartOnBootChanged: onStartOnBootChanged,
                 killSwitchBlocking: killSwitchBlocking,
                 onReleaseKillSwitch: onReleaseKillSwitch,
+                onEngageKillSwitch: onEngageKillSwitch,
                 onRefreshKillSwitch: onRefreshKillSwitch,
               ),
               const SizedBox(height: VgSpace.lg),

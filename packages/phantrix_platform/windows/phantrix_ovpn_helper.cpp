@@ -79,6 +79,11 @@ constexpr wchar_t kParentArgument[] = L"--parent";
 // Removes the kill switch's firewall rules and exits. Used by the app to lift a
 // strict kill switch, or one a crashed session left, when no tunnel is running.
 constexpr wchar_t kReleaseFirewallArgument[] = L"--release-firewall";
+// Installs the strict kill switch's rules with no tunnel running: the user
+// chose strict mode while disconnected, or a session ended without leaving
+// them. `--app <path>` names the Phantrix executable to keep permitted.
+constexpr wchar_t kEngageFirewallArgument[] = L"--engage-firewall";
+constexpr wchar_t kAppArgument[] = L"--app";
 
 // How long to wait for the app to connect on the pipe before giving up.
 //
@@ -617,18 +622,11 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 		return;
 	}
 
-	// Split tunneling and the kill switch ask for opposite things: the policy
-	// deliberately sends some traffic outside the tunnel, and the kill switch
-	// exists to block exactly that. Engaged together they fight, and every
-	// application the policy routes directly loses the internet — which reads
-	// as "split tunneling broke my connection". The block is therefore not
-	// installed while a split policy is active. The setting is kept, so it
-	// comes back the moment split tunneling is turned off.
-	const bool splitActive = splitPolicy.enabled &&
-	                         !(splitPolicy.include_mode && splitPolicy.apps.empty());
-	if (splitActive && killSwitchMode != phantrix::firewall::Mode::kOff) {
-		killSwitchMode = phantrix::firewall::Mode::kOff;
-	}
+	// The kill switch and split tunneling work together: the router's
+	// adapter is permitted once it is up, and everything the policy sends
+	// outside the tunnel leaves as the router process (sing-box.exe), which
+	// is a permitted application. If the router dies, nothing gets out —
+	// which is what a kill switch is for.
 
 	// The kill switch goes up before anything else touches the network, so
 	// there is no moment of this connection without it. With the kill switch
@@ -720,6 +718,52 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 			std::string ignored;
 			return phantrix::firewall::KillSwitch::Release(&ignored) ? 0 : 7;
 		}
+	}
+
+	for (int index = 1; index < argc; ++index) {
+		if (wcscmp(argv[index], kEngageFirewallArgument) != 0) {
+			continue;
+		}
+		std::wstring engageApp;
+		for (int other = 1; other + 1 < argc; ++other) {
+			if (wcscmp(argv[other], kAppArgument) == 0) {
+				engageApp = argv[other + 1];
+			}
+		}
+		LocalFree(argv);
+		wchar_t enginePath[MAX_PATH + 1] = {0};
+		const DWORD engineLength =
+		    GetModuleFileNameW(nullptr, enginePath, MAX_PATH);
+		if (engineLength == 0 || engineLength >= MAX_PATH) {
+			return 5;
+		}
+		std::wstring directory(enginePath, engineLength);
+		const size_t cut = directory.find_last_of(L'\\');
+		if (cut == std::wstring::npos) {
+			return 5;
+		}
+		directory.resize(cut);
+		// The same permits a connection installs, so the next connection
+		// (and the app that makes it) is never blocked by these rules.
+		std::vector<std::wstring> permitted = {
+		    phantrix::ovpn::OpenVpnExecutable(directory),
+		    phantrix::split::RouterExecutable(directory),
+		};
+		if (!engageApp.empty() &&
+		    GetFileAttributesW(engageApp.c_str()) != INVALID_FILE_ATTRIBUTES) {
+			permitted.push_back(engageApp);
+		}
+		phantrix::firewall::KillSwitch strict;
+		std::string code;
+		std::string message;
+		if (!strict.Engage(phantrix::firewall::Mode::kStrict, permitted, &code,
+		                   &message) ||
+		    !strict.KeepAfterExit(&code, &message)) {
+			return 7;
+		}
+		phantrix::firewall::KillSwitch::InstallRecoveryHelper(
+		    phantrix::ovpn::HelperExecutable(directory));
+		return 0;
 	}
 
 	std::wstring pipeName;
