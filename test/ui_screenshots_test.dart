@@ -218,6 +218,56 @@ void main() {
       await _boot(tester, size: const Size(412, 892), theme: 'light');
       await _capture(tester, '08-dashboard-light');
     });
+
+    testWidgets('dashboard at desktop size, light theme', (tester) async {
+      await _boot(tester, size: const Size(1440, 900), theme: 'light');
+      await _capture(tester, '10-dashboard-desktop-light');
+    });
+
+    testWidgets('settings at desktop size, light theme', (tester) async {
+      await _boot(
+        tester,
+        size: const Size(1440, 900),
+        destination: 'Settings',
+        theme: 'light',
+      );
+      await _capture(tester, '11-settings-desktop-light');
+    });
+
+    testWidgets('dashboard in Arabic with a violet accent, light', (
+      tester,
+    ) async {
+      await _boot(
+        tester,
+        size: const Size(1440, 900),
+        theme: 'light',
+        language: 'ar',
+        accent: 0xFFC084FC,
+      );
+      await _capture(tester, '13-dashboard-ar-violet-light');
+    });
+
+    testWidgets('settings with a sky accent, dark', (tester) async {
+      await _boot(
+        tester,
+        size: const Size(1440, 900),
+        destination: 'Settings',
+        accent: 0xFF38BDF8,
+      );
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -700));
+      await tester.pumpAndSettle();
+      await _capture(tester, '14-settings-sky-dark');
+    });
+
+    testWidgets('servers at phone size, light theme', (tester) async {
+      await _boot(
+        tester,
+        size: const Size(412, 892),
+        destination: 'Servers',
+        theme: 'light',
+      );
+      await _capture(tester, '12-servers-light');
+    });
   });
 
   group('connection states, rendered', () {
@@ -288,6 +338,8 @@ Future<void> _boot(
   String? destination,
   String theme = 'dark',
   double textScale = 1.0,
+  String language = 'en',
+  int accent = AppSettings.defaultAccent,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -298,6 +350,8 @@ Future<void> _boot(
       privacyNoticeAccepted: onboarded,
       onboardingComplete: onboarded,
       themeMode: theme,
+      language: language,
+      accentColor: accent,
     ),
   );
   final scope = AppScope.inMemory(
@@ -428,13 +482,28 @@ Future<void> _loadSystemFonts() async {
   // Material's icon font first. Without it every icon in every screenshot is
   // a filled rectangle, which makes the whole set useless for judging
   // whether the interface actually looks designed.
-  await _loadFont('MaterialIcons', const [
+  final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+  await _loadFont('MaterialIcons', [
+    if (flutterRoot != null)
+      '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+    r'C:\FlutterSDK\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf',
     r'C:\FlutterSDK\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf',
     '/usr/share/fonts/truetype/material/MaterialIcons-Regular.otf',
   ]);
 
+  // The app bundles Inter; every weight is loaded into one family so the
+  // screenshots show the same typography the app ships.
+  final inter = FontLoader('Inter');
+  for (final weight in const ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+    final file = File('assets/fonts/Inter-$weight.ttf');
+    if (file.existsSync()) {
+      final bytes = file.readAsBytesSync();
+      inter.addFont(Future.value(ByteData.sublistView(bytes)));
+    }
+  }
+  await inter.load();
+
   const candidates = <String, List<String>>{
-    'Inter': ['segoeui.ttf', 'Inter-Regular.ttf', 'Roboto-Regular.ttf'],
     'Segoe UI': ['segoeui.ttf'],
     'system-ui': ['segoeui.ttf', 'arial.ttf'],
     'Roboto': ['Roboto-Regular.ttf', 'arial.ttf'],

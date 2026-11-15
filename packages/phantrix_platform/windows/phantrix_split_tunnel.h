@@ -96,8 +96,9 @@ class Controller {
   //
   // Called before the engine starts, so a machine that cannot honour the
   // policy refuses the connection instead of bringing a tunnel up first.
-  // `work_directory` is the session's private directory; the router's
-  // configuration and log are written there.
+  // `work_directory` is where the router's configuration and log are
+  // written: a directory only administrators can write to, so nothing the
+  // user controls is read or written by the elevated router.
   bool Prepare(const std::wstring& module_directory,
                const std::wstring& work_directory, const Policy& policy,
                std::string* error_code, std::string* error_message);
@@ -125,6 +126,7 @@ class Controller {
 
  private:
   bool WriteConfig(const std::wstring& tunnel_alias,
+                   const std::wstring& physical_alias,
                    const std::string& dns_server, std::string* error_code,
                    std::string* error_message);
   bool StartRouter(std::string* error_code, std::string* error_message);

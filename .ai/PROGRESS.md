@@ -17,3 +17,17 @@
   when view.killSwitchBlocking, strict/automatic text, Unblock with progress + inline error.
   Diagnostics kill row: mode value, Off=warning, firewall-rule detail. test/kill_switch_ui_test.dart (8).
   licenses_test OpenVPN-notice failure pre-existing (sing-box attribution file), not from this work.
+- 2026-11-15: Commit 165ab11 "now split tunneling works everywhere mostly".
+- 2026-11-15: Review fixes (native): stop/handshake race (stoppingEngine before lock, recheck,
+  KillSwitch::Disengage), automatic hold released on Disconnect/app exit via elevated
+  --release-firewall, DNS re-allowed on engine "reconnecting", router started before route swap
+  and routes restored before router stops, sing-box default_interface pinned to physical alias,
+  %ProgramData%\Phantrix created with admin-only protected DACL + reparse/owner checks (was an
+  arbitrary-file-write primitive), router config/log moved there, recovery helper copy
+  phantrix-unblock.exe for strict mode, handle-list inheritance, job assignment mandatory.
+- 2026-11-15: Redesign: accent-driven theme (lib/theme/vg_accent.dart: VgAccent presets, per-theme
+  contrast-safe tones, VgDecor ThemeExtension), working System/Light/Dark, accent picker
+  (settings/accent_picker.dart), bundled Inter font, status headline + protection summary on
+  home, hero card with state wash, new orb face, page titles on desktop, canvas glow.
+  Contrast test covers all presets + hues in both themes. 526 tests pass.
+- 2026-11-15: Windows release built + smoke-launched. Linux release NOT built: no WSL/Docker here.

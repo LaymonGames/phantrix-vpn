@@ -10,6 +10,7 @@ import 'package:phantrix_platform/phantrix_platform.dart';
 import '../../../settings/settings_controller.dart';
 import '../../../theme/tokens.dart';
 import '../../../vpn/connection_controller.dart';
+import '../../components/vg_page_title.dart';
 import '../../components/containers.dart';
 import '../../components/rows.dart';
 import '../../components/surfaces.dart';
@@ -223,6 +224,7 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
       builder: (context, insets) => ListView(
         padding: insets.copyWith(top: VgSpace.sm, bottom: VgSpace.xxl),
         children: [
+          VgPageTitle(title: l10n.get('settingsSplitTunneling')),
           VgPanel(
             title: l10n.get('settingsSplitTunneling'),
             icon: Icons.call_split_rounded,

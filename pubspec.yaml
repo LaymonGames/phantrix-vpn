@@ -38,3 +38,17 @@ flutter:
     # launcher icon from this same file, so the in-app mark and the icon in
     # the dock or on the home screen are always the same drawing.
     - assets/icon.png
+
+  # Inter (SIL Open Font License 1.1, assets/fonts/Inter-OFL.txt). Bundled so
+  # the interface looks the same on Windows and Linux instead of depending on
+  # whichever sans-serif the machine has. Arabic falls back to the system.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700

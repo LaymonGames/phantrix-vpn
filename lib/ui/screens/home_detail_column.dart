@@ -10,50 +10,50 @@ class _DetailColumn extends StatelessWidget {
   const _DetailColumn({
     required this.view,
     required this.l10n,
+    required this.settings,
     required this.selectedCountryCode,
     required this.onChooseLocation,
+    required this.onOpenSettings,
   });
 
   final ConnectionView view;
   final L10n l10n;
+  final AppSettings settings;
   final String selectedCountryCode;
   final VoidCallback onChooseLocation;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        VgPanel(
-          title: l10n.get('server'),
-          icon: Icons.dns_rounded,
-          uppercase: true,
-          outlined: true,
-          child: ServerPanel(
-            view: view,
-            selectedCountryCode: selectedCountryCode,
-            onChooseLocation: onChooseLocation,
-          ),
-        ),
+        // Where the tunnel goes is shown, and changed, from the control
+        // under the orb; a second server card repeated the same line.
         // The public feed speaks OpenVPN. With no engine for it on this
         // platform, nothing on this screen could connect, and saying so
         // here beats letting the attempt fail. Unknown capabilities count
         // as unsupported, which is how the resolver treats the same
         // condition.
         if (!view.platform.openVpn) ...[
-          const SizedBox(height: VgSpace.md),
           VgNote(
             title: l10n.get('publicRelayNoticeTitle'),
             message: l10n.get('publicFeedOpenVpnOnly'),
             icon: Icons.info_outline_rounded,
           ),
+          const SizedBox(height: VgSpace.lg),
         ],
         if (view.isConnected ||
             view.isBusy ||
             view.session.startedAt != null) ...[
-          const SizedBox(height: VgSpace.lg),
           SessionPanel(view: view),
+          const SizedBox(height: VgSpace.lg),
         ],
+        _ProtectionPanel(
+          view: view,
+          settings: settings,
+          onOpenSettings: onOpenSettings,
+        ),
         // The note about the attempt that just ended, and nothing else. The
         // platform's standing limitations are facts about the platform rather
         // than news about this attempt, and a paragraph of them under every

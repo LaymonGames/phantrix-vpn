@@ -48,21 +48,26 @@ class VgSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final radius = BorderRadius.circular(VgRadius.lg);
+    final decor = VgDecor.of(context);
+    // An outlined surface is an inset well inside a card: a tonal step and
+    // a hairline, never a second shadow. Every other surface is a card,
+    // separated from the canvas by a hairline and a soft shadow.
+    final radius = BorderRadius.circular(outlined ? VgRadius.md : VgRadius.lg);
 
     final content = Padding(padding: padding, child: child);
 
     Widget surface = DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        color: outlined
+            ? theme.colorScheme.surfaceContainer
+            : theme.colorScheme.surfaceContainerLow,
         borderRadius: radius,
-        border: outlined
-            ? Border.all(color: theme.colorScheme.outlineVariant)
-            : null,
-        boxShadow: elevated
-            ? VgShadow.forCard(isDark ? Colors.black : const Color(0xFF1E3A2B))
-            : null,
+        border: Border.all(
+          color: outlined ? theme.colorScheme.outline : decor.cardBorder,
+        ),
+        boxShadow: outlined
+            ? null
+            : (elevated ? decor.liftedShadow : decor.cardShadow),
       ),
       child: content,
     );

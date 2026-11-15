@@ -41,6 +41,7 @@ class SettingsCodec {
     'startMinimised': settings.startMinimised,
     'mtuOverride': settings.mtuOverride,
     'themeMode': settings.themeMode,
+    'accentColor': settings.accentColor,
     'animationLevel': settings.animationLevel,
     'language': settings.language,
     'trustedNetworks': settings.trustedNetworks,
@@ -102,6 +103,11 @@ class SettingsCodec {
         AppSettings.supportedThemes,
         d.themeMode,
       ),
+      // An accent is always opaque; a stored value that is not is ignored.
+      accentColor: switch (decoded['accentColor']) {
+        final int value when (value >> 24) & 0xFF == 0xFF => value,
+        _ => d.accentColor,
+      },
       animationLevel: _oneOf(
         decoded['animationLevel'],
         AppSettings.supportedAnimationLevels,

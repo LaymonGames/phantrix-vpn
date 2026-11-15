@@ -141,7 +141,7 @@ void main() {
 
       final toggle = tester.widget<Switch>(find.byType(Switch));
       expect(toggle.onChanged, isNull);
-      expect(find.textContaining('signed Phantrix driver'), findsOneWidget);
+      expect(find.textContaining('bundled routing component'), findsOneWidget);
     });
   });
 

@@ -408,6 +408,13 @@ intent and CI compile/static checks, not a live audit of privilege handling:
 - **Strict** also keeps blocking after Disconnect, app exit, crash and
 	reboot, until a new connection or the kill switch is turned off (the app
 	asks for administrator rights to lift it). The UI warns before enabling.
+- **Recovery:** strict mode copies the helper to
+	`%ProgramData%\Phantrix\phantrix-unblock.exe`. If Phantrix was removed
+	while strict rules were active, run
+	`"%ProgramData%\Phantrix\phantrix-unblock.exe" --release-firewall` as
+	administrator to remove them. `%ProgramData%\Phantrix` is created with an
+	administrators-only write ACL, and the helper refuses to write into it if
+	it is a reparse point or owned by anyone else.
 - **Limits:** the local network stays reachable by design; `phantrix.exe`
 	itself is permitted so a new connection can always be made, which means
 	the app's own server-list requests can leave outside the tunnel.

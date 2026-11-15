@@ -17,6 +17,7 @@ import 'home_hero.dart';
 part 'home_screen_state.dart';
 part 'home_detail_column.dart';
 part 'home_kill_switch_card.dart';
+part 'home_header.dart';
 
 /// The connection screen.
 ///
@@ -38,6 +39,8 @@ class HomeScreen extends StatefulWidget {
     this.selectedCountryCode = 'AUTO',
     required this.onQuickConnect,
     required this.onChooseLocation,
+    this.settings = AppSettings.defaults,
+    this.onOpenSettings,
     super.key,
   });
 
@@ -46,6 +49,12 @@ class HomeScreen extends StatefulWidget {
   final String selectedCountryCode;
   final Future<void> Function() onQuickConnect;
   final VoidCallback onChooseLocation;
+
+  /// The stored preferences the protection summary reports.
+  final AppSettings settings;
+
+  /// Opens Settings, where the protection options are changed.
+  final VoidCallback? onOpenSettings;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();

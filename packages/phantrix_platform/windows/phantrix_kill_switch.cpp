@@ -1,6 +1,8 @@
 #include "phantrix_kill_switch.h"
 
+#include <aclapi.h>
 #include <fwpmu.h>
+#include <sddl.h>
 #include <ws2tcpip.h>
 
 #include <algorithm>
@@ -11,6 +13,7 @@
 #include "phantrix_ovpn_support.h"
 
 #pragma comment(lib, "fwpuclnt.lib")
+#pragma comment(lib, "advapi32.lib")
 
 namespace phantrix {
 namespace firewall {
@@ -92,12 +95,107 @@ std::wstring ProgramDataDirectory() {
   return std::wstring(buffer, length);
 }
 
+// Only Administrators and SYSTEM may write; users may read (the app reads the
+// marker without elevation). Protected, so nothing is inherited from
+// ProgramData, whose default ACL lets any user create files in subfolders.
+constexpr wchar_t kStateDirectorySddl[] =
+    L"O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FRFX;;;BU)";
+
+bool IsReparsePoint(const std::wstring& path) {
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES &&
+         (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+bool OwnedByAdministrators(const std::wstring& path) {
+  PSID owner = nullptr;
+  PSECURITY_DESCRIPTOR descriptor = nullptr;
+  if (GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT,
+                            OWNER_SECURITY_INFORMATION, &owner, nullptr,
+                            nullptr, nullptr, &descriptor) != ERROR_SUCCESS) {
+    return false;
+  }
+  const bool trusted = owner != nullptr &&
+                       (IsWellKnownSid(owner, WinBuiltinAdministratorsSid) ||
+                        IsWellKnownSid(owner, WinLocalSystemSid));
+  LocalFree(descriptor);
+  return trusted;
+}
+
+bool ApplyStateDacl(const std::wstring& path) {
+  PSECURITY_DESCRIPTOR descriptor = nullptr;
+  if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
+          kStateDirectorySddl, SDDL_REVISION_1, &descriptor, nullptr) ==
+      FALSE) {
+    return false;
+  }
+  BOOL present = FALSE;
+  BOOL defaulted = FALSE;
+  PACL dacl = nullptr;
+  GetSecurityDescriptorDacl(descriptor, &present, &dacl, &defaulted);
+  const DWORD result = SetNamedSecurityInfoW(
+      const_cast<wchar_t*>(path.c_str()), SE_FILE_OBJECT,
+      DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION, nullptr,
+      nullptr, dacl, nullptr);
+  LocalFree(descriptor);
+  return result == ERROR_SUCCESS;
+}
+
+// Creates (or re-secures) one directory of the state tree. A directory that
+// is a reparse point, or that someone other than an administrator owns, is
+// not trusted: an elevated process writing into a folder a user controls is
+// how arbitrary-file-overwrite attacks work.
+bool SecureDirectory(const std::wstring& path) {
+  if (IsReparsePoint(path)) {
+    // A junction planted where this directory should be. Removing it only
+    // removes the link, never its target.
+    if (RemoveDirectoryW(path.c_str()) == FALSE) {
+      return false;
+    }
+  }
+  PSECURITY_DESCRIPTOR descriptor = nullptr;
+  if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
+          kStateDirectorySddl, SDDL_REVISION_1, &descriptor, nullptr) ==
+      FALSE) {
+    return false;
+  }
+  SECURITY_ATTRIBUTES attributes = {sizeof(attributes), descriptor, FALSE};
+  const BOOL created = CreateDirectoryW(path.c_str(), &attributes);
+  const DWORD error = created ? ERROR_SUCCESS : GetLastError();
+  LocalFree(descriptor);
+  if (created) {
+    return true;
+  }
+  if (error != ERROR_ALREADY_EXISTS || IsReparsePoint(path) ||
+      !OwnedByAdministrators(path)) {
+    return false;
+  }
+  return ApplyStateDacl(path);
+}
+
+// Removes a file name without following it if it is a link.
+void RemoveName(const std::wstring& path) {
+  const DWORD attributes = GetFileAttributesW(path.c_str());
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    return;
+  }
+  if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+    RemoveDirectoryW(path.c_str());
+  } else {
+    DeleteFileW(path.c_str());
+  }
+}
+
 void WriteMarker(Mode mode) {
-  const std::wstring directory = ProgramDataDirectory() + L"\\Phantrix";
-  CreateDirectoryW(directory.c_str(), nullptr);
-  HANDLE file = CreateFileW(MarkerPath().c_str(), GENERIC_WRITE,
-                            FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
-                            FILE_ATTRIBUTE_NORMAL, nullptr);
+  const std::wstring directory = StateDirectory();
+  if (directory.empty()) {
+    return;
+  }
+  const std::wstring path = MarkerPath();
+  RemoveName(path);
+  HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
+                            nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL,
+                            nullptr);
   if (file == INVALID_HANDLE_VALUE) {
     return;
   }
@@ -219,6 +317,20 @@ const char* ModeName(Mode mode) {
   }
 }
 
+std::wstring StateDirectory() {
+  const std::wstring directory = ProgramDataDirectory() + L"\\Phantrix";
+  return SecureDirectory(directory) ? directory : std::wstring();
+}
+
+std::wstring StateSubdirectory(const std::wstring& name) {
+  const std::wstring parent = StateDirectory();
+  if (parent.empty()) {
+    return std::wstring();
+  }
+  const std::wstring directory = parent + L"\\" + name;
+  return SecureDirectory(directory) ? directory : std::wstring();
+}
+
 std::wstring MarkerPath() {
   return ProgramDataDirectory() + L"\\Phantrix\\kill-switch";
 }
@@ -276,6 +388,12 @@ bool KillSwitch::SetSetupDns(bool allowed, std::string* error_code,
   }
   setup_dns_ = allowed;
   return Rebuild(error_code, error_message);
+}
+
+bool KillSwitch::Disengage(std::string* error_message) {
+  mode_ = Mode::kOff;
+  interfaces_.clear();
+  return Release(error_message);
 }
 
 bool KillSwitch::KeepAfterExit(std::string* error_code,
@@ -341,11 +459,23 @@ bool KillSwitch::Rebuild(std::string* error_code, std::string* error_message) {
   for (const NET_LUID& luid : interfaces_) {
     luids.push_back(luid.Value);
   }
-  for (const std::wstring& path : apps_) {
+  for (size_t index = 0; index < apps_.size(); ++index) {
     FWP_BYTE_BLOB* app_id = nullptr;
-    if (FwpmGetAppIdFromFileName0(path.c_str(), &app_id) == ERROR_SUCCESS &&
+    if (FwpmGetAppIdFromFileName0(apps_[index].c_str(), &app_id) ==
+            ERROR_SUCCESS &&
         app_id != nullptr) {
       app_ids.push_back(app_id);
+    } else if (index == 0) {
+      // The first entry is the engine. Without its permit no connection
+      // could ever be made, so this is a failure, not a skipped rule.
+      for (FWP_BYTE_BLOB* blob : app_ids) {
+        FwpmFreeMemory0(reinterpret_cast<void**>(&blob));
+      }
+      FwpmTransactionAbort0(engine);
+      FwpmEngineClose0(engine);
+      Fail("The VPN engine could not be identified for the kill switch.",
+           error_code, error_message);
+      return false;
     }
   }
 
@@ -514,6 +644,16 @@ bool KillSwitch::Rebuild(std::string* error_code, std::string* error_message) {
   return true;
 }
 
+void KillSwitch::InstallRecoveryHelper(const std::wstring& helper_path) {
+  const std::wstring directory = StateDirectory();
+  if (directory.empty() || helper_path.empty()) {
+    return;
+  }
+  const std::wstring target = directory + L"\\phantrix-unblock.exe";
+  RemoveName(target);
+  CopyFileW(helper_path.c_str(), target.c_str(), TRUE);
+}
+
 bool KillSwitch::Release(std::string* error_message) {
   HANDLE engine = nullptr;
   std::string code;
@@ -535,7 +675,7 @@ bool KillSwitch::Release(std::string* error_message) {
   }
   FwpmEngineClose0(engine);
   if (ok) {
-    DeleteFileW(MarkerPath().c_str());
+    RemoveName(MarkerPath());
   }
   return ok;
 }

@@ -68,6 +68,7 @@ class AppSettings {
     this.startMinimised = true,
     this.mtuOverride,
     this.themeMode = 'system',
+    this.accentColor = defaultAccent,
     this.animationLevel = 'full',
     this.language = 'en',
     this.trustedNetworks = const [],
@@ -100,6 +101,13 @@ class AppSettings {
   final int? mtuOverride;
 
   final String themeMode;
+
+  /// The interface accent as 0xAARRGGBB. Phantrix green unless the user
+  /// picked another. Only interactive elements take it; connection state
+  /// keeps its own colours so "selected" never reads as "connected".
+  final int accentColor;
+
+  static const int defaultAccent = 0xFF4ADE80;
   final String animationLevel;
 
   /// `en` or `ar`. The app is RTL-capable when `ar` is selected.
@@ -153,6 +161,7 @@ class AppSettings {
     bool? startMinimised,
     int? mtuOverride,
     String? themeMode,
+    int? accentColor,
     String? animationLevel,
     String? language,
     List<String>? trustedNetworks,
@@ -180,6 +189,7 @@ class AppSettings {
     startMinimised: startMinimised ?? this.startMinimised,
     mtuOverride: mtuOverride ?? this.mtuOverride,
     themeMode: themeMode ?? this.themeMode,
+    accentColor: accentColor ?? this.accentColor,
     animationLevel: animationLevel ?? this.animationLevel,
     language: language ?? this.language,
     trustedNetworks: trustedNetworks ?? this.trustedNetworks,

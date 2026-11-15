@@ -91,7 +91,7 @@ constexpr char kEventChannel[] = "dev.phantrix.phantrix/tunnelEvents";
 constexpr DWORD kHelperStartTimeoutMillis = 90000;
 
 // How long to wait for the helper to finish tearing the tunnel down.
-constexpr DWORD kHelperStopTimeoutMillis = 20000;
+constexpr DWORD kHelperStopTimeoutMillis = 45000;
 
 // The app's per-user data directory, without a file name.
 //
@@ -1005,6 +1005,14 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 		// here: blocking while the application is closing is fine, and leaving
 		// an elevated helper behind is not.
 		TeardownOpenVpn();
+		// Closing the app ends an automatic kill switch, including one that
+		// is holding a dropped connection with no helper left to lift it.
+		// Strict rules stay: outliving the app is what strict means.
+		if (ReadKillSwitchMarker() == "automatic") {
+			std::string code;
+			std::string message;
+			(void)LaunchFirewallRelease(pluginDirectory(), &code, &message);
+		}
 		if (messageWindow_ != nullptr) {
 			SetWindowLongPtrW(messageWindow_, GWLP_USERDATA, 0);
 			DestroyWindow(messageWindow_);
@@ -1134,6 +1142,15 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				}
 				case TunnelJob::Kind::stop: {
 					TeardownOpenVpn(job.holdFirewall);
+					// Automatic-mode rules held after a drop belong to no
+					// running helper. A disconnect is the moment they end.
+					if (!job.holdFirewall &&
+					    ReadKillSwitchMarker() == "automatic") {
+						std::string code;
+						std::string message;
+						(void)LaunchFirewallRelease(pluginDirectory(), &code,
+						                            &message);
+					}
 					auto* pending = new PendingEvent();
 					pending->state = "stopped";
 					pending->result = job.result;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import 'brand.dart';
 import 'nav_item.dart';
@@ -31,18 +32,17 @@ class VgSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final decor = VgDecor.of(context);
     return Container(
       width: width,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        color: decor.sidebar,
         // A single hairline rather than a shadow: the sidebar is flush
         // with the content beside it, and a border is what separates
         // two planes that touch.
         border: BorderDirectional(
           end: BorderSide(color: theme.colorScheme.outline),
         ),
-        boxShadow: isDark ? null : VgShadow.forSidebar(Colors.black),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,11 +56,7 @@ class VgSidebar extends StatelessWidget {
             ),
             child: VgBrand(size: 30),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: VgSpace.md),
-            child: Divider(color: theme.colorScheme.outline, height: 1),
-          ),
-          const SizedBox(height: VgSpace.md),
+          const SizedBox(height: VgSpace.sm),
           for (final item in items)
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -136,7 +132,7 @@ class _SidebarRowState extends State<_SidebarRow> {
               ),
               decoration: BoxDecoration(
                 color: selected
-                    ? scheme.primary.withValues(alpha: 0.12)
+                    ? VgDecor.of(context).accentSoft
                     : _hovered
                     ? scheme.onSurface.withValues(alpha: 0.05)
                     : Colors.transparent,
@@ -163,10 +159,10 @@ class _SidebarRowState extends State<_SidebarRow> {
                     ),
                   ),
                   if (item.indented) ...[
-                    const Icon(
+                    Icon(
                       Icons.subdirectory_arrow_right_rounded,
                       size: VgIcon.sm,
-                      color: VgColors.inkFaint,
+                      color: scheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: VgSpace.xs),
                   ],

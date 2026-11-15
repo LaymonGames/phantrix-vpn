@@ -18,6 +18,8 @@ List<Destination> _destinations(
         selectedCountryCode: scope.settingsController.data.selectedCountryCode,
         onQuickConnect: scope.connect,
         onChooseLocation: () => navigation.go('locations'),
+        settings: scope.settingsController.data,
+        onOpenSettings: () => navigation.go('settings'),
       ),
     ),
     Destination(

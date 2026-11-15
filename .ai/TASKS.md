@@ -1,10 +1,7 @@
-- [x] Settings: split tunneling own section + toggle (lib/ui/screens/settings/split_tunnel_panel.dart)
-- [x] Mouse wheel anywhere: VgScrollColumn (lib/ui/components/vg_content_column.dart)
-- [x] Split page autosave (no Save button)
-- [x] tools/fetch_singbox_bundle.ps1 + CMake bundling + CI step
-- [x] Rewrite phantrix_split_tunnel.cpp on sing-box; driver sources deleted
-- [x] Kill switch WFP (phantrix_kill_switch.cpp) + helper + plugin plumbing + capability
-- [x] Dart kill switch UI: strict warning, unblock banner, strings, diag
-- [x] Licences / notices / docs (BUILDING, SECURITY, README, THIRD_PARTY_LICENSES)
-- [ ] flutter analyze / test / build windows (final)
-- [ ] LIVE TEST on second PC (user): split include/exclude, kill switch automatic/strict, unblock
+- [x] Split tunneling via sing-box; kill switch (WFP); settings UX
+- [x] Native review fixes (race, hold release, DNS reconnect, route order, ProgramData ACL)
+- [x] Redesign: theme engine, light mode, accent picker, home, sidebar, titles, Inter
+- [x] Windows --release build
+- [ ] Linux --release build (needs Linux host / WSL / CI)
+- [ ] LIVE TEST on second PC: split include/exclude, kill switch automatic/strict, unblock, UAC flows
+- [ ] Commit redesign (not yet requested)

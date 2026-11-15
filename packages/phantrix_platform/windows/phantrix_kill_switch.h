@@ -56,12 +56,21 @@ const char* ModeName(Mode mode);
 // place: `%ProgramData%\Phantrix\kill-switch` holding the mode name.
 std::wstring MarkerPath();
 
+// `%ProgramData%\Phantrix`, created or re-secured so only Administrators and
+// SYSTEM can write to it. Empty when it cannot be trusted (a reparse point,
+// or owned by someone else); callers then write nothing there.
+std::wstring StateDirectory();
+
+// A subdirectory of [StateDirectory] with the same protection.
+std::wstring StateSubdirectory(const std::wstring& name);
+
 class KillSwitch {
  public:
   KillSwitch() = default;
 
   // Installs the rules, replacing any earlier set in one transaction so there
-  // is no moment without them. `apps` are executables always permitted.
+  // is no moment without them. `apps` are executables always permitted; the
+  // first must be the VPN engine, whose permit is mandatory.
   bool Engage(Mode mode, const std::vector<std::wstring>& apps,
               std::string* error_code, std::string* error_message);
 
@@ -79,6 +88,15 @@ class KillSwitch {
   // Keeps blocking after this process exits, with only the rules that need no
   // running tunnel: adapter permits and the connecting-time DNS permit go.
   bool KeepAfterExit(std::string* error_code, std::string* error_message);
+
+  // Removes the rules and forgets the mode, so nothing later in this
+  // process can reinstall them.
+  bool Disengage(std::string* error_message);
+
+  // Copies the helper to `%ProgramData%\Phantrix\phantrix-unblock.exe`, so
+  // strict rules can still be lifted (`phantrix-unblock.exe
+  // --release-firewall`, as administrator) if the app folder is deleted.
+  static void InstallRecoveryHelper(const std::wstring& helper_path);
 
   bool engaged() const { return mode_ != Mode::kOff; }
   Mode mode() const { return mode_; }

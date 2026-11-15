@@ -31,9 +31,29 @@ void main() {
   const aaBody = 4.5;
   const aaLarge = 3.0;
 
+  // Every accent the user can pick, in both themes: the accent is derived
+  // per theme, and each derivation has to hold for every hue, not only green.
   for (final themeCase in <(String, ThemeData)>[
-    ('light', AppTheme.light(animationLevel: 'none')),
-    ('dark', AppTheme.dark(animationLevel: 'none')),
+    for (final preset in VgAccent.presets) ...[
+      (
+        'light/${preset.id}',
+        AppTheme.light(animationLevel: 'none', accent: preset.color),
+      ),
+      (
+        'dark/${preset.id}',
+        AppTheme.dark(animationLevel: 'none', accent: preset.color),
+      ),
+    ],
+    for (final hue in const [0.0, 60.0, 120.0, 200.0, 280.0]) ...[
+      (
+        'light/hue$hue',
+        AppTheme.light(animationLevel: 'none', accent: VgAccent.fromHue(hue)),
+      ),
+      (
+        'dark/hue$hue',
+        AppTheme.dark(animationLevel: 'none', accent: VgAccent.fromHue(hue)),
+      ),
+    ],
   ]) {
     group('${themeCase.$1} theme contrast', () {
       final scheme = themeCase.$2.colorScheme;

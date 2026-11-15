@@ -141,7 +141,8 @@ const Map<String, String> _stringsValuesEn = {
       'connected — even after you close Phantrix or restart the '
       'computer. Only connecting, or switching the kill switch to Off or '
       'Automatic, restores it. On Windows, switching it needs administrator '
-      'approval.\n\nLocal network devices such as printers stay reachable.',
+      'approval.\n\nLocal network devices such as printers stay reachable. '
+      'Turn strict mode off before uninstalling Phantrix.',
   'killSwitchStrictConfirm': 'Turn on strict',
   'killSwitchReleaseFailed':
       'The kill switch could not be lifted, so internet is still blocked. '
@@ -168,6 +169,26 @@ const Map<String, String> _stringsValuesEn = {
   'themeDark': 'Dark',
   'themeSystem': 'System',
   'animation': 'Animation',
+  'animationFull': 'Full',
+  'animationReduced': 'Reduced',
+  'animationNone': 'Off',
+  'accentColor': 'Accent colour',
+  'accentHint':
+      'Used for buttons, switches and selections. Connection status keeps '
+      'its own colours.',
+  'accent.green': 'Phantrix green',
+  'accent.jade': 'Jade',
+  'accent.teal': 'Teal',
+  'accent.sky': 'Sky',
+  'accent.indigo': 'Indigo',
+  'accent.violet': 'Violet',
+  'accent.rose': 'Rose',
+  'accent.amber': 'Amber',
+  'accent.custom': 'Custom colour',
+  'accentCustomTitle': 'Custom accent',
+  'accentHue': 'Hue',
+  'accentUse': 'Use this colour',
+  'accentReset': 'Reset to Phantrix green',
   'language': 'Language',
   'clearData': 'Clear local data',
   'clearDataHint':
@@ -470,6 +491,28 @@ const Map<String, String> _stringsValuesEn = {
   'orbHintRetry': 'Double tap to try again',
   'orbHintReview': 'Double tap to see what is needed',
   'sessionTitle': 'This session',
+  'homeHeadIdle': 'You are not protected',
+  'homeHeadWorking': 'Securing your connection',
+  'homeHeadConnected': 'You are protected',
+  'homeHeadFailed': 'Connection failed',
+  'homeHeadBlocked': 'Action needed',
+  'homeSubIdle':
+      'Your traffic currently leaves through your normal internet connection.',
+  'homeSubWorking': 'Building an encrypted tunnel to {location}…',
+  'homeSubConnected': 'Your traffic is encrypted through {location}.',
+  'homeSubFailed': 'Nothing was changed. Try again or pick another location.',
+  'homeSubBlocked': 'Something needs your attention before connecting.',
+  'protectionTitle': 'Protection',
+  'protectionKillSwitch': 'Kill switch',
+  'protectionSplit': 'Split tunneling',
+  'protectionDns': 'DNS',
+  'protectionDnsValue': 'Through the tunnel',
+  'protectionIpv6': 'IPv6',
+  'protectionOff': 'Off',
+  'protectionUnavailable': 'Not available',
+  'protectionSplitInclude': '{count} apps via VPN',
+  'protectionSplitExclude': '{count} apps bypass',
+  'protectionManage': 'Manage in Settings',
   'sessionConnectedFor': 'Connected for',
   'sessionSession': 'Session',
   'sessionDownloaded': 'Downloaded',

@@ -247,6 +247,53 @@ bool IsTunnelDefaultRoute(const MIB_IPFORWARD_ROW2& row) {
   return length <= 7;
 }
 
+// The alias of the interface that carries the physical default route: the
+// lowest-metric 0.0.0.0/0 that is not on the tunnel or the router. Read from
+// the route table rather than "best interface", which answers with the tunnel
+// once it is up.
+std::wstring PhysicalDefaultAlias(const NET_LUID& tunnel_luid) {
+  NET_LUID router = {};
+  const bool have_router =
+      ConvertInterfaceAliasToLuid(kRouterAdapterName, &router) == NO_ERROR;
+  PMIB_IPFORWARD_TABLE2 table = nullptr;
+  if (GetIpForwardTable2(AF_INET, &table) != NO_ERROR || table == nullptr) {
+    return std::wstring();
+  }
+  ULONG best_metric = ~0UL;
+  NET_LUID best = {};
+  bool found = false;
+  for (ULONG index = 0; index < table->NumEntries; ++index) {
+    const MIB_IPFORWARD_ROW2& row = table->Table[index];
+    if (row.DestinationPrefix.PrefixLength != 0 ||
+        SameLuid(row.InterfaceLuid, tunnel_luid) ||
+        (have_router && SameLuid(row.InterfaceLuid, router))) {
+      continue;
+    }
+    MIB_IPINTERFACE_ROW iface = {};
+    InitializeIpInterfaceEntry(&iface);
+    iface.Family = AF_INET;
+    iface.InterfaceLuid = row.InterfaceLuid;
+    ULONG metric = row.Metric;
+    if (GetIpInterfaceEntry(&iface) == NO_ERROR) {
+      if (!iface.Connected) {
+        continue;
+      }
+      metric += iface.Metric;
+    }
+    if (metric < best_metric) {
+      best_metric = metric;
+      best = row.InterfaceLuid;
+      found = true;
+    }
+  }
+  FreeMibTable(table);
+  std::wstring alias;
+  if (found && !InterfaceAlias(best, &alias)) {
+    alias.clear();
+  }
+  return alias;
+}
+
 }  // namespace
 
 std::wstring RouterExecutable(const std::wstring& module_directory) {
@@ -378,25 +425,29 @@ bool Controller::Apply(NET_LUID tunnel_luid, std::string* error_code,
     dns = tunnel_v4 ? "1.1.1.1" : "2606:4700:4700::1111";
   }
 
-  if (!WriteConfig(tunnel_alias, dns, error_code, error_message)) {
+  // The router's "direct" path is pinned to the physical adapter by name,
+  // so it never depends on which default route happens to win while the
+  // tunnel's routes are being changed.
+  const std::wstring physical_alias = PhysicalDefaultAlias(tunnel_luid);
+  if (!WriteConfig(tunnel_alias, physical_alias, dns, error_code,
+                   error_message)) {
     return false;
   }
 
-  // OpenVPN's full-tunnel routes would otherwise compete with the router's.
-  // Taken off first, so the router's interface detection sees the physical
-  // network as the default path, and replaced by one high-metric default
-  // route that only sockets bound to the tunnel ever use.
-  TakeTunnelRoutes(tunnel_luid);
-
+  // The router comes up first, while OpenVPN's full-tunnel routes still
+  // carry everything, so there is no moment where traffic has no tunnel
+  // path. Only then are those routes swapped for one high-metric default
+  // route that only sockets bound to the tunnel use.
   if (!StartRouter(error_code, error_message)) {
     StopRouter();
-    RestoreTunnelRoutes();
     return false;
   }
+  TakeTunnelRoutes(tunnel_luid);
   return true;
 }
 
 bool Controller::WriteConfig(const std::wstring& tunnel_alias,
+                             const std::wstring& physical_alias,
                              const std::string& dns_server,
                              std::string* error_code,
                              std::string* error_message) {
@@ -405,8 +456,9 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
     app_patterns.push_back(ExactPathPattern(WideToUtf8(path)));
   }
   // The engine's own connection to the VPN server must never be routed into
-  // the tunnel it carries.
-  const std::string engine_pattern = "(?i)\\\\openvpn\\.exe$";
+  // the tunnel it carries. Matched by its exact bundled path.
+  const std::string engine_pattern = ExactPathPattern(
+      WideToUtf8(phantrix::ovpn::OpenVpnExecutable(module_directory_)));
 
   const char* selected_outbound = policy_.include_mode ? "vpn" : "direct";
   const char* final_outbound = policy_.include_mode ? "direct" : "vpn";
@@ -432,7 +484,13 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
   json += "  \"outbounds\": [\n";
   json += "    {\"type\": \"direct\", \"tag\": \"vpn\", \"bind_interface\": \"" +
           JsonEscape(WideToUtf8(tunnel_alias)) + "\"},\n";
-  json += "    {\"type\": \"direct\", \"tag\": \"direct\"}\n";
+  if (physical_alias.empty()) {
+    json += "    {\"type\": \"direct\", \"tag\": \"direct\"}\n";
+  } else {
+    json += "    {\"type\": \"direct\", \"tag\": \"direct\", "
+            "\"bind_interface\": \"" +
+            JsonEscape(WideToUtf8(physical_alias)) + "\"}\n";
+  }
   json += "  ],\n";
   json += "  \"route\": {\n";
   json += "    \"rules\": [\n";
@@ -447,7 +505,12 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
   }
   json += "\n    ],\n";
   json += std::string("    \"final\": \"") + final_outbound + "\",\n";
-  json += "    \"auto_detect_interface\": true,\n";
+  if (physical_alias.empty()) {
+    json += "    \"auto_detect_interface\": true,\n";
+  } else {
+    json += "    \"default_interface\": \"" +
+            JsonEscape(WideToUtf8(physical_alias)) + "\",\n";
+  }
   json += "    \"find_process\": true,\n";
   json += "    \"default_domain_resolver\": \"dns-tunnel\"\n";
   json += "  }\n";
@@ -492,18 +555,47 @@ bool Controller::StartRouter(std::string* error_code,
   std::vector<wchar_t> command_line(command.begin(), command.end());
   command_line.push_back(L'\0');
 
-  STARTUPINFOW startup = {};
-  startup.cb = sizeof(startup);
-  startup.dwFlags = STARTF_USESTDHANDLES;
-  startup.hStdInput = null_input;
-  startup.hStdOutput = log_handle;
-  startup.hStdError = log_handle;
+  // Only the log and the null input are inherited: an elevated helper's other
+  // handles (the pipe to the app, the WFP engine) are none of its business.
+  HANDLE inherited[2] = {log_handle, null_input};
+  SIZE_T list_size = 0;
+  InitializeProcThreadAttributeList(nullptr, 1, 0, &list_size);
+  std::vector<unsigned char> list_storage(list_size);
+  auto* attributes =
+      reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(list_storage.data());
+  bool have_list =
+      log_handle != INVALID_HANDLE_VALUE && null_input != INVALID_HANDLE_VALUE &&
+      InitializeProcThreadAttributeList(attributes, 1, 0, &list_size) != FALSE;
+  if (have_list &&
+      UpdateProcThreadAttribute(attributes, 0,
+                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited,
+                                sizeof(inherited), nullptr, nullptr) == FALSE) {
+    DeleteProcThreadAttributeList(attributes);
+    have_list = false;
+  }
+
+  STARTUPINFOEXW startup = {};
+  startup.StartupInfo.cb = sizeof(startup);
+  startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+  startup.StartupInfo.hStdInput = null_input;
+  startup.StartupInfo.hStdOutput = log_handle;
+  startup.StartupInfo.hStdError = log_handle;
+  startup.lpAttributeList = have_list ? attributes : nullptr;
   PROCESS_INFORMATION info = {};
-  const BOOL created = CreateProcessW(
-      executable.c_str(), command_line.data(), nullptr, nullptr, TRUE,
-      CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, module_directory_.c_str(),
-      &startup, &info);
-  const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
+  const BOOL created =
+      have_list &&
+      CreateProcessW(executable.c_str(), command_line.data(), nullptr, nullptr,
+                     TRUE,
+                     CREATE_NO_WINDOW | CREATE_SUSPENDED |
+                         EXTENDED_STARTUPINFO_PRESENT,
+                     nullptr, module_directory_.c_str(),
+                     &startup.StartupInfo, &info);
+  const DWORD create_error =
+      created ? ERROR_SUCCESS
+              : (have_list ? GetLastError() : ERROR_INVALID_HANDLE);
+  if (have_list) {
+    DeleteProcThreadAttributeList(attributes);
+  }
   if (log_handle != INVALID_HANDLE_VALUE) {
     CloseHandle(log_handle);
   }
@@ -517,8 +609,16 @@ bool Controller::StartRouter(std::string* error_code,
          error_code, error_message);
     return false;
   }
-  if (job_ != nullptr) {
-    (void)AssignProcessToJobObject(job_, info.hProcess);
+  if (job_ == nullptr || AssignProcessToJobObject(job_, info.hProcess) == FALSE) {
+    // Outside the job it would outlive a crashed helper with its default
+    // routes still pointing at a tunnel that no longer exists.
+    TerminateProcess(info.hProcess, 1);
+    CloseHandle(info.hThread);
+    CloseHandle(info.hProcess);
+    Fail("split.router_failed",
+         "The split-tunnel router could not be tied to the tunnel helper.",
+         error_code, error_message);
+    return false;
   }
   ResumeThread(info.hThread);
   CloseHandle(info.hThread);
@@ -627,25 +727,9 @@ void Controller::StopRouter() {
 void Controller::TakeTunnelRoutes(NET_LUID tunnel_luid) {
   tunnel_luid_ = tunnel_luid;
   have_tunnel_ = true;
-  for (const ADDRESS_FAMILY family : kFamilies) {
-    PMIB_IPFORWARD_TABLE2 table = nullptr;
-    if (GetIpForwardTable2(family, &table) != NO_ERROR || table == nullptr) {
-      continue;
-    }
-    for (ULONG index = 0; index < table->NumEntries; ++index) {
-      const MIB_IPFORWARD_ROW2& row = table->Table[index];
-      if (!SameLuid(row.InterfaceLuid, tunnel_luid) ||
-          !IsTunnelDefaultRoute(row)) {
-        continue;
-      }
-      if (DeleteIpForwardEntry2(&row) == NO_ERROR) {
-        removed_routes_.push_back(row);
-      }
-    }
-    FreeMibTable(table);
-  }
   // A socket bound to the tunnel adapter needs a route on it. One default
-  // route per family the tunnel carries, at a metric nothing unbound picks.
+  // route per family the tunnel carries, at a metric nothing unbound picks,
+  // added before OpenVPN's routes go so the tunnel is never routeless.
   for (const ADDRESS_FAMILY family : kFamilies) {
     if (!TunnelHasAddress(tunnel_luid, family)) {
       continue;
@@ -658,20 +742,35 @@ void Controller::TakeTunnelRoutes(NET_LUID tunnel_luid) {
     row.NextHop.si_family = family;
     row.Metric = kBoundRouteMetric;
     row.Protocol = MIB_IPPROTO_NETMGMT;
-    const DWORD created = CreateIpForwardEntry2(&row);
-    if (created == NO_ERROR || created == ERROR_OBJECT_ALREADY_EXISTS) {
+    if (CreateIpForwardEntry2(&row) == NO_ERROR) {
       added_routes_.push_back(row);
     }
+  }
+  for (const ADDRESS_FAMILY family : kFamilies) {
+    PMIB_IPFORWARD_TABLE2 table = nullptr;
+    if (GetIpForwardTable2(family, &table) != NO_ERROR || table == nullptr) {
+      continue;
+    }
+    for (ULONG index = 0; index < table->NumEntries; ++index) {
+      const MIB_IPFORWARD_ROW2& row = table->Table[index];
+      if (!SameLuid(row.InterfaceLuid, tunnel_luid) ||
+          !IsTunnelDefaultRoute(row) ||
+          (row.DestinationPrefix.PrefixLength == 0 &&
+           row.Metric == kBoundRouteMetric)) {
+        continue;
+      }
+      if (DeleteIpForwardEntry2(&row) == NO_ERROR) {
+        removed_routes_.push_back(row);
+      }
+    }
+    FreeMibTable(table);
   }
 }
 
 void Controller::RestoreTunnelRoutes() {
-  for (const MIB_IPFORWARD_ROW2& row : added_routes_) {
-    (void)DeleteIpForwardEntry2(&row);
-  }
-  added_routes_.clear();
   // Put back only while the adapter still exists; a tunnel that is already
-  // gone took its routes with it.
+  // gone took its routes with it. OpenVPN's routes return before the
+  // fallback route goes, so the tunnel is never without a default path.
   NET_IFINDEX index = 0;
   const bool tunnel_present =
       have_tunnel_ &&
@@ -682,6 +781,10 @@ void Controller::RestoreTunnelRoutes() {
     }
   }
   removed_routes_.clear();
+  for (const MIB_IPFORWARD_ROW2& row : added_routes_) {
+    (void)DeleteIpForwardEntry2(&row);
+  }
+  added_routes_.clear();
   have_tunnel_ = false;
 }
 
@@ -694,8 +797,10 @@ bool Controller::RouterLuid(NET_LUID* luid) const {
 }
 
 void Controller::Clear() {
-  StopRouter();
+  // Routes first: while the router still runs, traffic keeps a path through
+  // it; once OpenVPN's routes are back, stopping it leaks nothing.
   RestoreTunnelRoutes();
+  StopRouter();
 }
 
 void Controller::Shutdown() {

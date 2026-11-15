@@ -93,7 +93,7 @@ class _ConnectionOrbState extends State<ConnectionOrb>
                     alignment: Alignment.center,
                     children: [
                       // Bloom sits behind the ring and gives the orb depth.
-                      if (!widget.reducedMotion && widget.state != VgTone.idle)
+                      if (_bloomStrength() > 0)
                         AnimatedBuilder(
                           animation: _pulse,
                           builder: (context, _) => OrbBloom(
@@ -149,9 +149,13 @@ class _ConnectionOrbState extends State<ConnectionOrb>
   double _bloomStrength() {
     // Connected glows steadily; working breathes. Idle and failed do not
     // glow, because a glow reads as "active" and neither of those is.
+    // At rest a faint, still glow in the accent marks the orb as the thing
+    // to press.
     return switch (widget.state) {
-      VgTone.connected => 0.7,
-      VgTone.working => 0.4 + 0.25 * _pulse.value,
+      VgTone.connected => 0.8,
+      VgTone.working =>
+        widget.reducedMotion ? 0.45 : 0.4 + 0.25 * _pulse.value,
+      VgTone.idle => 0.32,
       _ => 0,
     };
   }

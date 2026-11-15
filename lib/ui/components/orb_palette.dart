@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
-import '../../theme/tokens.dart';
 import 'status_style.dart';
 
 /// The wording the orb shows for a tone.
@@ -44,10 +43,20 @@ class OrbPalette {
   final String hint;
 
   static OrbPalette forTone(VgTone tone, ThemeData theme, L10n l10n) {
-    final colors = VgStatusColors.of(tone, theme.brightness);
-    final track = theme.brightness == Brightness.dark
-        ? VgColors.surfaceHighest
-        : VgColors.lightLine;
+    final base = VgStatusColors.of(tone, theme.brightness);
+    // At rest the orb is the screen's call to action, so its glyph and hint
+    // take the accent; every other state keeps its own status colour.
+    final colors = tone == VgTone.idle
+        ? VgStatusColors(
+            accent: theme.colorScheme.primary,
+            deep: base.deep,
+            face: theme.brightness == Brightness.dark
+                ? theme.colorScheme.surfaceContainerHigh
+                : Colors.white,
+            icon: base.icon,
+          )
+        : base;
+    final track = theme.colorScheme.outline;
     return switch (tone) {
       VgTone.idle => OrbPalette(
         colors: colors,

@@ -19,7 +19,15 @@ class OrbFace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final idle = state == VgTone.idle;
+    // Lit from above: a radial highlight toward the top makes the face read
+    // as a physical button without a heavy drop shadow under it.
+    final top = Color.lerp(color, Colors.white, isDark ? 0.10 : 0.70)!;
+    final bottom = isDark
+        ? Color.lerp(color, Colors.black, 0.18)!
+        : Color.lerp(color, Colors.white, 0.15)!;
     return AnimatedContainer(
       duration: VgMotion.normal,
       curve: VgMotion.emphasised,
@@ -27,26 +35,29 @@ class OrbFace extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(color, Colors.white, isDark ? 0.07 : 0.55)!,
-            color,
-          ],
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.55),
+          radius: 1.05,
+          colors: [top, bottom],
         ),
         border: Border.all(
-          color: edge.withValues(alpha: state == VgTone.idle ? 0.12 : 0.30),
+          color: idle
+              ? theme.colorScheme.outlineVariant.withValues(alpha: 0.9)
+              : edge.withValues(alpha: 0.45),
           width: 1.5,
         ),
-        boxShadow: VgShadow.forLifted(
-          isDark ? Colors.black : const Color(0xFF1E3A2B),
-          // Much lighter in the light theme. The same strength that
-          // reads as a soft lift under a near-black face reads as a
-          // grey disc under a pale one, because there is nothing above
-          // it for the shadow to be darker *than*.
-          strength: isDark ? 0.62 : 0.28,
-        ),
+        boxShadow: [
+          // A glow in the state's own colour rather than a grey shadow:
+          // the orb is a light source, not a card.
+          BoxShadow(
+            color: (idle ? Colors.black : edge).withValues(
+              alpha: idle ? (isDark ? 0.35 : 0.08) : (isDark ? 0.30 : 0.22),
+            ),
+            blurRadius: idle ? 28 : 46,
+            spreadRadius: idle ? -4 : -2,
+            offset: Offset(0, idle ? 4 : 0),
+          ),
+        ],
       ),
     );
   }

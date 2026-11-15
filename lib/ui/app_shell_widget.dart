@@ -108,50 +108,70 @@ class _AppShellState extends State<AppShell> {
             ),
         ];
 
+        final decor = VgDecor.of(context);
         return Scaffold(
-          body: SafeArea(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (wide)
-                  VgSidebar(
-                    items: sidebarItems,
-                    onSelect: (id) {
-                      final target = destinations.indexWhere((d) => d.id == id);
-                      if (target >= 0) {
-                        widget.navigation.select(target);
-                      }
-                    },
-                    status: widget.statusFooter,
-                  ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Only on the compact layout. With a
-                      // sidebar every destination's name is
-                      // already on screen and permanently
-                      // highlighted, so a title repeating it
-                      // adds nothing and floats above the
-                      // content unaligned with anything.
-                      if (!wide)
-                        VgScreenHeader(
-                          title: current.label,
-                          onBack: backTo == null ? null : goBack,
+          body: DecoratedBox(
+            // A faint wash of the accent from the top of the window: the
+            // canvas shares the user's colour instead of being a flat fill.
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const AlignmentDirectional(
+                  0.7,
+                  -1.3,
+                ).resolve(Directionality.of(context)),
+                radius: 1.4,
+                colors: [
+                  decor.canvasGlow,
+                  decor.canvasGlow.withValues(alpha: 0),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (wide)
+                    VgSidebar(
+                      items: sidebarItems,
+                      onSelect: (id) {
+                        final target = destinations.indexWhere(
+                          (d) => d.id == id,
+                        );
+                        if (target >= 0) {
+                          widget.navigation.select(target);
+                        }
+                      },
+                      status: widget.statusFooter,
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Only on the compact layout. With a
+                        // sidebar every destination's name is
+                        // already on screen and permanently
+                        // highlighted, so a title repeating it
+                        // adds nothing and floats above the
+                        // content unaligned with anything.
+                        if (!wide)
+                          VgScreenHeader(
+                            title: current.label,
+                            onBack: backTo == null ? null : goBack,
+                          ),
+                        Expanded(
+                          child: KeyedSubtree(
+                            // Keyed by id, not index, so switching
+                            // screens rebuilds and removing one
+                            // does not leave the wrong screen up.
+                            key: ValueKey(current.id),
+                            child: current.builder(context),
+                          ),
                         ),
-                      Expanded(
-                        child: KeyedSubtree(
-                          // Keyed by id, not index, so switching
-                          // screens rebuilds and removing one
-                          // does not leave the wrong screen up.
-                          key: ValueKey(current.id),
-                          child: current.builder(context),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           // The bar is always the three tabs — including on a secondary

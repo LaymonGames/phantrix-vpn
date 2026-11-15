@@ -32,7 +32,8 @@ class ServerPanel extends StatelessWidget {
         : selectedLabel;
     return VgSurface(
       onTap: onChooseLocation,
-      padding: EdgeInsets.zero,
+      outlined: true,
+      padding: const EdgeInsets.symmetric(vertical: VgSpace.sm),
       child: Row(
         children: [
           const SizedBox(width: VgSpace.md),

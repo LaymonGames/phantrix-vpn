@@ -167,3 +167,9 @@ install(
   DESTINATION "${PHANTRIX_LICENCE_DIR}"
   RENAME "sing-box-LICENSE.txt"
   COMPONENT Runtime)
+# Inter (SIL Open Font License 1.1): the bundled interface typeface.
+install(
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/../tools/attribution/inter-ofl.txt"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "Inter-OFL.txt"
+  COMPONENT Runtime)

@@ -106,6 +106,10 @@ attributionFiles = [
     file: 'sing-box-license.txt',
     component: 'sing-box (split-tunnel router, separate process, GPL-3.0-or-later)',
     notes: ['mereAggregation', 'shippedBinary'],
+  ),  (
+    file: 'inter-ofl.txt',
+    component: 'Inter typeface (bundled font, SIL Open Font License 1.1)',
+    notes: ['shippedBinary'],
   ),
 ];
 

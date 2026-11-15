@@ -610,8 +610,9 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 	// installed.
 	std::string splitCode;
 	std::string splitMessage;
-	if (!split.Prepare(moduleDirectory, sessionDirectory, splitPolicy,
-	                   &splitCode, &splitMessage)) {
+	if (!split.Prepare(moduleDirectory,
+	                   phantrix::firewall::StateSubdirectory(L"router"),
+	                   splitPolicy, &splitCode, &splitMessage)) {
 		Reject(pipe, splitCode.c_str(), splitMessage);
 		return;
 	}
@@ -633,6 +634,10 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 		                       &killMessage)) {
 			Reject(pipe, killCode.c_str(), killMessage);
 			return;
+		}
+		if (killSwitchMode == phantrix::firewall::Mode::kStrict) {
+			phantrix::firewall::KillSwitch::InstallRecoveryHelper(
+			    phantrix::ovpn::HelperExecutable(moduleDirectory));
 		}
 	} else {
 		std::string ignored;
@@ -838,7 +843,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		        pipe,
 		        MakeMessage(MessageType::kState,
 		                    {state, std::to_string(handshakeAtMillis)}));
-		    if (state != "handshaked" || stoppingEngine.load()) {
+		    if (stoppingEngine.load()) {
+			    return;
+		    }
+		    if (state == "reconnecting") {
+			    // The engine is about to look its server up again, which goes
+			    // through Windows' DNS client outside the tunnel.
+			    std::lock_guard<std::mutex> operation(splitOperationMutex);
+			    if (!stoppingEngine.load()) {
+				    std::string ignoredCode;
+				    std::string ignoredMessage;
+				    (void)killSwitch.SetSetupDns(true, &ignoredCode,
+				                                 &ignoredMessage);
+			    }
+			    return;
+		    }
+		    if (state != "handshaked") {
 			    return;
 		    }
 		    splitHandshaked = true;
@@ -850,9 +870,19 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		    std::string code;
 		    std::string message;
 		    std::lock_guard<std::mutex> operation(splitOperationMutex);
+		    // A stop that arrived while this thread waited for the lock has
+		    // already settled the firewall and the router; acting now would
+		    // put back what it removed.
+		    if (stoppingEngine.load()) {
+			    return;
+		    }
 		    // The engine has resolved and reached its server. From here on, DNS
 		    // outside the tunnel is a leak, not a necessity.
 		    bool ok = killSwitch.SetSetupDns(false, &code, &message);
+		    NET_LUID previousRouter = {};
+		    if (split.RouterLuid(&previousRouter)) {
+			    killSwitch.ForgetInterface(previousRouter);
+		    }
 		    // The engine reports the handshake once the adapter has an
 		    // address and DNS servers, which the router needs.
 		    if (ok && current.enabled) {
@@ -918,7 +948,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		    holdFirewall) {
 			(void)killSwitch.KeepAfterExit(&code, &message);
 		} else {
-			(void)phantrix::firewall::KillSwitch::Release(&message);
+			(void)killSwitch.Disengage(&message);
 		}
 	};
 
@@ -1014,13 +1044,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					// switch blocking until it reconnects or the user disconnects.
 					holdFirewall = !message.fields.empty() &&
 					               message.fields[0] == "hold";
+					// Set before the lock, so a handshake callback waiting on
+					// it sees the stop and does nothing.
+					stoppingEngine = true;
 					std::lock_guard<std::mutex> operation(splitOperationMutex);
+					// The firewall's final state first: it is fast, and a
+					// helper killed during the slower teardown below must not
+					// leave rules the user asked to remove.
+					finishFirewall();
 					split.Shutdown();
 					if (engine.running()) {
-						stoppingEngine = true;
 						(void)engine.Stop();
 					}
-					finishFirewall();
 					WriteToPipe(pipe, MakeMessage(MessageType::kDisconnected, {}));
 					shuttingDown = true;
 					break;
@@ -1098,8 +1133,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 						const bool hadRouter = split.RouterLuid(&oldRouter);
 						if (!requested.enabled) {
 							split.Clear();
-						} else if (!split.Prepare(moduleDirectory, sessionDirectory,
-						                          requested, &code, &reason)) {
+						} else if (!split.Prepare(
+						               moduleDirectory,
+						               phantrix::firewall::StateSubdirectory(
+						                   L"router"),
+						               requested, &code, &reason)) {
 							ok = false;
 						} else if (splitHandshaked.load()) {
 							ok = split.Apply(g_adapterLuid, &code, &reason);

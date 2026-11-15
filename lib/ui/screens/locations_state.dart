@@ -70,6 +70,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              VgPageTitle(title: l10n.get('servers')),
               VgPanel(
                 padding: const EdgeInsets.all(VgSpace.md),
                 child: Column(

@@ -22,7 +22,15 @@ class PhantrixApp extends StatelessWidget {
           return MaterialApp(
             title: 'Phantrix',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.dark(animationLevel: d.animationLevel),
+            theme: AppTheme.light(
+              animationLevel: d.animationLevel,
+              accent: Color(d.accentColor),
+            ),
+            darkTheme: AppTheme.dark(
+              animationLevel: d.animationLevel,
+              accent: Color(d.accentColor),
+            ),
+            themeMode: _themeMode(d.themeMode),
             locale: Locale(d.language),
             supportedLocales: L10n.supportedLocales,
             localizationsDelegates: const [
@@ -44,7 +52,18 @@ class PhantrixApp extends StatelessWidget {
         return MaterialApp(
           title: 'Phantrix',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.dark(animationLevel: d.animationLevel),
+          theme: AppTheme.light(
+            animationLevel: d.animationLevel,
+            accent: Color(d.accentColor),
+          ),
+          darkTheme: AppTheme.dark(
+            animationLevel: d.animationLevel,
+            accent: Color(d.accentColor),
+          ),
+          themeMode: _themeMode(d.themeMode),
+          themeAnimationDuration: d.animationLevel == 'none'
+              ? Duration.zero
+              : const Duration(milliseconds: 260),
           locale: Locale(d.language),
           supportedLocales: L10n.supportedLocales,
           localizationsDelegates: const [
@@ -64,6 +83,12 @@ class PhantrixApp extends StatelessWidget {
     );
   }
 }
+
+ThemeMode _themeMode(String value) => switch (value) {
+  'light' => ThemeMode.light,
+  'dark' => ThemeMode.dark,
+  _ => ThemeMode.system,
+};
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {
   const _L10nDelegate();

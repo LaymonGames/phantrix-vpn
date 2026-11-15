@@ -35,108 +35,86 @@ class _HomeScreenState extends State<HomeScreen> {
         final l10n = L10n.of(context);
         // The scroll view spans the page so the mouse wheel works over the
         // margins too; only its content is held to the dashboard measure.
+        final location = _locationLabel(
+          view,
+          widget.selectedCountryCode,
+          l10n,
+        );
+        // The scroll view spans the page so the mouse wheel works over the
+        // margins too; only its content is held to the dashboard measure.
         return VgScrollColumn(
           wide: true,
-          builder: (context, insets) => LayoutBuilder(
-            // Laid out to fill the window rather than stacked from the
-            // top. On a short window it scrolls; on a tall one the hero
-            // sits around a third of the way down instead of leaving a
-            // void beneath it, which is what a top-aligned column does
-            // on every desktop display.
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: insets,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - VgSpace.lg,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, inner) {
-                    final twoColumn =
-                        MediaQuery.sizeOf(context).width >=
-                        VgBreakpoints.twoColumn;
-                    return Column(
-                      // Centred rather than spread. `spaceEvenly`
-                      // puts the same gap between every pair of
-                      // elements, which on a tall window pulls the
-                      // status line away from the control it
-                      // describes and makes the screen read as
-                      // loose rather than calm.
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // An error spans the full width on every
-                        // layout: it is the one thing on this screen
-                        // that must not be missed, and squeezing it
-                        // into a narrow column is how a failure gets
-                        // scrolled past.
-                        if (view.errorMessage != null) ...[
-                          VgErrorCard(
-                            message: view.errorMessage!,
-                            code: view.errorCode,
-                            actionLabel: view.canRetry
-                                ? l10n.get('tryAgain')
-                                : null,
-                            onAction: view.canRetry
-                                ? () => unawaited(widget.connection.retry())
-                                : null,
-                          ),
-                          const SizedBox(height: VgSpace.lg),
+          builder: (context, insets) => SingleChildScrollView(
+            padding: insets.copyWith(top: VgSpace.xl, bottom: VgSpace.xl),
+            child: LayoutBuilder(
+              builder: (context, inner) {
+                final twoColumn =
+                    MediaQuery.sizeOf(context).width >=
+                    VgBreakpoints.twoColumn;
+                final hero = HeroPanel(
+                  view: view,
+                  location: location,
+                  reducedMotion: widget.reducedMotion,
+                  onPressed: () => _primary(view),
+                  onChooseLocation: widget.onChooseLocation,
+                );
+                final details = _DetailColumn(
+                  view: view,
+                  l10n: l10n,
+                  settings: widget.settings,
+                  selectedCountryCode: widget.selectedCountryCode,
+                  onChooseLocation: widget.onChooseLocation,
+                  onOpenSettings: widget.onOpenSettings,
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _StatusHeader(view: view, location: location),
+                    const SizedBox(height: VgSpace.xl),
+                    // An error spans the full width on every layout: it is
+                    // the one thing on this screen that must not be
+                    // missed, and squeezing it into a narrow column is how
+                    // a failure gets scrolled past.
+                    if (view.errorMessage != null) ...[
+                      VgErrorCard(
+                        message: view.errorMessage!,
+                        code: view.errorCode,
+                        actionLabel: view.canRetry
+                            ? l10n.get('tryAgain')
+                            : null,
+                        onAction: view.canRetry
+                            ? () => unawaited(widget.connection.retry())
+                            : null,
+                      ),
+                      const SizedBox(height: VgSpace.lg),
+                    ],
+                    // Full width for the same reason: "no internet" with no
+                    // visible cause is the worst outcome a kill switch can
+                    // produce.
+                    if (view.killSwitchBlocking) ...[
+                      _KillSwitchCard(
+                        strict: view.killSwitch.strict,
+                        onUnblock: widget.connection.releaseKillSwitch,
+                      ),
+                      const SizedBox(height: VgSpace.lg),
+                    ],
+                    if (twoColumn)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 5, child: hero),
+                          const SizedBox(width: VgSpace.columnGap),
+                          Expanded(flex: 6, child: details),
                         ],
-                        // Full width for the same reason: "no internet"
-                        // with no visible cause is the worst outcome a
-                        // kill switch can produce.
-                        if (view.killSwitchBlocking) ...[
-                          _KillSwitchCard(
-                            strict: view.killSwitch.strict,
-                            onUnblock: widget.connection.releaseKillSwitch,
-                          ),
-                          const SizedBox(height: VgSpace.lg),
-                        ],
-                        if (twoColumn)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 5,
-                                child: HeroPanel(
-                                  view: view,
-                                  reducedMotion: widget.reducedMotion,
-                                  onPressed: () => _primary(view),
-                                  onChooseLocation: widget.onChooseLocation,
-                                ),
-                              ),
-                              const SizedBox(width: VgSpace.columnGap),
-                              Expanded(
-                                flex: 6,
-                                child: _DetailColumn(
-                                  view: view,
-                                  l10n: l10n,
-                                  selectedCountryCode:
-                                      widget.selectedCountryCode,
-                                  onChooseLocation: widget.onChooseLocation,
-                                ),
-                              ),
-                            ],
-                          )
-                        else ...[
-                          HeroPanel(
-                            view: view,
-                            reducedMotion: widget.reducedMotion,
-                            onPressed: () => _primary(view),
-                            onChooseLocation: widget.onChooseLocation,
-                          ),
-                          _DetailColumn(
-                            view: view,
-                            l10n: l10n,
-                            selectedCountryCode: widget.selectedCountryCode,
-                            onChooseLocation: widget.onChooseLocation,
-                          ),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              ),
+                      )
+                    else ...[
+                      hero,
+                      const SizedBox(height: VgSpace.lg),
+                      details,
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         );

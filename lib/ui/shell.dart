@@ -3,6 +3,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../l10n/strings.dart';
+import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import 'components/navigation.dart';
 
