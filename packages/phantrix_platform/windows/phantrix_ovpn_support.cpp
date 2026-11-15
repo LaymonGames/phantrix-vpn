@@ -941,7 +941,10 @@ bool TakeMessage(std::vector<uint8_t>* carry, Message* message) {
 	memcpy(&type, carry->data() + 6, sizeof(type));
 	if (version != kMessageVersion ||
 	    type < static_cast<uint16_t>(MessageType::kStart) ||
-	    type > static_cast<uint16_t>(MessageType::kHello) ||
+	    // The bound is the last type in the enum, not `kHello`: the split
+	    // tunnel messages added after it (11-13) were rejected here, so a
+	    // live split-tunnel change was silently dropped in both directions.
+	    type > static_cast<uint16_t>(MessageType::kKillSwitch) ||
 	    payloadLength < sizeof(uint32_t) || payloadLength > kMaxPayload) {
 		carry->clear();
 		return false;

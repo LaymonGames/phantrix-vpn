@@ -171,7 +171,7 @@ void main() {
       expect(engages, 1);
     });
 
-    testWidgets('Off while blocking lifts the block; a failure is said', (
+    testWidgets('Off while blocking: a refused lift keeps the mode', (
       tester,
     ) async {
       final settings = SettingsController();
@@ -190,9 +190,39 @@ void main() {
       await tester.tap(find.text(en.get('killSwitchOff')));
       await tester.pumpAndSettle();
 
-      expect(settings.data.killSwitch, KillSwitchMode.off);
+      // The rules are still in place, so the row must not claim Off.
+      expect(settings.data.killSwitch, KillSwitchMode.automatic);
       expect(releases, 1);
       expect(find.text(en.get('killSwitchReleaseFailed')), findsOneWidget);
+    });
+
+    testWidgets('a refused Strict goes back to the previous mode', (
+      tester,
+    ) async {
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        _panel(
+          settings: settings,
+          onEngage: () async => Err(
+            AppError(
+              group: ErrorGroup.permission,
+              code: 'permission.denied',
+              message: 'The administrator prompt was declined.',
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text(en.get('killSwitchStrict')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.get('killSwitchStrictConfirm')));
+      await tester.pumpAndSettle();
+
+      expect(settings.data.killSwitch, KillSwitchMode.automatic);
+      expect(
+        find.text('The administrator prompt was declined.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Automatic to Off with nothing blocking does not release', (

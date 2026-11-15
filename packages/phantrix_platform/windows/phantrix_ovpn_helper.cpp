@@ -758,7 +758,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		std::string message;
 		if (!strict.Engage(phantrix::firewall::Mode::kStrict, permitted, &code,
 		                   &message) ||
-		    !strict.KeepAfterExit(&code, &message)) {
+		    // DNS stays open with no tunnel, or the app could not resolve the
+		    // relay list here and "connect" would be impossible in strict.
+		    !strict.KeepAfterExit(true, &code, &message)) {
 			return 7;
 		}
 		phantrix::firewall::KillSwitch::InstallRecoveryHelper(
@@ -825,6 +827,32 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	if (parentProcess == nullptr) {
 		CloseHandle(pipe);
 		return 3;
+	}
+
+	// Everything this helper starts is tied to the helper's own life through
+	// one job object. The parent wait above covers the app going away, and the
+	// stop path covers an ordinary teardown — but a helper that is killed or
+	// crashes runs neither. Without the job, openvpn.exe and sing-box.exe
+	// would keep running with no window, no parent, and no way to reach them.
+	// KILL_ON_JOB_CLOSE makes Windows end them when this process's last handle
+	// closes, however this process ends.
+	//
+	// Children join by inheritance: this process is assigned to the job, and
+	// processes it creates belong to it too. The handle stays open for the
+	// whole run; closing it would kill the processes it is meant to guard.
+	HANDLE childJob = CreateJobObjectW(nullptr, nullptr);
+	if (childJob != nullptr) {
+		JOBOBJECT_EXTENDED_LIMIT_INFORMATION childLimits = {};
+		childLimits.BasicLimitInformation.LimitFlags =
+		    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+		if (SetInformationJobObject(childJob, JobObjectExtendedLimitInformation,
+		                            &childLimits, sizeof(childLimits)) == FALSE ||
+		    AssignProcessToJobObject(childJob, GetCurrentProcess()) == FALSE) {
+			// A machine that refuses the job still gets the parent wait and the
+			// stop path, which is what every earlier build relied on.
+			CloseHandle(childJob);
+			childJob = nullptr;
+		}
 	}
 
 	// Where this program itself lives. The engine directory is resolved from it,
@@ -983,14 +1011,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	bool refusedPeer = false;
 	PipeReader reader;
 	phantrix::ovpn::LockedSessionFiles files;
-	// Whether the kill switch's rules stay after this program exits. Strict
-	// mode always keeps them; automatic mode keeps them only while a dropped
-	// connection is waiting to be reconnected (the app says so with "hold").
+	// Whether the kill switch's rules stay after this program exits. The app
+	// decides, and says so with "hold": strict mode holds on every teardown,
+	// automatic mode only while a dropped connection waits to be reconnected.
+	// The session's own start mode is not consulted: a user who switched the
+	// kill switch to Off or Automatic mid-session must not be left blocked by
+	// the mode the session started with.
 	bool holdFirewall = false;
 	bool firewallFinished = false;
 	// Decides once what happens to the kill switch's rules as this session
-	// ends: kept (strict, or a dropped connection the app is holding) with only
-	// the rules that need no tunnel, or removed.
+	// ends: kept with only the rules that need no tunnel, or removed.
 	const auto finishFirewall = [&killSwitch, &holdFirewall, &firewallFinished]() {
 		if (firewallFinished) {
 			return;
@@ -1001,12 +1031,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		}
 		std::string code;
 		std::string message;
-		if (killSwitch.mode() == phantrix::firewall::Mode::kStrict ||
-		    holdFirewall) {
-			(void)killSwitch.KeepAfterExit(&code, &message);
-		} else {
+		if (!holdFirewall) {
 			(void)killSwitch.Disengage(&message);
+			return;
 		}
+		(void)killSwitch.KeepAfterExit(
+		    // DNS lookups stay allowed while the block is held. Without them
+		    // the app cannot resolve the server list or the relay it is about
+		    // to dial, so "connect" would be the one action a blocking mode
+		    // made impossible. Browsing still fails: every other connection
+		    // stays blocked.
+		    true, &code, &message);
 	};
 
 	// A router that dies on its own leaves the selected applications without a
@@ -1116,6 +1151,49 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					WriteToPipe(pipe, MakeMessage(MessageType::kDisconnected, {}));
 					shuttingDown = true;
 					break;
+				}
+				if (message.type == MessageType::kKillSwitch) {
+					// A live mode change from the settings screen. Serialised
+					// with the handshake callback and stop, which also touch
+					// the rules.
+					if (message.fields.empty() || stoppingEngine.load()) {
+						continue;
+					}
+					const phantrix::firewall::Mode next =
+					    phantrix::firewall::ParseMode(message.fields[0]);
+					std::lock_guard<std::mutex> operation(splitOperationMutex);
+					std::string code;
+					std::string text;
+					if (next == phantrix::firewall::Mode::kOff) {
+						(void)killSwitch.Disengage(&text);
+						continue;
+					}
+					std::vector<std::wstring> permitted = {
+					    phantrix::ovpn::OpenVpnExecutable(moduleDirectory),
+					    phantrix::split::RouterExecutable(moduleDirectory),
+					};
+					if (!appPath.empty()) {
+						permitted.push_back(appPath);
+					}
+					bool ok = killSwitch.Engage(next, permitted, &code, &text);
+					if (ok && engine.running()) {
+						ok = killSwitch.PermitInterface(g_adapterLuid, &code,
+						                                &text);
+						NET_LUID routerLuid = {};
+						if (ok && split.RouterLuid(&routerLuid)) {
+							ok = killSwitch.PermitInterface(routerLuid, &code,
+							                                &text);
+						}
+						// Past the handshake, DNS outside the tunnel is a leak.
+						if (ok && splitHandshaked.load()) {
+							ok = killSwitch.SetSetupDns(false, &code, &text);
+						}
+					}
+					if (ok && next == phantrix::firewall::Mode::kStrict) {
+						phantrix::firewall::KillSwitch::InstallRecoveryHelper(
+						    phantrix::ovpn::HelperExecutable(moduleDirectory));
+					}
+					continue;
 				}
 				if (message.type == MessageType::kStart) {
 					if (engine.running()) {

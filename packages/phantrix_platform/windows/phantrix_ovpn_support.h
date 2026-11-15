@@ -193,6 +193,7 @@ enum class MessageType : uint16_t {
   kSplitPolicy = 11, // plugin -> helper: apply or clear split-tunnel policy
   kSplitApplied = 12,// helper -> plugin: the policy is in force, or refused
   kSplitCleared = 13,// helper -> plugin: no split-tunnel rules remain
+  kKillSwitch = 14,  // plugin -> helper: change the live kill-switch mode
 };
 
 // One framed message.

@@ -51,8 +51,7 @@ The app's own code is licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
 
 - Kill switch with three modes: Off, Automatic, Strict. Windows Filtering
   Platform rules; the local network and DHCP stay reachable.
-- Strict keeps blocking after Disconnect, after the app closes, and across
-  restarts. Local printers and other LAN devices stay reachable.
+- Strict keeps blocking after Disconnect. Closing the app lifts the block in every mode. Local printers and other LAN devices stay reachable.
 - An "Unblock internet" button on the home screen when the kill switch is
   holding traffic with no tunnel up.
 - Split tunnelling per application, in either direction: only the selected
@@ -188,7 +187,7 @@ Settings → **Connection** → **Kill switch**. Windows only.
 | --- | --- |
 | Off | No blocking. If the tunnel drops, traffic continues on the normal connection. |
 | Automatic | Blocks all internet outside the VPN from the moment you connect until you press Disconnect. If the connection drops, the block stays until you reconnect or unblock. Closing Phantrix lifts it. |
-| Strict | Like Automatic, but the block also stays after Disconnect, after the app closes, and across restarts. Only connecting, pressing Unblock, or switching to Off or Automatic restores the internet. |
+| Strict | Like Automatic, but the block also stays after Disconnect. Closing the app lifts it, as does connecting, pressing Unblock, or switching to Off or Automatic. |
 
 Things worth knowing:
 
@@ -204,8 +203,7 @@ Things worth knowing:
   shows a card with **Unblock internet**. Turning the kill switch Off or
   Automatic also lifts the block. All three need admin approval on Windows.
 - If lifting the rules fails, the app says so instead of pretending it worked.
-- The rules outlive the app, so turn Strict off before uninstalling Phantrix.
-  Otherwise internet stays blocked until someone lifts the firewall rules.
+- Closing the app asks for admin approval to lift any rules still in place. If you decline, they stay until you lift them (`phantrix-unblock.exe --release-firewall` as administrator).
 - The kill switch works with split tunnelling on. Traffic outside the tunnel
   leaves through the router, and the router process is allowed through.
 

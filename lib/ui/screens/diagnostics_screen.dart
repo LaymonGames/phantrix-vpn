@@ -1,7 +1,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:phantrix_core/phantrix_core.dart';
 import 'package:phantrix_platform/phantrix_platform.dart';
 
 import '../../l10n/strings.dart';
@@ -43,9 +42,19 @@ abstract class ConnectionControllerLike {
   Future<PlatformCapabilities> capabilities();
   bool get isConnected;
 
-  /// The tunnel-verified exit address of the current or last session, or
-  /// null when verification has not read one yet.
+  /// Whether the tunnel-verified exit address of the current or last session,
+  /// or null when verification has not read one yet.
   String? get verifiedExitIp;
+
+  /// Whether the kill switch's firewall rules are installed right now.
+  ///
+  /// Read from the firewall, not from the setting: a mode chosen while
+  /// connected has not reached the live rules yet, and reporting the setting
+  /// here would claim protection that is not in place.
+  bool get killSwitchActive;
+
+  /// `automatic` or `strict` while [killSwitchActive].
+  String? get killSwitchMode;
 
   /// Measures the public address the way the connect flow does: one HTTPS
   /// request to an address service. The trade-off is disclosed in

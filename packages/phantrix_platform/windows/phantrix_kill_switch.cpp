@@ -396,13 +396,13 @@ bool KillSwitch::Disengage(std::string* error_message) {
   return Release(error_message);
 }
 
-bool KillSwitch::KeepAfterExit(std::string* error_code,
+bool KillSwitch::KeepAfterExit(bool allow_dns, std::string* error_code,
                                std::string* error_message) {
   if (mode_ == Mode::kOff) {
     return true;
   }
   interfaces_.clear();
-  setup_dns_ = false;
+  setup_dns_ = allow_dns;
   return Rebuild(error_code, error_message);
 }
 

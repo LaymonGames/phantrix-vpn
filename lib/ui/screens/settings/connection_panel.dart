@@ -124,6 +124,12 @@ class ConnectionPanel extends StatelessWidget {
   /// Leaving a blocking mode while nothing is connected lifts the rules
   /// that mode left behind; otherwise the user would turn the switch off and
   /// still have no internet.
+  ///
+  /// The stored choice follows what the machine accepted. If the rules could
+  /// not be installed (a declined consent prompt, a refused rule), the row
+  /// goes back to the mode it had, and the reason is said: a screen that
+  /// shows Strict while nothing is blocking would be claiming protection
+  /// this device does not have.
   Future<void> _setKillSwitch(BuildContext context, KillSwitchMode next) async {
     final previous = settings.data.killSwitch;
     if (next == previous) {
@@ -139,34 +145,40 @@ class ConnectionPanel extends StatelessWidget {
       }
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final failedText = context.l10n.get('killSwitchReleaseFailed');
+    final releaseFailedText = context.l10n.get('killSwitchReleaseFailed');
     settings.update((s) => s.copyWith(killSwitch: next));
 
     final leavesBlocking =
         next == KillSwitchMode.off ||
         (previous == KillSwitchMode.strict && next == KillSwitchMode.automatic);
     final release = onReleaseKillSwitch;
+    String? failureText;
     if (leavesBlocking &&
         release != null &&
         (killSwitchBlocking?.call() ?? false)) {
       final result = await release();
       if (result.errorOrNull != null) {
-        messenger
-          ?..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(failedText)));
+        failureText = releaseFailedText;
       }
     }
     final engage = onEngageKillSwitch;
-    if (next == KillSwitchMode.strict && engage != null) {
+    if (failureText == null &&
+        (next == KillSwitchMode.strict ||
+            (next == KillSwitchMode.automatic &&
+                previous == KillSwitchMode.off)) &&
+        engage != null) {
       final result = await engage();
-      final error = result.errorOrNull;
-      if (error != null) {
-        messenger
-          ?..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(error.message)));
-      }
+      failureText = result.errorOrNull?.message;
+    }
+    if (failureText != null) {
+      settings.update((s) => s.copyWith(killSwitch: previous));
     }
     await onRefreshKillSwitch?.call();
+    if (failureText != null) {
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(failureText)));
+    }
   }
 
   /// Records the choice only after the platform has accepted it.

@@ -58,7 +58,8 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     final platform = await widget.connection.capabilities();
     final connected = widget.connection.isConnected;
     final verifiedIp = widget.connection.verifiedExitIp;
-    final killSwitch = widget.settings.data.killSwitch;
+    final killSwitchActive = widget.connection.killSwitchActive;
+    final killSwitchMode = widget.connection.killSwitchMode;
 
     // One real request to an address service — the same probe the connect
     // flow runs. It learns this device's address; that unavoidable
@@ -135,25 +136,28 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           status: DiagStatus.notSupported,
           detail: l10n.get('diagKillSwitchNotSupportedDetail'),
         )
+      else if (!killSwitchActive)
+        DiagRow(
+          id: 'kill',
+          title: l10n.get('diagKillSwitch'),
+          // A chosen mode that is not installed blocks nothing. Saying so is
+          // the point of this screen: a green row here would be the app
+          // vouching for a firewall rule that does not exist.
+          status: DiagStatus.warning,
+          value: l10n.get('diagKillSwitchInactiveValue'),
+          detail: l10n.get('diagKillSwitchInactiveDetail'),
+        )
       else
         DiagRow(
           id: 'kill',
           title: l10n.get('diagKillSwitch'),
-          status: killSwitch == KillSwitchMode.off
-              ? DiagStatus.warning
-              : DiagStatus.passed,
-          value: switch (killSwitch) {
-            KillSwitchMode.off => l10n.get('killSwitchOff'),
-            KillSwitchMode.automatic => l10n.get('killSwitchAutomatic'),
-            KillSwitchMode.strict => l10n.get('killSwitchStrict'),
-          },
-          detail: switch (killSwitch) {
-            KillSwitchMode.off => l10n.get('diagKillSwitchOffDetail'),
-            KillSwitchMode.automatic => l10n.get(
-              'diagKillSwitchAutomaticDetail',
-            ),
-            KillSwitchMode.strict => l10n.get('diagKillSwitchStrictDetail'),
-          },
+          status: DiagStatus.passed,
+          value: killSwitchMode == 'strict'
+              ? l10n.get('killSwitchStrict')
+              : l10n.get('killSwitchAutomatic'),
+          detail: killSwitchMode == 'strict'
+              ? l10n.get('diagKillSwitchStrictDetail')
+              : l10n.get('diagKillSwitchAutomaticDetail'),
         ),
     ];
 

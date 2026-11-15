@@ -86,8 +86,12 @@ class KillSwitch {
                    std::string* error_message);
 
   // Keeps blocking after this process exits, with only the rules that need no
-  // running tunnel: adapter permits and the connecting-time DNS permit go.
-  bool KeepAfterExit(std::string* error_code, std::string* error_message);
+  // running tunnel: adapter permits and the router permit go. `allow_dns`
+  // keeps the connecting-time DNS permit, which the app needs to resolve the
+  // relay list while it is blocked; it is false for a tunnel that is staying
+  // up under a helper, true for a block held with no tunnel.
+  bool KeepAfterExit(bool allow_dns, std::string* error_code,
+                     std::string* error_message);
 
   // Removes the rules and forgets the mode, so nothing later in this
   // process can reinstall them.

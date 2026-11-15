@@ -261,7 +261,8 @@ struct TunnelJob {
 		appIcon,
 		splitPolicy,
 		releaseKillSwitch,
-		engageKillSwitch
+		engageKillSwitch,
+		killSwitchMode
 	};
 	Kind kind = Kind::teardownOnly;
 	std::string profile;
@@ -1034,11 +1035,13 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 		// Nothing else can touch the session now, so the last teardown runs
 		// here: blocking while the application is closing is fine, and leaving
 		// an elevated helper behind is not.
-		TeardownOpenVpn();
-		// Closing the app ends an automatic kill switch, including one that
-		// is holding a dropped connection with no helper left to lift it.
-		// Strict rules stay: outliving the app is what strict means.
-		if (ReadKillSwitchMarker() == "automatic") {
+		//
+		// Closing the app lifts the kill switch in every mode, strict
+		// included: the rules do not outlive the app. If rules remain after
+		// the helper is gone (a held block with no helper), an elevated
+		// release removes them.
+		TeardownOpenVpn(false);
+		if (!ReadKillSwitchMarker().empty()) {
 			std::string code;
 			std::string message;
 			(void)LaunchFirewallRelease(pluginDirectory(), &code, &message);
@@ -1202,6 +1205,35 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 					if (!ReadKillSwitchMarker().empty()) {
 						(void)LaunchFirewallRelease(pluginDirectory(), &code,
 						                            &message);
+					}
+					auto* pending = new PendingEvent();
+					pending->state = "start-finished";
+					pending->errorCode = code;
+					pending->message = message;
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
+				case TunnelJob::Kind::killSwitchMode: {
+					// Written to the running helper, which rebuilds the firewall
+					// rules in place. Nothing waits for an acknowledgement: the
+					// app re-reads `killSwitchState`, which is the marker the
+					// helper writes only after the rules are committed.
+					std::string code;
+					std::string message;
+					bool sent = false;
+					if (openVpn_.pipe != nullptr && openVpn_.started) {
+						sent = phantrix::ovpn::WriteMessage(
+						    openVpn_.pipe,
+						    phantrix::ovpn::MakeMessage(
+						        phantrix::ovpn::MessageType::kKillSwitch,
+						        {job.killSwitch}));
+					}
+					if (!sent) {
+						code = "kill_switch.no_tunnel";
+						message =
+						    "The kill switch cannot change while no tunnel is "
+						    "running.";
 					}
 					auto* pending = new PendingEvent();
 					pending->state = "start-finished";
@@ -1601,6 +1633,17 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			// rights, so it runs on the worker like the release.
 			TunnelJob job;
 			job.kind = TunnelJob::Kind::engageKillSwitch;
+			job.result = result.release();
+			EnqueueJob(std::move(job));
+			return;
+		}
+
+		if (method == "setKillSwitchMode") {
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::killSwitchMode;
+			if (const auto* root = std::get_if<EncodableMap>(call.arguments())) {
+				job.killSwitch = getString(*root, "killSwitch");
+			}
 			job.result = result.release();
 			EnqueueJob(std::move(job));
 			return;

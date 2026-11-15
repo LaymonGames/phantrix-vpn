@@ -218,6 +218,9 @@ class ConnectionController {
   /// until the next connection. Does nothing while a tunnel is running or
   /// coming up, or when the rules are already strict.
   Future<Result<void>> engageStrictKillSwitch() async {
+    if (_current.isConnected) {
+      return _applyKillSwitchLive();
+    }
     if (settings.data.killSwitch != KillSwitchMode.strict ||
         _current.isConnected ||
         _current.isTransitioning) {
@@ -233,20 +236,79 @@ class ConnectionController {
       return const Ok(null);
     }
     final result = await platform.engageKillSwitch();
-    await refreshKillSwitch();
-    return result;
+    return _verifyKillSwitch(result);
+  }
+
+  /// Tells the running session to rebuild its firewall rules for the mode in
+  /// settings, so a change made while connected takes effect now.
+  Future<Result<void>> _applyKillSwitchLive() async {
+    final mode = switch (settings.data.killSwitch) {
+      KillSwitchMode.off => 'off',
+      KillSwitchMode.automatic => 'automatic',
+      KillSwitchMode.strict => 'strict',
+    };
+    final result = await platform.setKillSwitchMode(mode);
+    return _verifyKillSwitch(result);
+  }
+
+  /// Confirms the machine's rules match the chosen mode, so the screen never
+  /// claims protection that is not there (or hides protection that is).
+  ///
+  /// The helper writes its marker only after committing the rules, so the
+  /// marker is the truth. Polls briefly because a live change is applied
+  /// asynchronously. A mismatch becomes an error, which makes the settings
+  /// row fall back to the mode that is really in force.
+  Future<Result<void>> _verifyKillSwitch(Result<void> result) async {
+    if (result.errorOrNull != null) {
+      await refreshKillSwitch();
+      return result;
+    }
+    final want = settings.data.killSwitch;
+    bool matches() => switch (want) {
+      KillSwitchMode.off => !_killSwitch.active,
+      KillSwitchMode.automatic => _killSwitch.active,
+      KillSwitchMode.strict => _killSwitch.active && _killSwitch.strict,
+    };
+    for (var attempt = 0; attempt < 10; attempt++) {
+      await refreshKillSwitch();
+      // Automatic with nothing connected installs rules at connect time.
+      if (_disposed ||
+          matches() ||
+          (want == KillSwitchMode.automatic && !_current.isConnected)) {
+        return const Ok(null);
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    return const Err(
+      AppError(
+        group: ErrorGroup.permission,
+        code: 'kill_switch.mismatch',
+        message:
+            'The kill switch did not change. Windows may have refused '
+            'administrator rights.',
+      ),
+    );
   }
 
   /// Lifts the kill switch's blocking rules while no tunnel is up.
   ///
   /// Refused while connected: the rules are what protects that tunnel.
   Future<Result<void>> releaseKillSwitch() async {
-    if (_current.isConnected || _current.isTransitioning) {
+    if (_current.isConnected) {
+      return _applyKillSwitchLive();
+    }
+    if (_current.isTransitioning) {
       return const Ok(null);
     }
     final result = await platform.releaseKillSwitch();
-    await refreshKillSwitch();
-    return result;
+    // Strict would only block again at the next disconnect, and a settings row
+    // still showing Strict would misreport what is in force. Unblocking drops
+    // it to Automatic, which still protects the next connection.
+    if (result.errorOrNull == null &&
+        settings.data.killSwitch == KillSwitchMode.strict) {
+      settings.update((s) => s.copyWith(killSwitch: KillSwitchMode.automatic));
+    }
+    return _verifyKillSwitch(result);
   }
 
   /// Whether the OS itself is currently blocking traffic outside a VPN.
@@ -1281,7 +1343,13 @@ class ConnectionController {
     _teardownRequested = true;
     try {
       _apply(VpnEvent.disconnectRequested());
-      final stopResult = await platform.stopTunnel();
+      final stopResult = await platform.stopTunnel(
+        // Strict holds its rules through a user-requested teardown; every
+        // other mode lifts them. Sending the choice explicitly is what keeps
+        // "switch to Off while connected" from leaving the old strict rules
+        // blocking after the disconnect.
+        keepBlocking: settings.data.killSwitch == KillSwitchMode.strict,
+      );
       final stopError = stopResult.errorOrNull;
       if (stopError != null) {
         _stopFailed = true;

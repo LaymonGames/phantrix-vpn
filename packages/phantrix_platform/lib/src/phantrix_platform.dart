@@ -42,6 +42,7 @@ class PhantrixPlatform {
   static const String _methodKillSwitchState = 'killSwitchState';
   static const String _methodReleaseKillSwitch = 'releaseKillSwitch';
   static const String _methodEngageKillSwitch = 'engageKillSwitch';
+  static const String _methodSetKillSwitchMode = 'setKillSwitchMode';
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
@@ -474,6 +475,21 @@ class PhantrixPlatform {
   Future<Result<void>> engageKillSwitch() async {
     try {
       await _channel.invokeMethod<void>(_methodEngageKillSwitch);
+      return const Ok(null);
+    } on PlatformException catch (error) {
+      return Err(_fromPlatformException(error));
+    } on MissingPluginException {
+      return const Ok(null);
+    }
+  }
+
+  /// Changes the kill-switch mode of the running tunnel session
+  /// (`off`, `automatic` or `strict`), without reconnecting.
+  Future<Result<void>> setKillSwitchMode(String mode) async {
+    try {
+      await _channel.invokeMethod<void>(_methodSetKillSwitchMode, {
+        'killSwitch': mode,
+      });
       return const Ok(null);
     } on PlatformException catch (error) {
       return Err(_fromPlatformException(error));

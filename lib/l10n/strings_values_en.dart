@@ -127,23 +127,27 @@ const Map<String, String> _stringsValuesEn = {
       'No blocking. If the VPN connection drops, traffic uses your normal '
       'connection.',
   'killSwitchAutomaticHint':
-      'Blocks all internet outside the VPN from the moment you connect '
-      'until you press Disconnect. If the connection drops, internet stays '
-      'blocked until you reconnect or unblock it. Closing Phantrix lifts '
-      'the block.',
+      'Blocks internet outside the VPN from the moment you connect until you '
+      'press Disconnect. If the connection drops, internet stays blocked until '
+      'you reconnect or unblock it. Closing Phantrix lifts the block. While no '
+      'tunnel is up, DNS lookups are still allowed so Phantrix can reach the '
+      'relay list; web browsing is not.',
   'killSwitchStrictHint':
       'Like Automatic, but internet also stays blocked after Disconnect, '
-      'after Phantrix closes and across restarts, until you connect again '
-      'or turn the kill switch off. Local network devices such as printers '
-      'stay reachable.',
+      'after Phantrix closes and across restarts, until you connect again, '
+      'press Unblock, or turn the kill switch off. DNS lookups stay allowed '
+      'so Phantrix can reach the relay list; web browsing does not. Local '
+      'network devices such as printers stay reachable.',
   'killSwitchStrictConfirmTitle': 'Turn on the strict kill switch?',
   'killSwitchStrictConfirmBody':
-      'This device will have no internet at all while Phantrix is not '
-      'connected — even after you close Phantrix or restart the '
-      'computer. Only connecting, or switching the kill switch to Off or '
-      'Automatic, restores it. On Windows, switching it needs administrator '
-      'approval.\n\nLocal network devices such as printers stay reachable. '
-      'Turn strict mode off before uninstalling Phantrix.',
+      'Web browsing and every other connection to the internet will be '
+      'blocked while Phantrix is not connected — even after you close Phantrix '
+      'or restart the computer. DNS lookups stay allowed so Phantrix can reach '
+      'its relay list. Only connecting, pressing Unblock, or switching the '
+      'kill switch to Off or Automatic restores the internet. On Windows, '
+      'switching it needs administrator approval.\n\nLocal network devices '
+      'such as printers stay reachable. Turn strict mode off before '
+      'uninstalling Phantrix.',
   'killSwitchStrictConfirm': 'Turn on strict',
   'killSwitchReleaseFailed':
       'The kill switch could not be lifted, so internet is still blocked. '
@@ -553,14 +557,18 @@ const Map<String, String> _stringsValuesEn = {
       'normal connection. Choose Automatic or Strict in Settings to have '
       'firewall rules block it.',
   'diagKillSwitchAutomaticDetail':
-      'From connect until you press Disconnect, firewall rules block all '
-      'internet traffic outside the VPN, DNS included. Only Phantrix, its '
-      'VPN engine, the local network and DHCP stay allowed. If the tunnel '
-      'drops, the rules stay until you reconnect or unblock.',
+      'From connect until you press Disconnect, firewall rules block internet '
+      'traffic outside the VPN. If the tunnel drops, the rules stay until you '
+      'reconnect or unblock. Phantrix, its VPN engine, the split-tunnel '
+      'router, DNS lookups, the local network and DHCP stay allowed.',
   'diagKillSwitchStrictDetail':
-      'Firewall rules block all internet traffic outside the VPN, DNS '
-      'included, whenever no tunnel is up — also after Disconnect, '
-      'after Phantrix closes and across restarts. Only Phantrix, its VPN '
-      'engine, the local network and DHCP stay allowed.',
+      'Firewall rules block internet traffic outside the VPN whenever no '
+      'tunnel is up — also after Disconnect, after Phantrix closes and across '
+      'restarts. DNS lookups, Phantrix, its VPN engine, the split-tunnel '
+      'router, the local network and DHCP stay allowed.',
+  'diagKillSwitchInactiveValue': 'Not installed',
+  'diagKillSwitchInactiveDetail':
+      'The chosen mode has not installed any firewall rules, so traffic is '
+      'not blocked. Connect, or choose the mode again, to install them.',
   'diagKillSwitchNotSupportedDetail': 'This platform cannot guarantee a strict kill switch. When the tunnel drops, traffic leaves over the normal connection until it can be re-established. Phantrix reports that instead of claiming protection it does not have.',
 };

@@ -16,5 +16,11 @@ class _ConnectionGateway implements ConnectionControllerLike {
   String? get verifiedExitIp => _controller.currentView.session.assignedIpv4;
 
   @override
+  bool get killSwitchActive => _controller.currentView.killSwitch.active;
+
+  @override
+  String? get killSwitchMode => _controller.currentView.killSwitch.mode;
+
+  @override
   Future<String?> readPublicIp() => _controller.readPublicIp();
 }
