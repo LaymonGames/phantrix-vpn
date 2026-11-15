@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:phantrix_core/phantrix_core.dart';
 import 'package:phantrix_platform/phantrix_platform.dart';
 
 import '../../../settings/settings_controller.dart';
@@ -12,6 +13,7 @@ import 'appearance_panel.dart';
 import 'clear_data_surface.dart';
 import 'connection_panel.dart';
 import 'privacy_panel.dart';
+import 'split_tunnel_panel.dart';
 
 /// The settings screen.
 ///
@@ -21,8 +23,8 @@ import 'privacy_panel.dart';
 /// Grouped into labelled panels rather than one long list of cards: the
 /// screen used to render each setting as its own `Card`, which made a list of
 /// eighteen settings look like eighteen unrelated things. One panel per
-/// concern — Connection, Privacy, Appearance, Advanced, About — reads as the
-/// handful of decisions the user is actually making.
+/// concern — Connection, Split tunneling, Privacy, Appearance, Advanced,
+/// About — reads as the handful of decisions the user is actually making.
 ///
 /// Each panel is its own widget so that a change to one cannot reach into
 /// another's state, and so this file stays the list rather than the contents.
@@ -37,6 +39,10 @@ class SettingsScreen extends StatelessWidget {
     required this.systemLockdownActive,
     required this.onStartOnBootChanged,
     required this.onOpenSplitTunneling,
+    this.onApplySplitTunnelLive,
+    this.killSwitchBlocking,
+    this.onReleaseKillSwitch,
+    this.onRefreshKillSwitch,
     super.key,
   });
 
@@ -77,6 +83,19 @@ class SettingsScreen extends StatelessWidget {
   /// Opens the per-application split-tunnel screen.
   final VoidCallback onOpenSplitTunneling;
 
+  /// Pushes a split-tunnel change made here to a running tunnel, answering
+  /// null when nothing is connected.
+  final SplitTunnelLiveApply? onApplySplitTunnelLive;
+
+  /// Whether the kill switch is blocking with no tunnel up, read live.
+  final bool Function()? killSwitchBlocking;
+
+  /// Lifts the kill switch's blocking rules (admin approval on Windows).
+  final Future<Result<void>> Function()? onReleaseKillSwitch;
+
+  /// Re-reads the kill switch's state after its setting changed.
+  final Future<void> Function()? onRefreshKillSwitch;
+
   /// Resets every local preference, keeping the onboarding flags.
   final VoidCallback onClearLocalData;
 
@@ -90,12 +109,12 @@ class SettingsScreen extends StatelessWidget {
         // Capped like every other screen. A settings list stretched
         // across a 1440px window puts a toggle switch a metre away from
         // the label that explains it.
-        return VgContentColumn(
-          child: ListView(
-            padding: const EdgeInsets.only(
-              top: VgSpace.sm,
-              bottom: VgSpace.xxl,
-            ),
+        //
+        // The scroll view itself spans the page so the mouse wheel works
+        // over the margins too; only its content is held to the measure.
+        return VgScrollColumn(
+          builder: (context, insets) => ListView(
+            padding: insets.copyWith(top: VgSpace.sm, bottom: VgSpace.xxl),
             children: [
               ConnectionPanel(
                 settings: settings,
@@ -103,7 +122,16 @@ class SettingsScreen extends StatelessWidget {
                 onOpenSystemVpnSettings: onOpenSystemVpnSettings,
                 systemLockdownActive: systemLockdownActive,
                 onStartOnBootChanged: onStartOnBootChanged,
+                killSwitchBlocking: killSwitchBlocking,
+                onReleaseKillSwitch: onReleaseKillSwitch,
+                onRefreshKillSwitch: onRefreshKillSwitch,
+              ),
+              const SizedBox(height: VgSpace.lg),
+              SplitTunnelPanel(
+                settings: settings,
+                platform: platform,
                 onOpenSplitTunneling: onOpenSplitTunneling,
+                onApplyLive: onApplySplitTunnelLive,
               ),
               const SizedBox(height: VgSpace.lg),
               PrivacyPanel(settings: settings),

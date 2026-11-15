@@ -33,15 +33,18 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, snapshot) {
         final view = snapshot.data ?? widget.connection.currentView;
         final l10n = L10n.of(context);
-        return VgContentColumn(
+        // The scroll view spans the page so the mouse wheel works over the
+        // margins too; only its content is held to the dashboard measure.
+        return VgScrollColumn(
           wide: true,
-          child: LayoutBuilder(
+          builder: (context, insets) => LayoutBuilder(
             // Laid out to fill the window rather than stacked from the
             // top. On a short window it scrolls; on a tall one the hero
             // sits around a third of the way down instead of leaving a
             // void beneath it, which is what a top-aligned column does
             // on every desktop display.
             builder: (context, constraints) => SingleChildScrollView(
+              padding: insets,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   minHeight: constraints.maxHeight - VgSpace.lg,
@@ -76,6 +79,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             onAction: view.canRetry
                                 ? () => unawaited(widget.connection.retry())
                                 : null,
+                          ),
+                          const SizedBox(height: VgSpace.lg),
+                        ],
+                        // Full width for the same reason: "no internet"
+                        // with no visible cause is the worst outcome a
+                        // kill switch can produce.
+                        if (view.killSwitchBlocking) ...[
+                          _KillSwitchCard(
+                            strict: view.killSwitch.strict,
+                            onUnblock: widget.connection.releaseKillSwitch,
                           ),
                           const SizedBox(height: VgSpace.lg),
                         ],

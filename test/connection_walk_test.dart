@@ -263,7 +263,7 @@ class WalkBridge extends PhantrixPlatform {
       PlatformEvent(state: state, traffic: PlatformTraffic.empty);
 
   @override
-  Future<Result<void>> stopTunnel() async {
+  Future<Result<void>> stopTunnel({bool keepBlocking = false}) async {
     stopCalls++;
     tunnelUp = false;
     return const Ok(null);

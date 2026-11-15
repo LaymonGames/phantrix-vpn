@@ -63,9 +63,10 @@ List<Destination> _destinations(
       label: l10n.get('settingsSplitTunneling'),
       icon: Icons.call_split_outlined,
       selectedIcon: Icons.call_split_rounded,
-      // Secondary: opened from the Connection panel, which is where a user
-      // looks for a routing preference, and kept out of the tabs because the
-      // screen is a picker rather than a destination to live in.
+      // Secondary: opened from the Split tunneling panel in Settings, which
+      // is where a user looks for a routing preference, and kept out of the
+      // tabs because the screen is a picker rather than a destination to
+      // live in.
       parentId: 'settings',
       builder: (context) => SplitTunnelingScreen(
         settings: scope.settingsController,
@@ -87,6 +88,15 @@ List<Destination> _destinations(
         systemLockdownActive: scope.connection.systemLockdownActive,
         onStartOnBootChanged: scope.connection.setStartOnBoot,
         onOpenSplitTunneling: () => navigation.go('split-tunneling'),
+        // The settings switch stores the choice itself; this only pushes it
+        // to a tunnel that is already running.
+        onApplySplitTunnelLive: (policy) async => scope.connection.hasLiveTunnel
+            ? await scope.connection.applySplitTunnel(policy)
+            : null,
+        killSwitchBlocking: () =>
+            scope.connection.currentView.killSwitchBlocking,
+        onReleaseKillSwitch: scope.connection.releaseKillSwitch,
+        onRefreshKillSwitch: scope.connection.refreshKillSwitch,
         onClearLocalData: scope.settingsController.clearLocalData,
       ),
     ),

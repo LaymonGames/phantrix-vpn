@@ -180,6 +180,47 @@ class ConnectionController {
   PlatformCapabilities _capabilities = PlatformCapabilities.web;
   PlatformCapabilities get capabilities => _capabilities;
 
+  KillSwitchState _killSwitch = KillSwitchState.inactive;
+
+  /// Re-reads whether the kill switch is blocking traffic right now.
+  ///
+  /// Called at start-up, after every teardown and failure, and after the
+  /// kill-switch setting changes, so the warning on screen matches the
+  /// machine rather than what the app expects.
+  Future<void> refreshKillSwitch() async {
+    final KillSwitchState fresh;
+    try {
+      fresh = await platform.killSwitchState();
+    } on Object {
+      return;
+    }
+    if (_disposed) {
+      return;
+    }
+    if (fresh.active != _killSwitch.active || fresh.mode != _killSwitch.mode) {
+      _killSwitch = fresh;
+      _emit();
+    }
+  }
+
+  void _refreshKillSwitchSoon() {
+    for (final delay in const [Duration(seconds: 3), Duration(seconds: 12)]) {
+      unawaited(Future<void>.delayed(delay, refreshKillSwitch));
+    }
+  }
+
+  /// Lifts the kill switch's blocking rules while no tunnel is up.
+  ///
+  /// Refused while connected: the rules are what protects that tunnel.
+  Future<Result<void>> releaseKillSwitch() async {
+    if (_current.isConnected || _current.isTransitioning) {
+      return const Ok(null);
+    }
+    final result = await platform.releaseKillSwitch();
+    await refreshKillSwitch();
+    return result;
+  }
+
   /// Whether the OS itself is currently blocking traffic outside a VPN.
   ///
   /// A pass-through to the platform, read live on every call. The settings
@@ -290,6 +331,7 @@ class ConnectionController {
     lastHandshakeAt: _lastHandshakeAt,
     selectedLabel: _selectedLabel,
     ipv6Policy: settings.data.ipv6,
+    killSwitch: _killSwitch,
   );
 
   Stream<ConnectionView> get views => _views.stream;
@@ -297,6 +339,7 @@ class ConnectionController {
   Future<void> _loadCapabilities() async {
     _capabilities = await platform.capabilities();
     _emit();
+    await refreshKillSwitch();
   }
 
   /// Re-reads what the platform can start, for the paths that are about to
@@ -449,6 +492,10 @@ class ConnectionController {
             event.message ?? _tr('flowTunnelFailed'),
           );
         }
+        // The platform releases or keeps the kill switch while it tears the
+        // failed session down, which finishes after this event. Read it once
+        // that has had time to happen.
+        _refreshKillSwitchSoon();
       case PlatformTunnelState.preparing:
         // A normal start-up state, not a problem. The service has been
         // asked to come up and is building the engine's configuration.
@@ -696,11 +743,20 @@ class ConnectionController {
   /// The actual best-effort stop, silent by contract.
   Future<void> _teardownAfterFailure() async {
     try {
-      final result = await platform.stopTunnel();
+      // A connection that was up and then dropped keeps the kill switch
+      // blocking: that is the moment it exists for. One that never came up
+      // has protected nothing yet, so it is released (strict mode keeps its
+      // rules regardless, on the platform side).
+      final result = await platform.stopTunnel(
+        keepBlocking:
+            settings.data.killSwitch != KillSwitchMode.off &&
+            _lastHandshakeAt != null,
+      );
       _stopFailed = result.errorOrNull != null;
     } on Object {
       _stopFailed = true;
     }
+    unawaited(refreshKillSwitch());
     if (_stopFailed) {
       _statusMessage = _tr('flowStopUnconfirmed');
       _emit();
@@ -1237,6 +1293,7 @@ class ConnectionController {
       _apply(VpnEvent.failed(message), message);
     } finally {
       _teardownRequested = false;
+      unawaited(refreshKillSwitch());
     }
     _emit();
   }

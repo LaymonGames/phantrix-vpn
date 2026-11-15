@@ -54,7 +54,7 @@ class FakeBridge extends PhantrixPlatform {
   }
 
   @override
-  Future<Result<void>> stopTunnel() async {
+  Future<Result<void>> stopTunnel({bool keepBlocking = false}) async {
     stopCalls++;
     final error = stopError;
     return error == null ? const Ok(null) : Err(error);

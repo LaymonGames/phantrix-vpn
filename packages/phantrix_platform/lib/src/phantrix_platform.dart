@@ -39,6 +39,8 @@ class PhantrixPlatform {
   static const String _methodAppIcon = 'appIcon';
   static const String _methodPickExecutable = 'pickExecutable';
   static const String _methodApplySplitTunnel = 'applySplitTunnel';
+  static const String _methodKillSwitchState = 'killSwitchState';
+  static const String _methodReleaseKillSwitch = 'releaseKillSwitch';
 
   final _controller = StreamController<PlatformEvent>.broadcast();
   bool _listening = false;
@@ -293,9 +295,15 @@ class PhantrixPlatform {
   }
 
   /// Stops the tunnel. Always cleans up, even mid-connect.
-  Future<Result<void>> stopTunnel() async {
+  ///
+  /// [keepBlocking] is for a connection that dropped rather than one the user
+  /// ended: where the platform has a kill switch, it keeps blocking traffic
+  /// until the next connection or an explicit [releaseKillSwitch].
+  Future<Result<void>> stopTunnel({bool keepBlocking = false}) async {
     try {
-      await _channel.invokeMethod<void>(_methodStop);
+      await _channel.invokeMethod<void>(_methodStop, {
+        'keepBlocking': keepBlocking,
+      });
       return const Ok(null);
     } on PlatformException catch (error) {
       return Err(_fromPlatformException(error));
@@ -425,6 +433,38 @@ class PhantrixPlatform {
     }
   }
 
+  /// Whether the platform's kill switch is blocking traffic right now, and in
+  /// which mode. Platforms without one answer inactive.
+  Future<KillSwitchState> killSwitchState() async {
+    try {
+      final map = await _channel.invokeMapMethod<String, Object?>(
+        _methodKillSwitchState,
+      );
+      return KillSwitchState(
+        active: map?['active'] as bool? ?? false,
+        mode: map?['mode'] as String?,
+      );
+    } on PlatformException {
+      return KillSwitchState.inactive;
+    } on MissingPluginException {
+      return KillSwitchState.inactive;
+    }
+  }
+
+  /// Lifts the kill switch's blocking rules while no tunnel is running.
+  ///
+  /// On Windows this asks for administrator rights.
+  Future<Result<void>> releaseKillSwitch() async {
+    try {
+      await _channel.invokeMethod<void>(_methodReleaseKillSwitch);
+      return const Ok(null);
+    } on PlatformException catch (error) {
+      return Err(_fromPlatformException(error));
+    } on MissingPluginException {
+      return const Ok(null);
+    }
+  }
+
   /// Releases the stream. Call on app dispose.
   void dispose() {
     if (_disposed) {
@@ -434,6 +474,21 @@ class PhantrixPlatform {
     unawaited(_nativeEvents?.cancel());
     unawaited(_controller.close());
   }
+}
+
+/// What [PhantrixPlatform.killSwitchState] reports.
+class KillSwitchState {
+  const KillSwitchState({required this.active, this.mode});
+
+  static const KillSwitchState inactive = KillSwitchState(active: false);
+
+  /// Blocking rules are installed.
+  final bool active;
+
+  /// `automatic` or `strict` while [active].
+  final String? mode;
+
+  bool get strict => mode == 'strict';
 }
 
 AppError _fromPlatformException(PlatformException error) => AppError(
@@ -481,12 +536,15 @@ String _messageFor(String code, String? raw) {
     'network.changed' => 'The network changed while connecting.',
     'kill_switch.unsupported' =>
       'This platform cannot enforce a strict kill switch.',
-    'split.driver_missing' =>
-      'The split-tunnel driver is not installed. Reinstall Phantrix to '
+    'split.router_missing' =>
+      'The split-tunnel router is not installed. Reinstall Phantrix to '
           'restore it, then try again.',
-    'split.driver_failed' =>
-      'The split-tunnel driver would not start, so no application routing '
+    'split.router_failed' =>
+      'The split-tunnel router would not start, so no application routing '
           'was applied.',
+    'kill_switch.failed' =>
+      'The kill switch could not install its firewall rules, so the '
+          'connection was not started.',
     'split.not_connected' =>
       'Split tunnelling can only be changed while a tunnel is connected.',
     'split.policy_rejected' =>

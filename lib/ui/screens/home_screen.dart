@@ -3,17 +3,20 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:phantrix_core/phantrix_core.dart';
 
 import '../../l10n/strings.dart';
 import '../../theme/tokens.dart';
 import '../../vpn/connection_controller.dart';
 import '../../vpn/connection_view.dart';
+import '../components/status_style.dart';
 import '../components/surfaces.dart';
 import 'home_details.dart';
 import 'home_hero.dart';
 
 part 'home_screen_state.dart';
 part 'home_detail_column.dart';
+part 'home_kill_switch_card.dart';
 
 /// The connection screen.
 ///

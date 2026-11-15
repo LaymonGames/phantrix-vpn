@@ -1,6 +1,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:phantrix_core/phantrix_core.dart';
 import 'package:phantrix_platform/phantrix_platform.dart';
 
 import '../../l10n/strings.dart';

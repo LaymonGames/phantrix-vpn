@@ -46,6 +46,7 @@
 #include <vector>
 
 #include "phantrix_ovpn_engine.h"
+#include "phantrix_kill_switch.h"
 #include "phantrix_ovpn_support.h"
 #include "phantrix_split_tunnel.h"
 
@@ -75,6 +76,9 @@ using phantrix::ovpn::Utf8ToWide;
 constexpr wchar_t kPipeArgument[] = L"--pipe";
 constexpr wchar_t kTokenArgument[] = L"--token";
 constexpr wchar_t kParentArgument[] = L"--parent";
+// Removes the kill switch's firewall rules and exits. Used by the app to lift a
+// strict kill switch, or one a crashed session left, when no tunnel is running.
+constexpr wchar_t kReleaseFirewallArgument[] = L"--release-firewall";
 
 // How long to wait for the app to connect on the pipe before giving up.
 //
@@ -587,7 +591,10 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
                  const std::wstring& status, const std::wstring& log,
                  phantrix::ovpn::LockedSessionFiles& files,
                  phantrix::split::Controller& split,
-                 const phantrix::split::Policy& splitPolicy) {
+                 const phantrix::split::Policy& splitPolicy,
+                 phantrix::firewall::KillSwitch& killSwitch,
+                 phantrix::firewall::Mode killSwitchMode,
+                 const std::wstring& appPath) {
 	ProfileRejection rejection = {nullptr, nullptr};
 	if (!files.Open(sessionDirectory, profile, status, log, &rejection)) {
 		Reject(pipe, rejection.code,
@@ -603,9 +610,33 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 	// installed.
 	std::string splitCode;
 	std::string splitMessage;
-	if (!split.Prepare(moduleDirectory, splitPolicy, &splitCode, &splitMessage)) {
+	if (!split.Prepare(moduleDirectory, sessionDirectory, splitPolicy,
+	                   &splitCode, &splitMessage)) {
 		Reject(pipe, splitCode.c_str(), splitMessage);
 		return;
+	}
+
+	// The kill switch goes up before anything else touches the network, so
+	// there is no moment of this connection without it. With the kill switch
+	// off, rules a strict session left behind are removed instead.
+	if (killSwitchMode != phantrix::firewall::Mode::kOff) {
+		std::vector<std::wstring> permitted = {
+		    phantrix::ovpn::OpenVpnExecutable(moduleDirectory),
+		    phantrix::split::RouterExecutable(moduleDirectory),
+		};
+		if (!appPath.empty()) {
+			permitted.push_back(appPath);
+		}
+		std::string killCode;
+		std::string killMessage;
+		if (!killSwitch.Engage(killSwitchMode, permitted, &killCode,
+		                       &killMessage)) {
+			Reject(pipe, killCode.c_str(), killMessage);
+			return;
+		}
+	} else {
+		std::string ignored;
+		(void)phantrix::firewall::KillSwitch::Release(&ignored);
 	}
 
 	std::string adapterReason;
@@ -613,6 +644,15 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 	if (!EnsureAdapter(moduleDirectory, &adapterReason, &adapterCode)) {
 		Reject(pipe, adapterCode.c_str(), adapterReason);
 		return;
+	}
+	if (killSwitch.engaged()) {
+		std::string killCode;
+		std::string killMessage;
+		if (!killSwitch.PermitInterface(g_adapterLuid, &killCode, &killMessage)) {
+			ReleaseAdapter();
+			Reject(pipe, killCode.c_str(), killMessage);
+			return;
+		}
 	}
 
 	EnginePaths paths;
@@ -654,6 +694,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 	if (argv == nullptr) {
 		return 2;
+	}
+
+	for (int index = 1; index < argc; ++index) {
+		if (wcscmp(argv[index], kReleaseFirewallArgument) == 0) {
+			LocalFree(argv);
+			std::string ignored;
+			return phantrix::firewall::KillSwitch::Release(&ignored) ? 0 : 7;
+		}
 	}
 
 	std::wstring pipeName;
@@ -709,7 +757,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	// program, so an app that crashes cannot leave an elevated tunnel behind.
 	HANDLE parentProcess = nullptr;
 	if (parentPid != 0) {
-		parentProcess = OpenProcess(SYNCHRONIZE, FALSE, parentPid);
+		parentProcess = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+		                            FALSE, parentPid);
 	}
 	if (parentProcess == nullptr) {
 		CloseHandle(pipe);
@@ -753,8 +802,25 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		return 6;
 	}
 
+	// The app's own executable, which the kill switch keeps permitted so a new
+	// connection can always be made from it.
+	std::wstring appPath;
+	{
+		wchar_t imagePath[MAX_PATH * 2] = {0};
+		DWORD imageLength = static_cast<DWORD>(sizeof(imagePath) / sizeof(wchar_t));
+		if (QueryFullProcessImageNameW(parentProcess, 0, imagePath,
+		                               &imageLength) != FALSE) {
+			appPath.assign(imagePath, imageLength);
+		}
+	}
+
+	// An earlier build installed a kernel driver service for split tunnelling.
+	// It is not used any more and is removed wherever it is found.
+	phantrix::split::RemoveLegacyDriverService();
+
 	std::atomic<bool> stoppingEngine{false};
 	std::atomic<bool> splitHandshaked{false};
+	phantrix::firewall::KillSwitch killSwitch;
 	std::mutex splitMutex;
 	// Serialises the controller itself: the engine's monitor thread applies the
 	// policy at handshake, while this thread may apply a live change or clear
@@ -765,7 +831,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	HANDLE splitFailed = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 	Engine engine(
 	    [&pipe, &split, &splitPolicy, &splitMutex, &splitOperationMutex,
-	     &splitHandshaked, &stoppingEngine,
+	     &splitHandshaked, &stoppingEngine, &killSwitch,
 	     splitFailed](const std::string& state,
 	                                   int64_t handshakeAtMillis) {
 		    WriteToPipe(
@@ -781,16 +847,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 			    std::lock_guard<std::mutex> lock(splitMutex);
 			    current = splitPolicy;
 		    }
-		    if (!current.enabled) {
-			    return;
-		    }
 		    std::string code;
 		    std::string message;
-		    // The engine reports the handshake once the adapter has an
-		    // address. Applying here is what makes include mode possible:
-		    // the redirect target is an address, not a name.
 		    std::lock_guard<std::mutex> operation(splitOperationMutex);
-		    if (!split.Apply(g_adapterLuid, &code, &message)) {
+		    // The engine has resolved and reached its server. From here on, DNS
+		    // outside the tunnel is a leak, not a necessity.
+		    bool ok = killSwitch.SetSetupDns(false, &code, &message);
+		    // The engine reports the handshake once the adapter has an
+		    // address and DNS servers, which the router needs.
+		    if (ok && current.enabled) {
+			    ok = split.Apply(g_adapterLuid, &code, &message);
+			    NET_LUID routerLuid = {};
+			    if (ok && killSwitch.engaged() && split.RouterLuid(&routerLuid)) {
+				    ok = killSwitch.PermitInterface(routerLuid, &code, &message);
+			    }
+		    }
+		    if (!ok) {
 			    WriteToPipe(pipe, MakeMessage(MessageType::kFailed,
 			                                  {code, message}));
 			    stoppingEngine = true;
@@ -824,6 +896,46 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 	bool refusedPeer = false;
 	PipeReader reader;
 	phantrix::ovpn::LockedSessionFiles files;
+	// Whether the kill switch's rules stay after this program exits. Strict
+	// mode always keeps them; automatic mode keeps them only while a dropped
+	// connection is waiting to be reconnected (the app says so with "hold").
+	bool holdFirewall = false;
+	bool firewallFinished = false;
+	// Decides once what happens to the kill switch's rules as this session
+	// ends: kept (strict, or a dropped connection the app is holding) with only
+	// the rules that need no tunnel, or removed.
+	const auto finishFirewall = [&killSwitch, &holdFirewall, &firewallFinished]() {
+		if (firewallFinished) {
+			return;
+		}
+		firewallFinished = true;
+		if (!killSwitch.engaged()) {
+			return;
+		}
+		std::string code;
+		std::string message;
+		if (killSwitch.mode() == phantrix::firewall::Mode::kStrict ||
+		    holdFirewall) {
+			(void)killSwitch.KeepAfterExit(&code, &message);
+		} else {
+			(void)phantrix::firewall::KillSwitch::Release(&message);
+		}
+	};
+
+	// A router that dies on its own leaves the selected applications without a
+	// path. That is a failed connection, reported like any other.
+	split.SetUnexpectedExitCallback(
+	    [&pipe, &stoppingEngine, splitFailed](const std::string& code,
+	                                          const std::string& message) {
+		    if (stoppingEngine.load()) {
+			    return;
+		    }
+		    WriteToPipe(pipe, MakeMessage(MessageType::kFailed, {code, message}));
+		    stoppingEngine = true;
+		    if (splitFailed != nullptr) {
+			    SetEvent(splitFailed);
+		    }
+	    });
 	reader.Start(pipe);
 
 	HANDLE waits[3] = {reader.messageReady, parentProcess, splitFailed};
@@ -852,7 +964,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		if (wait == WAIT_OBJECT_0 + splitFailureIndex) {
 			// A policy that could not be applied is a failed connection, not a
 			// tunnel that quietly runs without the routing the user asked for.
-			// The failure was reported before this event was set.
+			// The failure was reported before this event was set. A connection
+			// that had been up keeps the kill switch blocking, as any other drop.
+			holdFirewall = splitHandshaked.load();
 			stoppingEngine = true;
 			if (engine.running()) {
 				(void)engine.Stop();
@@ -896,12 +1010,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					// Rules go first: the engine's tunnel is about to cease to
 					// exist, and a redirect pointing at an adapter that is gone
 					// is a broken connection for every selected application.
+					// "hold": the connection dropped and the app keeps the kill
+					// switch blocking until it reconnects or the user disconnects.
+					holdFirewall = !message.fields.empty() &&
+					               message.fields[0] == "hold";
 					std::lock_guard<std::mutex> operation(splitOperationMutex);
 					split.Shutdown();
 					if (engine.running()) {
 						stoppingEngine = true;
 						(void)engine.Stop();
 					}
+					finishFirewall();
 					WriteToPipe(pipe, MakeMessage(MessageType::kDisconnected, {}));
 					shuttingDown = true;
 					break;
@@ -917,11 +1036,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 						       "The tunnel request was incomplete.");
 						continue;
 					}
+					// Fields: profile, status, log, split on/off, split mode,
+					// kill-switch mode, then the selected applications.
 					phantrix::split::Policy requested;
-					if (message.fields.size() >= 5) {
+					phantrix::firewall::Mode killSwitchMode =
+					    phantrix::firewall::Mode::kOff;
+					if (message.fields.size() >= 6) {
 						requested.enabled = message.fields[3] == "1";
 						requested.include_mode = message.fields[4] == "include";
-						for (size_t index = 5; index < message.fields.size();
+						killSwitchMode =
+						    phantrix::firewall::ParseMode(message.fields[5]);
+						for (size_t index = 6; index < message.fields.size();
 						     ++index) {
 							if (!message.fields[index].empty()) {
 								requested.apps.push_back(
@@ -937,7 +1062,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					            Utf8ToWide(message.fields[0]),
 					            Utf8ToWide(message.fields[1]),
 					            Utf8ToWide(message.fields[2]), files, split,
-					            requested);
+					            requested, killSwitch, killSwitchMode, appPath);
 					continue;
 				}
 				if (message.type == MessageType::kSplitPolicy) {
@@ -969,13 +1094,24 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 					{
 						std::lock_guard<std::mutex> operation(
 						    splitOperationMutex);
+						NET_LUID oldRouter = {};
+						const bool hadRouter = split.RouterLuid(&oldRouter);
 						if (!requested.enabled) {
 							split.Clear();
-						} else if (!split.Prepare(moduleDirectory, requested,
-						                          &code, &reason)) {
+						} else if (!split.Prepare(moduleDirectory, sessionDirectory,
+						                          requested, &code, &reason)) {
 							ok = false;
 						} else if (splitHandshaked.load()) {
 							ok = split.Apply(g_adapterLuid, &code, &reason);
+						}
+						if (hadRouter) {
+							killSwitch.ForgetInterface(oldRouter);
+						}
+						NET_LUID newRouter = {};
+						if (ok && killSwitch.engaged() &&
+						    split.RouterLuid(&newRouter)) {
+							ok = killSwitch.PermitInterface(newRouter, &code,
+							                                &reason);
 						}
 					}
 					WriteToPipe(
@@ -995,11 +1131,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, LPWSTR commandLine,
 		stoppingEngine = true;
 		(void)engine.Stop();
 	}
-	// Filters first, then the adapter they pointed at, then the driver. In that
-	// order no window exists where a rule names an interface that is gone.
+	// The router first, then the kill switch's final state, then the adapter.
 	{
 		std::lock_guard<std::mutex> operation(splitOperationMutex);
 		split.Shutdown();
+		finishFirewall();
 	}
 	if (splitFailed != nullptr) {
 		CloseHandle(splitFailed);

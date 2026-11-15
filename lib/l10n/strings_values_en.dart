@@ -64,6 +64,7 @@ const Map<String, String> _stringsValuesEn = {
   'settingsAbout': 'About',
   'settingsSplitTunneling': 'Split tunneling',
   'settingsSplitTunnelingHint': 'Choose which applications use the VPN',
+  'settingsSplitTunnelingApps': 'Applications and routing mode',
   'splitEnable': 'Enable split tunneling',
   'splitEnableHint':
       'Routing rules apply only while a VPN tunnel is connected.',
@@ -75,14 +76,12 @@ const Map<String, String> _stringsValuesEn = {
   'splitModeExcludeHint': 'Everything else uses the VPN.',
   'splitSearchHint': 'Search applications',
   'splitBrowse': 'Choose an .exe',
-  'splitSave': 'Save and apply',
   'splitSaved': 'Split tunneling saved.',
-  'splitSavedNext': 'Saved. The rules apply on the next connection.',
   'splitLiveApplied': 'Rules applied to the running tunnel.',
   'splitApplyFailed': 'The routing rules were not applied: {message}',
   'splitUnsupported':
-      'Split tunneling needs the signed Phantrix driver, which is not '
-      'available in this build.',
+      'Split tunneling needs the bundled routing component, which is not '
+      'available in this build or on this platform.',
   'splitNeedsApps':
       'Select at least one application, or turn split tunneling off.',
   'splitSelected': '{count} selected',
@@ -102,11 +101,10 @@ const Map<String, String> _stringsValuesEn = {
   'settingsPrivacyNotice': 'Privacy notice',
   'settingsPrivacyNoticeHint': 'What this app records, and what it does not',
   'settingsKillSwitchUnsupported':
-      'Phantrix cannot block traffic itself when the tunnel drops. '
-      'Automatic reconnects after a failure; it does not hold traffic '
-      'back while reconnecting. The protection that exists is the '
-      'system\u2019s own traffic blocking, shown below where '
-      'the system provides one.',
+      'Phantrix cannot block traffic itself on this device, so if the '
+      'tunnel drops, traffic leaves over the normal connection until you '
+      'reconnect. The protection that exists is the system’s own '
+      'traffic blocking, shown below where the system provides one.',
   'settingsSystemLockdown': 'System traffic blocking',
   'settingsSystemLockdownOn': 'On',
   'settingsSystemLockdownOff': 'Off',
@@ -124,6 +122,37 @@ const Map<String, String> _stringsValuesEn = {
   'killSwitchOff': 'Off',
   'killSwitchAutomatic': 'Automatic',
   'killSwitchStrict': 'Strict',
+  'killSwitchOffHint':
+      'No blocking. If the VPN connection drops, traffic uses your normal '
+      'connection.',
+  'killSwitchAutomaticHint':
+      'Blocks all internet outside the VPN from the moment you connect '
+      'until you press Disconnect. If the connection drops, internet stays '
+      'blocked until you reconnect or unblock it. Closing Phantrix lifts '
+      'the block.',
+  'killSwitchStrictHint':
+      'Like Automatic, but internet also stays blocked after Disconnect, '
+      'after Phantrix closes and across restarts, until you connect again '
+      'or turn the kill switch off. Local network devices such as printers '
+      'stay reachable.',
+  'killSwitchStrictConfirmTitle': 'Turn on the strict kill switch?',
+  'killSwitchStrictConfirmBody':
+      'This device will have no internet at all while Phantrix is not '
+      'connected — even after you close Phantrix or restart the '
+      'computer. Only connecting, or switching the kill switch to Off or '
+      'Automatic, restores it. On Windows, switching it needs administrator '
+      'approval.\n\nLocal network devices such as printers stay reachable.',
+  'killSwitchStrictConfirm': 'Turn on strict',
+  'killSwitchReleaseFailed':
+      'The kill switch could not be lifted, so internet is still blocked. '
+      'Try again, or connect.',
+  'homeKillSwitchStrict':
+      'Strict kill switch: internet is blocked while not connected',
+  'homeKillSwitchAutomatic':
+      'Connection dropped — kill switch is blocking internet until you '
+      'reconnect',
+  'homeKillSwitchUnblock': 'Unblock internet',
+  'homeKillSwitchUnblocking': 'Unblocking…',
   'ipv6': 'IPv6',
   'ipv6Block': 'Block while connected',
   'ipv6Prefer': 'Route when supported',
@@ -475,7 +504,19 @@ const Map<String, String> _stringsValuesEn = {
   'diagTunnelVerifiedDetail':
       'The tunnel was verified after it was established.',
   'diagTunnelNoTunnelDetail': 'No tunnel is up, so there is nothing to check.',
-  'diagKillSwitchVerifiedDetail':
-      'Traffic is dropped when the tunnel is unavailable.',
+  'diagKillSwitchOffDetail':
+      'The kill switch is off. If the tunnel drops, traffic leaves over the '
+      'normal connection. Choose Automatic or Strict in Settings to have '
+      'firewall rules block it.',
+  'diagKillSwitchAutomaticDetail':
+      'From connect until you press Disconnect, firewall rules block all '
+      'internet traffic outside the VPN, DNS included. Only Phantrix, its '
+      'VPN engine, the local network and DHCP stay allowed. If the tunnel '
+      'drops, the rules stay until you reconnect or unblock.',
+  'diagKillSwitchStrictDetail':
+      'Firewall rules block all internet traffic outside the VPN, DNS '
+      'included, whenever no tunnel is up — also after Disconnect, '
+      'after Phantrix closes and across restarts. Only Phantrix, its VPN '
+      'engine, the local network and DHCP stay allowed.',
   'diagKillSwitchNotSupportedDetail': 'This platform cannot guarantee a strict kill switch. When the tunnel drops, traffic leaves over the normal connection until it can be re-established. Phantrix reports that instead of claiming protection it does not have.',
 };

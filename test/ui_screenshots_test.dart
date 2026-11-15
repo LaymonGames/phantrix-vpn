@@ -15,6 +15,7 @@ import 'package:phantrix/theme/tokens.dart';
 import 'package:phantrix/ui/components/connection_orb.dart';
 import 'package:phantrix/ui/components/navigation.dart';
 import 'package:phantrix/ui/components/status_style.dart';
+import 'package:phantrix/ui/components/surfaces.dart';
 import 'package:phantrix/app/app_scope.dart';
 import 'package:phantrix/phantrix_app.dart';
 
@@ -39,6 +40,15 @@ import 'package:phantrix/phantrix_app.dart';
 /// Regenerate with:
 ///
 ///     flutter test test/ui_screenshots_test.dart --update-goldens
+/// The width of every content surface on screen.
+List<double> _surfaceWidths() => [
+  for (final element in find.byType(VgSurface).evaluate())
+    switch (element.renderObject) {
+      final RenderBox box => box.size.width,
+      _ => -1,
+    },
+];
+
 void main() {
   setUpAll(_loadSystemFonts);
 
@@ -104,14 +114,12 @@ void main() {
       tester,
     ) async {
       await _boot(tester, size: const Size(2560, 1400));
-      // Every scrolling region, not just the first: measuring one and
-      // hoping it is the right one is how a cap test passes on the wrong
-      // widget.
-      final widths = <double>[];
-      for (final element in find.byType(Scrollable).evaluate()) {
-        final box = element.renderObject;
-        widths.add(box is RenderBox ? box.size.width : -1);
-      }
+      // Every surface the content is drawn on, not just the first:
+      // measuring one and hoping it is the right one is how a cap test
+      // passes on the wrong widget. The scroll views themselves span the
+      // window so the mouse wheel works over the margins; it is what they
+      // hold that must stay capped.
+      final widths = _surfaceWidths();
       expect(widths, isNotEmpty);
       // The dashboard is the widest thing the app draws — it is a grid of
       // panels, not a measure of prose — so it sets the bound. A
@@ -134,11 +142,7 @@ void main() {
         size: const Size(2560, 1400),
         destination: 'Settings',
       );
-      final widths = <double>[];
-      for (final element in find.byType(Scrollable).evaluate()) {
-        final box = element.renderObject;
-        widths.add(box is RenderBox ? box.size.width : -1);
-      }
+      final widths = _surfaceWidths();
       expect(widths, isNotEmpty);
       // Settings is one column of settings. On a 4K display it must stop
       // being a column of text, or a toggle ends up a metre from the label

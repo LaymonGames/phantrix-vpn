@@ -38,7 +38,6 @@ Widget harness({
           onOpenSystemVpnSettings: () {},
           systemLockdownActive: () async => false,
           onStartOnBootChanged: onStartOnBootChanged,
-          onOpenSplitTunneling: () {},
         ),
       ),
     ),

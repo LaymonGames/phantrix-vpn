@@ -1,20 +1,16 @@
 #include "phantrix_split_tunnel.h"
 
-#include <fwpmtypes.h>
 #include <iphlpapi.h>
 #include <netioapi.h>
-#include <rpc.h>
 #include <winsvc.h>
 #include <ws2tcpip.h>
 
 #include <algorithm>
 #include <cstdio>
 
-#include "driver/phantrix_split_tunnel/phantrix_split_tunnel_public.h"
+#include "phantrix_ovpn_support.h"
 
-#pragma comment(lib, "fwpuclnt.lib")
 #pragma comment(lib, "iphlpapi.lib")
-#pragma comment(lib, "rpcrt4.lib")
 #pragma comment(lib, "advapi32.lib")
 
 namespace phantrix {
@@ -22,18 +18,21 @@ namespace split {
 
 namespace {
 
-// The provider and sublayer that group every object this feature adds. A WFP
-// dump can then answer "which rules belong to the split tunnel" without
-// guessing from filter names.
-const GUID kProviderKey = {
-    0x8a0c6f1e, 0x62d5, 0x4c47, {0x9d, 0x8b, 0x2b, 0x1a, 0x7d, 0x0e, 0x5c, 0x11}};
-const GUID kSubLayerKey = {
-    0x8a0c6f1e, 0x62d5, 0x4c47, {0x9d, 0x8b, 0x2b, 0x1a, 0x7d, 0x0e, 0x5c, 0x12}};
+using phantrix::ovpn::WideToUtf8;
 
-// A metric high enough that the physical default route wins, and distinctive
-// enough that the cleanup path can recognise a route this program added rather
-// than one OpenVPN or Windows owns.
-constexpr ULONG kIncludeRouteMetric = 32000;
+// A metric high enough that no unbound connection ever picks it. The route
+// exists only so a socket bound to the tunnel adapter has somewhere to go once
+// OpenVPN's own full-tunnel routes are taken off.
+constexpr ULONG kBoundRouteMetric = 32000;
+
+// How long the router may take to bring its adapter and routes up.
+constexpr DWORD kRouterStartTimeoutMillis = 20000;
+constexpr DWORD kRouterPollMillis = 100;
+
+constexpr ADDRESS_FAMILY kFamilies[] = {AF_INET, AF_INET6};
+
+constexpr wchar_t kConfigFileName[] = L"router.json";
+constexpr wchar_t kLogFileName[] = L"router.log";
 
 std::string Win32Message(DWORD error) {
   char* text = nullptr;
@@ -73,321 +72,231 @@ bool SameLuid(const NET_LUID& left, const NET_LUID& right) {
   return left.Value == right.Value;
 }
 
-bool AddressIsUsable(const SOCKADDR_INET& address) {
-  if (address.si_family == AF_INET) {
-    const IN_ADDR value = address.Ipv4.sin_addr;
-    const unsigned char* b = reinterpret_cast<const unsigned char*>(&value);
-    return value.S_un.S_addr != 0 && b[0] != 127 &&
-           !(b[0] == 169 && b[1] == 254);
+// JSON string body (without the quotes) for UTF-8 text.
+std::string JsonEscape(const std::string& value) {
+  std::string out;
+  out.reserve(value.size() + 8);
+  for (const char raw : value) {
+    const unsigned char c = static_cast<unsigned char>(raw);
+    switch (c) {
+      case '"':
+        out += "\\\"";
+        break;
+      case '\\':
+        out += "\\\\";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      case '\r':
+        out += "\\r";
+        break;
+      case '\t':
+        out += "\\t";
+        break;
+      default:
+        if (c < 0x20) {
+          char buffer[8];
+          std::snprintf(buffer, sizeof(buffer), "\\u%04x", c);
+          out += buffer;
+        } else {
+          out += raw;
+        }
+    }
   }
-  if (address.si_family == AF_INET6) {
-    IN6_ADDR value = address.Ipv6.sin6_addr;
-    return !IN6_IS_ADDR_UNSPECIFIED(&value) &&
-           !IN6_IS_ADDR_LOOPBACK(&value) &&
-           !IN6_IS_ADDR_LINKLOCAL(&value) &&
-           !IN6_IS_ADDR_MULTICAST(&value);
-  }
-  return false;
+  return out;
 }
 
-bool UnicastAddressOnLuid(const NET_LUID& luid, ADDRESS_FAMILY family,
-                          SOCKADDR_INET* result) {
+// A case-insensitive, anchored RE2 pattern that matches exactly one path.
+// Windows paths are case-insensitive, and the path the user picked need not
+// have the same case as the one the process table reports.
+std::string ExactPathPattern(const std::string& path) {
+  std::string pattern = "(?i)^";
+  for (const char c : path) {
+    if (std::string("\\.+*?()|[]{}^$").find(c) != std::string::npos) {
+      pattern += '\\';
+    }
+    pattern += c;
+  }
+  pattern += '$';
+  return pattern;
+}
+
+std::string JsonStringArray(const std::vector<std::string>& values) {
+  std::string out = "[";
+  for (size_t index = 0; index < values.size(); ++index) {
+    if (index != 0) {
+      out += ", ";
+    }
+    out += "\"" + JsonEscape(values[index]) + "\"";
+  }
+  out += "]";
+  return out;
+}
+
+bool InterfaceAlias(const NET_LUID& luid, std::wstring* alias) {
+  wchar_t buffer[NDIS_IF_MAX_STRING_SIZE + 1] = {0};
+  if (ConvertInterfaceLuidToAlias(&luid, buffer, NDIS_IF_MAX_STRING_SIZE) !=
+      NO_ERROR) {
+    return false;
+  }
+  *alias = buffer;
+  return !alias->empty();
+}
+
+// The first DNS server the engine configured on the tunnel adapter, preferring
+// IPv4. Empty when the server pushed none.
+std::string TunnelDnsServer(const NET_LUID& luid) {
+  ULONG size = 16 * 1024;
+  std::vector<unsigned char> buffer;
+  ULONG result = ERROR_BUFFER_OVERFLOW;
+  for (int attempt = 0; attempt < 3 && result == ERROR_BUFFER_OVERFLOW;
+       ++attempt) {
+    buffer.resize(size);
+    result = GetAdaptersAddresses(
+        AF_UNSPEC,
+        GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_UNICAST,
+        nullptr, reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buffer.data()), &size);
+  }
+  if (result != NO_ERROR) {
+    return std::string();
+  }
+  std::string v4;
+  std::string v6;
+  for (auto* adapter = reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buffer.data());
+       adapter != nullptr; adapter = adapter->Next) {
+    if (!SameLuid(adapter->Luid, luid)) {
+      continue;
+    }
+    for (auto* dns = adapter->FirstDnsServerAddress; dns != nullptr;
+         dns = dns->Next) {
+      const SOCKADDR* address = dns->Address.lpSockaddr;
+      if (address == nullptr) {
+        continue;
+      }
+      char text[INET6_ADDRSTRLEN] = {0};
+      if (address->sa_family == AF_INET && v4.empty()) {
+        const auto* in = reinterpret_cast<const SOCKADDR_IN*>(address);
+        if (InetNtopA(AF_INET, &in->sin_addr, text, sizeof(text)) != nullptr) {
+          v4 = text;
+        }
+      } else if (address->sa_family == AF_INET6 && v6.empty()) {
+        const auto* in6 = reinterpret_cast<const SOCKADDR_IN6*>(address);
+        // Site-local "fec0:0:0:ffff::" defaults are what Windows reports when
+        // nothing was configured; they are not a server.
+        if (in6->sin6_addr.u.Byte[0] == 0xfe &&
+            (in6->sin6_addr.u.Byte[1] & 0xc0) == 0xc0) {
+          continue;
+        }
+        if (InetNtopA(AF_INET6, &in6->sin6_addr, text, sizeof(text)) !=
+            nullptr) {
+          v6 = text;
+        }
+      }
+    }
+  }
+  return !v4.empty() ? v4 : v6;
+}
+
+bool TunnelHasAddress(const NET_LUID& luid, ADDRESS_FAMILY family) {
   PMIB_UNICASTIPADDRESS_TABLE table = nullptr;
   if (GetUnicastIpAddressTable(family, &table) != NO_ERROR || table == nullptr) {
     return false;
   }
   bool found = false;
-  for (ULONG index = 0; index < table->NumEntries; ++index) {
+  for (ULONG index = 0; index < table->NumEntries && !found; ++index) {
     const MIB_UNICASTIPADDRESS_ROW& row = table->Table[index];
-    if (!SameLuid(row.InterfaceLuid, luid) || !AddressIsUsable(row.Address)) {
+    if (!SameLuid(row.InterfaceLuid, luid)) {
       continue;
     }
-    if (result != nullptr) {
-      *result = row.Address;
+    if (family == AF_INET6) {
+      IN6_ADDR value = row.Address.Ipv6.sin6_addr;
+      if (IN6_IS_ADDR_LINKLOCAL(&value)) {
+        continue;
+      }
     }
     found = true;
-    break;
   }
   FreeMibTable(table);
   return found;
 }
 
-bool BestInterfaceAddress(ADDRESS_FAMILY family, NET_LUID* luid,
-                          SOCKADDR_INET* address) {
-  NET_LUID best = {};
-  if (family == AF_INET) {
-    DWORD index = 0;
-    IN_ADDR destination_address = {};
-    InetPtonA(AF_INET, "1.1.1.1", &destination_address);
-    const IPAddr destination = destination_address.S_un.S_addr;
-    if (GetBestInterface(destination, &index) != NO_ERROR) {
-      return false;
-    }
-    if (ConvertInterfaceIndexToLuid(index, &best) != NO_ERROR) {
-      return false;
-    }
-  } else {
-    SOCKADDR_IN6 destination = {};
-    destination.sin6_family = AF_INET6;
-    if (InetPtonA(AF_INET6, "2001:4860:4860::8888",
-                  &destination.sin6_addr) != 1) {
-      return false;
-    }
-    DWORD index = 0;
-    if (GetBestInterfaceEx(reinterpret_cast<SOCKADDR*>(&destination), &index) !=
-        NO_ERROR) {
-      return false;
-    }
-    if (ConvertInterfaceIndexToLuid(index, &best) != NO_ERROR) {
-      return false;
-    }
-  }
-  SOCKADDR_INET found = {};
-  if (!UnicastAddressOnLuid(best, family, &found)) {
+bool RouterRoutesPresent(const NET_LUID& luid) {
+  PMIB_IPFORWARD_TABLE2 table = nullptr;
+  if (GetIpForwardTable2(AF_INET, &table) != NO_ERROR || table == nullptr) {
     return false;
   }
-  if (luid != nullptr) {
-    *luid = best;
-  }
-  if (address != nullptr) {
-    *address = found;
-  }
-  return true;
-}
-
-void DeleteSplitDefaultRoutes(const NET_LUID& luid, ADDRESS_FAMILY family) {
-  PMIB_IPFORWARD_TABLE2 table = nullptr;
-  if (GetIpForwardTable2(family, &table) != NO_ERROR || table == nullptr) {
-    return;
-  }
-  for (ULONG index = 0; index < table->NumEntries; ++index) {
+  bool found = false;
+  for (ULONG index = 0; index < table->NumEntries && !found; ++index) {
     const MIB_IPFORWARD_ROW2& row = table->Table[index];
-    if (!SameLuid(row.InterfaceLuid, luid) ||
-        row.DestinationPrefix.PrefixLength != 1) {
-      continue;
-    }
-    // 0.0.0.0/1 + 128.0.0.0/1, and ::/1 + 8000::/1: the pair a full-tunnel
-    // configuration uses to beat the physical default route without owning it.
-    (void)DeleteIpForwardEntry2(&row);
+    found = SameLuid(row.InterfaceLuid, luid) &&
+            row.DestinationPrefix.PrefixLength <= 1;
   }
   FreeMibTable(table);
+  return found;
 }
 
-bool AddDefaultRoute(const NET_LUID& luid, ADDRESS_FAMILY family,
-                     const SOCKADDR_INET& next_hop) {
-  // Remove an earlier copy first, so reconnecting cannot accumulate routes.
-  PMIB_IPFORWARD_TABLE2 table = nullptr;
-  if (GetIpForwardTable2(family, &table) == NO_ERROR && table != nullptr) {
-    for (ULONG index = 0; index < table->NumEntries; ++index) {
-      const MIB_IPFORWARD_ROW2& row = table->Table[index];
-      if (SameLuid(row.InterfaceLuid, luid) &&
-          row.DestinationPrefix.PrefixLength == 0 &&
-          row.Metric == kIncludeRouteMetric) {
-        (void)DeleteIpForwardEntry2(&row);
-      }
-    }
-    FreeMibTable(table);
+// A route that makes the tunnel a default path: OpenVPN's def1 pair
+// (0.0.0.0/1 + 128.0.0.0/1) and its IPv6 counterparts (::/1, 8000::/1, or the
+// 2000::/4, 3000::/4, fc00::/7 set older servers use).
+bool IsTunnelDefaultRoute(const MIB_IPFORWARD_ROW2& row) {
+  const UINT8 length = row.DestinationPrefix.PrefixLength;
+  if (row.DestinationPrefix.Prefix.si_family == AF_INET) {
+    return length <= 1;
   }
-
-  MIB_IPFORWARD_ROW2 row = {};
-  InitializeIpForwardEntry(&row);
-  row.InterfaceLuid = luid;
-  row.DestinationPrefix.Prefix.si_family = family;
-  row.DestinationPrefix.PrefixLength = 0;
-  row.SitePrefixLength = 0;
-  row.NextHop = next_hop;
-  row.Metric = kIncludeRouteMetric;
-  row.Protocol = MIB_IPPROTO_NETMGMT;
-  return CreateIpForwardEntry2(&row) == NO_ERROR;
+  return length <= 7;
 }
 
-void RemoveDefaultRoute(const NET_LUID& luid, ADDRESS_FAMILY family,
-                        const SOCKADDR_INET& next_hop) {
-  PMIB_IPFORWARD_TABLE2 table = nullptr;
-  if (GetIpForwardTable2(family, &table) != NO_ERROR || table == nullptr) {
-    return;
+}  // namespace
+
+std::wstring RouterExecutable(const std::wstring& module_directory) {
+  if (module_directory.empty()) {
+    return std::wstring();
   }
-  for (ULONG index = 0; index < table->NumEntries; ++index) {
-    const MIB_IPFORWARD_ROW2& row = table->Table[index];
-    if (!SameLuid(row.InterfaceLuid, luid) ||
-        row.DestinationPrefix.PrefixLength != 0 ||
-        row.Metric != kIncludeRouteMetric) {
-      continue;
-    }
-    if (row.NextHop.si_family != next_hop.si_family) {
-      continue;
-    }
-    // The metric and interface are the identity of a route this program added.
-    // The next hop is deliberately not compared: an address that changed
-    // between reconnects must still have its old route removed.
-    (void)DeleteIpForwardEntry2(&row);
-  }
-  FreeMibTable(table);
+  return module_directory + L"\\" + kRouterFileName;
 }
 
-bool StartDriverService(const std::wstring& binary_path, std::string* code,
-                        std::string* message) {
-  SC_HANDLE manager =
-      OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT |
-                                            SC_MANAGER_CREATE_SERVICE);
-  if (manager == nullptr) {
-    Fail("split.driver_failed",
-         "The service manager could not be opened: " +
-             Win32Message(GetLastError()),
-         code, message);
-    return false;
-  }
-  SC_HANDLE service = CreateServiceW(
-      manager, kDriverServiceName, L"Phantrix split tunnel",
-      SERVICE_START | SERVICE_QUERY_STATUS, SERVICE_KERNEL_DRIVER,
-      SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, binary_path.c_str(), nullptr,
-      nullptr, nullptr, nullptr, nullptr);
-  if (service == nullptr && GetLastError() == ERROR_SERVICE_EXISTS) {
-    service = OpenServiceW(manager, kDriverServiceName,
-                           SERVICE_START | SERVICE_QUERY_STATUS);
-  }
-  if (service == nullptr) {
-    const DWORD error = GetLastError();
-    CloseServiceHandle(manager);
-    Fail("split.driver_failed",
-         "The split-tunnel driver service could not be created: " +
-             Win32Message(error),
-         code, message);
-    return false;
-  }
-  const BOOL started = StartServiceW(service, 0, nullptr);
-  const DWORD error = started == FALSE ? GetLastError() : ERROR_SUCCESS;
-  CloseServiceHandle(service);
-  CloseServiceHandle(manager);
-  if (started == FALSE && error != ERROR_SERVICE_ALREADY_RUNNING) {
-    // A test-signed driver on a machine that has not enabled test signing
-    // lands here with ERROR_INVALID_IMAGE_HASH (577). The sentence names the
-    // fact, not the code, so the user knows re-signing is the answer.
-    Fail("split.driver_failed",
-         "The split-tunnel driver would not start: " + Win32Message(error),
-         code, message);
-    return false;
-  }
-  return true;
+bool RouterPresent(const std::wstring& module_directory) {
+  const std::wstring path = RouterExecutable(module_directory);
+  return !path.empty() &&
+         GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
 }
 
-void StopDriverService() {
+void RemoveLegacyDriverService() {
   SC_HANDLE manager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
   if (manager == nullptr) {
     return;
   }
-  SC_HANDLE service = OpenServiceW(
-      manager, kDriverServiceName, SERVICE_STOP | SERVICE_QUERY_STATUS);
+  SC_HANDLE service =
+      OpenServiceW(manager, kLegacyDriverServiceName,
+                   SERVICE_STOP | SERVICE_QUERY_STATUS | DELETE);
   if (service != nullptr) {
     SERVICE_STATUS status = {};
     (void)ControlService(service, SERVICE_CONTROL_STOP, &status);
+    (void)DeleteService(service);
     CloseServiceHandle(service);
   }
   CloseServiceHandle(manager);
 }
 
-bool AddCallout(HANDLE engine, const GUID& key, const GUID& layer) {
-  FWPM_CALLOUT0 callout = {};
-  callout.calloutKey = key;
-  callout.displayData.name = const_cast<wchar_t*>(L"Phantrix split tunnel");
-  callout.displayData.description =
-      const_cast<wchar_t*>(L"Redirects a selected application's connection");
-  callout.providerKey = const_cast<GUID*>(&kProviderKey);
-  callout.applicableLayer = layer;
-  callout.flags = FWPM_CALLOUT_FLAG_USES_PROVIDER_CONTEXT;
-  const DWORD result = FwpmCalloutAdd0(engine, &callout, nullptr, nullptr);
-  return result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS;
-}
-
-bool AddProviderContext(HANDLE engine, const GUID& key,
-                        const PHANTRIX_REDIRECT_DATA& data) {
-  FWP_BYTE_BLOB blob = {};
-  blob.size = sizeof(data);
-  blob.data = reinterpret_cast<UINT8*>(const_cast<PHANTRIX_REDIRECT_DATA*>(&data));
-  FWPM_PROVIDER_CONTEXT0 context = {};
-  context.providerContextKey = key;
-  context.displayData.name =
-      const_cast<wchar_t*>(L"Phantrix split tunnel redirect");
-  context.providerKey = const_cast<GUID*>(&kProviderKey);
-  context.type = FWPM_GENERAL_CONTEXT;
-  context.dataBuffer = &blob;
-  return FwpmProviderContextAdd0(engine, &context, nullptr, nullptr) ==
-         ERROR_SUCCESS;
-}
-
-bool AddFilter(HANDLE engine, const wchar_t* name, const GUID& layer,
-               const GUID& callout_key, const GUID& context_key,
-               const FWP_BYTE_BLOB* app_id, bool block) {
-  FWPM_FILTER0 filter = {};
-  filter.displayData.name = const_cast<wchar_t*>(name);
-  filter.layerKey = layer;
-  filter.subLayerKey = kSubLayerKey;
-  filter.providerKey = const_cast<GUID*>(&kProviderKey);
-  filter.weight.type = FWP_UINT8;
-  filter.weight.uint8 = 15;
-  if (block) {
-    filter.action.type = FWP_ACTION_BLOCK;
-  } else {
-    filter.action.type = FWP_ACTION_CALLOUT_TERMINATING;
-    filter.action.calloutKey = callout_key;
-    // Without this flag Windows ignores providerContextKey, so the callout
-    // sees no redirect address and silently does nothing.
-    filter.flags |= FWPM_FILTER_FLAG_HAS_PROVIDER_CONTEXT;
-    filter.providerContextKey = context_key;
-  }
-  FWPM_FILTER_CONDITION0 condition = {};
-  condition.fieldKey = FWPM_CONDITION_ALE_APP_ID;
-  condition.matchType = FWP_MATCH_EQUAL;
-  condition.conditionValue.type = FWP_BYTE_BLOB_TYPE;
-  condition.conditionValue.byteBlob =
-      const_cast<FWP_BYTE_BLOB*>(app_id);
-  filter.numFilterConditions = 1;
-  filter.filterCondition = &condition;
-  return FwpmFilterAdd0(engine, &filter, nullptr, nullptr) == ERROR_SUCCESS;
-}
-
-GUID FreshGuid() {
-  GUID value = {};
-  (void)UuidCreate(&value);
-  return value;
-}
-
-std::wstring TargetDescription(bool include_mode, ADDRESS_FAMILY family) {
-  if (include_mode) {
-    return family == AF_INET ? L"tunnel IPv4" : L"tunnel IPv6";
-  }
-  return family == AF_INET ? L"physical IPv4" : L"physical IPv6";
-}
-
-}  // namespace
-
 Controller::~Controller() { Shutdown(); }
 
+void Controller::SetUnexpectedExitCallback(ExitCallback callback) {
+  on_exit_ = std::move(callback);
+}
+
 bool Controller::Prepare(const std::wstring& module_directory,
+                         const std::wstring& work_directory,
                          const Policy& policy, std::string* error_code,
                          std::string* error_message) {
-  // A live update keeps the physical addresses captured before the tunnel
-  // existed. Asking "best interface" once the tunnel is up answers with the
-  // tunnel, which is the one address exclude mode must not redirect to.
-  const bool had_physical = have_physical_v4_ || have_physical_v6_;
-  const NET_LUID physical_luid = physical_luid_;
-  const IN_ADDR physical_v4 = physical_v4_;
-  const IN6_ADDR physical_v6 = physical_v6_;
   Clear();
   module_directory_ = module_directory;
+  work_directory_ = work_directory;
   policy_ = policy;
   prepared_ = false;
   if (!policy_.enabled) {
     prepared_ = true;
     return true;
-  }
-  if (had_physical) {
-    physical_luid_ = physical_luid;
-    physical_v4_ = physical_v4;
-    physical_v6_ = physical_v6;
-    have_physical_v4_ = physical_v4.S_un.S_addr != 0;
-    IN6_ADDR zero = {};
-    have_physical_v6_ = memcmp(&physical_v6, &zero, sizeof(IN6_ADDR)) != 0;
   }
   if (policy_.include_mode && policy_.apps.empty()) {
     Fail("split.policy_rejected",
@@ -396,306 +305,38 @@ bool Controller::Prepare(const std::wstring& module_directory,
          error_code, error_message);
     return false;
   }
-  if (!EnsureDriver(module_directory_, error_code, error_message)) {
+  if (!RouterPresent(module_directory_)) {
+    Fail("split.router_missing",
+         "The split-tunnel router (sing-box.exe) is not present beside the "
+         "tunnel helper. Reinstall Phantrix to restore it.",
+         error_code, error_message);
     return false;
   }
-  if (!had_physical &&
-      !CapturePhysicalAddresses(error_code, error_message)) {
+  if (work_directory_.empty()) {
+    Fail("split.policy_rejected",
+         "The tunnel session has no private directory for the router.",
+         error_code, error_message);
     return false;
   }
+  // Applications that were uninstalled since they were selected are dropped
+  // rather than failing the connection. Exclude mode with no application left
+  // is a full tunnel, which is the safe reading of that policy.
+  std::vector<std::wstring> present;
+  for (const std::wstring& path : policy_.apps) {
+    if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+      present.push_back(path);
+    }
+  }
+  if (policy_.include_mode && present.empty()) {
+    Fail("split.policy_rejected",
+         "None of the selected applications exist any more. They may have "
+         "been uninstalled or moved.",
+         error_code, error_message);
+    return false;
+  }
+  policy_.apps = present;
   prepared_ = true;
   return true;
-}
-
-bool Controller::EnsureDriver(const std::wstring& module_directory,
-                              std::string* error_code,
-                              std::string* error_message) {
-  if (module_directory.empty()) {
-    Fail("split.driver_missing", "The tunnel helper could not be located.",
-         error_code, error_message);
-    return false;
-  }
-  const std::wstring path =
-      module_directory + L"\\" + std::wstring(kDriverFileName);
-  if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
-    Fail("split.driver_missing",
-         "The split-tunnel driver is not present beside the tunnel helper. "
-         "Reinstall Phantrix to restore it.",
-         error_code, error_message);
-    return false;
-  }
-  if (!StartDriverService(path, error_code, error_message)) {
-    return false;
-  }
-  driver_started_ = true;
-  return true;
-}
-
-bool Controller::CapturePhysicalAddresses(std::string* error_code,
-                                           std::string* error_message) {
-  NET_LUID luid = {};
-  SOCKADDR_INET address = {};
-  have_physical_v4_ =
-      BestInterfaceAddress(AF_INET, &luid, &address);
-  if (have_physical_v4_) {
-    physical_luid_ = luid;
-    physical_v4_ = address.Ipv4.sin_addr;
-  }
-  (void)physical_luid_;
-  SOCKADDR_INET address6 = {};
-  have_physical_v6_ =
-      BestInterfaceAddress(AF_INET6, &luid, &address6);
-  if (have_physical_v6_) {
-    physical_v6_ = address6.Ipv6.sin6_addr;
-  }
-  if (!have_physical_v4_ && !have_physical_v6_) {
-    Fail("split.policy_rejected",
-         "The physical network interface could not be identified, so there is "
-         "no address to route around the tunnel.",
-         error_code, error_message);
-    return false;
-  }
-  return true;
-}
-
-bool Controller::ReadTunnelAddresses(NET_LUID tunnel_luid,
-                                      std::string* error_code,
-                                      std::string* error_message) {
-  have_tunnel_v4_ = false;
-  have_tunnel_v6_ = false;
-  SOCKADDR_INET address = {};
-  if (UnicastAddressOnLuid(tunnel_luid, AF_INET, &address)) {
-    tunnel_v4_ = address.Ipv4.sin_addr;
-    have_tunnel_v4_ = true;
-  }
-  SOCKADDR_INET address6 = {};
-  if (UnicastAddressOnLuid(tunnel_luid, AF_INET6, &address6)) {
-    tunnel_v6_ = address6.Ipv6.sin6_addr;
-    have_tunnel_v6_ = true;
-  }
-  if (!have_tunnel_v4_ && !have_tunnel_v6_) {
-    Fail("split.policy_rejected",
-         "The tunnel adapter has no address yet, so no application can be "
-         "routed into it.",
-         error_code, error_message);
-    return false;
-  }
-  return true;
-}
-
-bool Controller::BeginSession(std::string* error_code,
-                              std::string* error_message) {
-  if (engine_ != nullptr) {
-    return true;
-  }
-  session_ = {};
-  session_.flags = FWPM_SESSION_FLAG_DYNAMIC;
-  const DWORD opened = FwpmEngineOpen0(nullptr, RPC_C_AUTHN_WINNT, nullptr,
-                                      &session_, &engine_);
-  if (opened != ERROR_SUCCESS || engine_ == nullptr) {
-    engine_ = nullptr;
-    Fail("split.filter_failed",
-         "The filtering engine could not be opened: " +
-             Win32Message(opened),
-         error_code, error_message);
-    return false;
-  }
-  const DWORD transaction = FwpmTransactionBegin0(engine_, 0);
-  if (transaction != ERROR_SUCCESS) {
-    Fail("split.filter_failed",
-         "The filtering transaction could not begin: " +
-             Win32Message(transaction),
-         error_code, error_message);
-    return false;
-  }
-  FWPM_PROVIDER0 provider = {};
-  provider.providerKey = kProviderKey;
-  provider.displayData.name =
-      const_cast<wchar_t*>(L"Phantrix split tunnel provider");
-  const DWORD provider_result = FwpmProviderAdd0(
-      engine_, &provider, nullptr);
-  if (provider_result != ERROR_SUCCESS &&
-      provider_result != ERROR_ALREADY_EXISTS) {
-    (void)FwpmTransactionAbort0(engine_);
-    Fail("split.filter_failed",
-         "The split-tunnel provider could not be added: " +
-             Win32Message(provider_result),
-         error_code, error_message);
-    return false;
-  }
-  FWPM_SUBLAYER0 sublayer = {};
-  sublayer.subLayerKey = kSubLayerKey;
-  sublayer.displayData.name =
-      const_cast<wchar_t*>(L"Phantrix split tunnel filters");
-  sublayer.providerKey = const_cast<GUID*>(&kProviderKey);
-  sublayer.weight = 0x8000;
-  const DWORD sublayer_result =
-      FwpmSubLayerAdd0(engine_, &sublayer, nullptr);
-  if (sublayer_result != ERROR_SUCCESS &&
-      sublayer_result != ERROR_ALREADY_EXISTS) {
-    (void)FwpmTransactionAbort0(engine_);
-    Fail("split.filter_failed",
-         "The split-tunnel filter group could not be added: " +
-             Win32Message(sublayer_result),
-         error_code, error_message);
-    return false;
-  }
-  const struct {
-    const GUID& key;
-    const GUID& layer;
-  } callouts[] = {
-      {PHANTRIX_CONNECT_REDIRECT_V4_CALLOUT,
-       FWPM_LAYER_ALE_CONNECT_REDIRECT_V4},
-      {PHANTRIX_CONNECT_REDIRECT_V6_CALLOUT,
-       FWPM_LAYER_ALE_CONNECT_REDIRECT_V6},
-      {PHANTRIX_BIND_REDIRECT_V4_CALLOUT, FWPM_LAYER_ALE_BIND_REDIRECT_V4},
-      {PHANTRIX_BIND_REDIRECT_V6_CALLOUT, FWPM_LAYER_ALE_BIND_REDIRECT_V6},
-  };
-  for (const auto& callout : callouts) {
-    if (!AddCallout(engine_, callout.key, callout.layer)) {
-      (void)FwpmTransactionAbort0(engine_);
-      Fail("split.filter_failed",
-           "The split-tunnel redirect callout could not be registered with "
-           "the filtering engine.",
-           error_code, error_message);
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Controller::AddRedirectFilters(const std::wstring& target_description,
-                                    std::string* error_code,
-                                    std::string* error_message) {
-  const bool include = policy_.include_mode;
-  const bool v4 = include ? have_tunnel_v4_ : have_physical_v4_;
-  const bool v6 = include ? have_tunnel_v6_ : have_physical_v6_;
-  if (!v4 && !v6) {
-    Fail("split.policy_rejected",
-         "There is no usable tunnel or physical address to redirect to.",
-         error_code, error_message);
-    return false;
-  }
-
-  GUID context_v4 = {};
-  GUID context_v6 = {};
-  if (v4) {
-    PHANTRIX_REDIRECT_DATA data = {};
-    data.address_family = AF_INET;
-    data.address.v4 = include ? tunnel_v4_ : physical_v4_;
-    context_v4 = FreshGuid();
-    if (!AddProviderContext(engine_, context_v4, data)) {
-      Fail("split.filter_failed",
-           "The split-tunnel redirect address could not be recorded.",
-           error_code, error_message);
-      return false;
-    }
-  }
-  if (v6) {
-    PHANTRIX_REDIRECT_DATA data = {};
-    data.address_family = AF_INET6;
-    data.address.v6 = include ? tunnel_v6_ : physical_v6_;
-    context_v6 = FreshGuid();
-    if (!AddProviderContext(engine_, context_v6, data)) {
-      Fail("split.filter_failed",
-           "The IPv6 redirect address could not be recorded.",
-           error_code, error_message);
-      return false;
-    }
-  }
-
-  int created = 0;
-  for (const std::wstring& path : policy_.apps) {
-    FWP_BYTE_BLOB* app_id = nullptr;
-    if (FwpmGetAppIdFromFileName0(path.c_str(), &app_id) != ERROR_SUCCESS ||
-        app_id == nullptr) {
-      continue;
-    }
-    if (v4) {
-      created += AddFilter(engine_, L"Phantrix split tunnel TCP IPv4",
-                           FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
-                           PHANTRIX_CONNECT_REDIRECT_V4_CALLOUT, context_v4,
-                           app_id, false)
-                     ? 1
-                     : 0;
-      created += AddFilter(engine_, L"Phantrix split tunnel UDP IPv4",
-                           FWPM_LAYER_ALE_BIND_REDIRECT_V4,
-                           PHANTRIX_BIND_REDIRECT_V4_CALLOUT, context_v4,
-                           app_id, false)
-                     ? 1
-                     : 0;
-    }
-    if (v6) {
-      created += AddFilter(engine_, L"Phantrix split tunnel TCP IPv6",
-                           FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
-                           PHANTRIX_CONNECT_REDIRECT_V6_CALLOUT, context_v6,
-                           app_id, false)
-                     ? 1
-                     : 0;
-      created += AddFilter(engine_, L"Phantrix split tunnel UDP IPv6",
-                           FWPM_LAYER_ALE_BIND_REDIRECT_V6,
-                           PHANTRIX_BIND_REDIRECT_V6_CALLOUT, context_v6,
-                           app_id, false)
-                     ? 1
-                     : 0;
-    }
-    FwpmFreeMemory0(reinterpret_cast<void**>(&app_id));
-  }
-  if (created == 0) {
-    Fail("split.policy_rejected",
-         "None of the selected applications could be given a routing rule. "
-         "They may have been uninstalled or renamed.",
-         error_code, error_message);
-    return false;
-  }
-  return true;
-}
-
-bool Controller::AddBlockV6Filters(std::string* error_code,
-                                   std::string* error_message) {
-  // A selected application with no IPv6 target address must not silently fall
-  // back to the physical IPv6 link. Blocking its IPv6 connections is the only
-  // honest answer when neither the tunnel nor the physical interface can carry
-  // the policy it was given.
-  (void)error_code;
-  (void)error_message;
-  int created = 0;
-  for (const std::wstring& path : policy_.apps) {
-    FWP_BYTE_BLOB* app_id = nullptr;
-    if (FwpmGetAppIdFromFileName0(path.c_str(), &app_id) != ERROR_SUCCESS ||
-        app_id == nullptr) {
-      continue;
-    }
-    created += AddFilter(engine_, L"Phantrix split tunnel IPv6 block",
-                         FWPM_LAYER_ALE_AUTH_CONNECT_V6, GUID{}, GUID{},
-                         app_id, true)
-                   ? 1
-                   : 0;
-    FwpmFreeMemory0(reinterpret_cast<void**>(&app_id));
-  }
-  return true;
-}
-
-void Controller::RemoveIncludeRoute() {
-  if (!prepared_) {
-    return;
-  }
-  if (include_route_v4_) {
-    SOCKADDR_INET next_hop = {};
-    next_hop.si_family = AF_INET;
-    next_hop.Ipv4.sin_family = AF_INET;
-    next_hop.Ipv4.sin_addr = tunnel_v4_;
-    RemoveDefaultRoute(tunnel_luid_, AF_INET, next_hop);
-    include_route_v4_ = false;
-  }
-  if (include_route_v6_) {
-    SOCKADDR_INET next_hop = {};
-    next_hop.si_family = AF_INET6;
-    next_hop.Ipv6.sin6_family = AF_INET6;
-    next_hop.Ipv6.sin6_addr = tunnel_v6_;
-    RemoveDefaultRoute(tunnel_luid_, AF_INET6, next_hop);
-    include_route_v6_ = false;
-  }
 }
 
 bool Controller::Apply(NET_LUID tunnel_luid, std::string* error_code,
@@ -712,91 +353,353 @@ bool Controller::Apply(NET_LUID tunnel_luid, std::string* error_code,
     return false;
   }
   Clear();
-  if (!ReadTunnelAddresses(tunnel_luid, error_code, error_message)) {
-    return false;
-  }
-  tunnel_luid_ = tunnel_luid;
 
-  if (policy_.include_mode) {
-    // The full-tunnel pair becomes a single route at a metric below the
-    // physical default, so only a connection redirected to the tunnel address
-    // takes it.
-    DeleteSplitDefaultRoutes(tunnel_luid_, AF_INET);
-    DeleteSplitDefaultRoutes(tunnel_luid_, AF_INET6);
+  std::wstring tunnel_alias;
+  if (!InterfaceAlias(tunnel_luid, &tunnel_alias)) {
+    Fail("split.policy_rejected",
+         "The tunnel adapter could not be identified, so no application can "
+         "be routed into it.",
+         error_code, error_message);
+    return false;
+  }
+  const bool tunnel_v4 = TunnelHasAddress(tunnel_luid, AF_INET);
+  const bool tunnel_v6 = TunnelHasAddress(tunnel_luid, AF_INET6);
+  if (!tunnel_v4 && !tunnel_v6) {
+    Fail("split.policy_rejected",
+         "The tunnel adapter has no address yet, so no application can be "
+         "routed into it.",
+         error_code, error_message);
+    return false;
+  }
+  std::string dns = TunnelDnsServer(tunnel_luid);
+  if (dns.empty()) {
+    // The server pushed no resolver. A public one reached through the tunnel
+    // keeps DNS off the local network, which is what the tunnel is for.
+    dns = tunnel_v4 ? "1.1.1.1" : "2606:4700:4700::1111";
   }
 
-  if (!BeginSession(error_code, error_message)) {
+  if (!WriteConfig(tunnel_alias, dns, error_code, error_message)) {
     return false;
   }
-  if (!AddRedirectFilters(TargetDescription(policy_.include_mode, AF_INET),
-                          error_code, error_message)) {
-    Clear();
+
+  // OpenVPN's full-tunnel routes would otherwise compete with the router's.
+  // Taken off first, so the router's interface detection sees the physical
+  // network as the default path, and replaced by one high-metric default
+  // route that only sockets bound to the tunnel ever use.
+  TakeTunnelRoutes(tunnel_luid);
+
+  if (!StartRouter(error_code, error_message)) {
+    StopRouter();
+    RestoreTunnelRoutes();
     return false;
   }
-  const bool target_v6 = policy_.include_mode ? have_tunnel_v6_ : have_physical_v6_;
-  if (!target_v6) {
-    (void)AddBlockV6Filters(error_code, error_message);
+  return true;
+}
+
+bool Controller::WriteConfig(const std::wstring& tunnel_alias,
+                             const std::string& dns_server,
+                             std::string* error_code,
+                             std::string* error_message) {
+  std::vector<std::string> app_patterns;
+  for (const std::wstring& path : policy_.apps) {
+    app_patterns.push_back(ExactPathPattern(WideToUtf8(path)));
   }
-  if (policy_.include_mode) {
-    if (have_tunnel_v4_) {
-      SOCKADDR_INET next_hop = {};
-      next_hop.si_family = AF_INET;
-      next_hop.Ipv4.sin_family = AF_INET;
-      next_hop.Ipv4.sin_addr = tunnel_v4_;
-      if (!AddDefaultRoute(tunnel_luid_, AF_INET, next_hop)) {
-        Clear();
-        Fail("split.route_failed",
-             "The include-mode default route could not be added, so the "
-             "selected applications would have no tunnel path.",
-             error_code, error_message);
-        return false;
-      }
-      include_route_v4_ = true;
-    }
-    if (have_tunnel_v6_) {
-      SOCKADDR_INET next_hop = {};
-      next_hop.si_family = AF_INET6;
-      next_hop.Ipv6.sin6_family = AF_INET6;
-      next_hop.Ipv6.sin6_addr = tunnel_v6_;
-      if (!AddDefaultRoute(tunnel_luid_, AF_INET6, next_hop)) {
-        RemoveIncludeRoute();
-        Clear();
-        Fail("split.route_failed",
-             "The include-mode IPv6 route could not be added.",
-             error_code, error_message);
-        return false;
-      }
-      include_route_v6_ = true;
-    }
+  // The engine's own connection to the VPN server must never be routed into
+  // the tunnel it carries.
+  const std::string engine_pattern = "(?i)\\\\openvpn\\.exe$";
+
+  const char* selected_outbound = policy_.include_mode ? "vpn" : "direct";
+  const char* final_outbound = policy_.include_mode ? "direct" : "vpn";
+
+  std::string json;
+  json += "{\n";
+  json += "  \"log\": {\"level\": \"warn\", \"timestamp\": true},\n";
+  json += "  \"dns\": {\n";
+  json += "    \"servers\": [\n";
+  json += "      {\"type\": \"udp\", \"tag\": \"dns-tunnel\", \"server\": \"" +
+          JsonEscape(dns_server) + "\", \"detour\": \"vpn\"}\n";
+  json += "    ],\n";
+  json += "    \"final\": \"dns-tunnel\",\n";
+  json += "    \"strategy\": \"prefer_ipv4\"\n";
+  json += "  },\n";
+  json += "  \"inbounds\": [\n";
+  json += "    {\"type\": \"tun\", \"tag\": \"tun-in\", \"interface_name\": \"" +
+          JsonEscape(WideToUtf8(kRouterAdapterName)) + "\",\n";
+  json += "     \"address\": [\"172.19.0.1/30\", \"fdfe:dcba:9876::1/126\"],\n";
+  json += "     \"mtu\": 1400, \"auto_route\": true, \"strict_route\": true,\n";
+  json += "     \"stack\": \"mixed\"}\n";
+  json += "  ],\n";
+  json += "  \"outbounds\": [\n";
+  json += "    {\"type\": \"direct\", \"tag\": \"vpn\", \"bind_interface\": \"" +
+          JsonEscape(WideToUtf8(tunnel_alias)) + "\"},\n";
+  json += "    {\"type\": \"direct\", \"tag\": \"direct\"}\n";
+  json += "  ],\n";
+  json += "  \"route\": {\n";
+  json += "    \"rules\": [\n";
+  json += "      {\"action\": \"sniff\"},\n";
+  json += "      {\"protocol\": \"dns\", \"action\": \"hijack-dns\"},\n";
+  json += "      {\"process_path_regex\": [\"" + JsonEscape(engine_pattern) +
+          "\"], \"outbound\": \"direct\"},\n";
+  json += "      {\"ip_is_private\": true, \"outbound\": \"direct\"}";
+  if (!app_patterns.empty()) {
+    json += ",\n      {\"process_path_regex\": " + JsonStringArray(app_patterns) +
+            ", \"outbound\": \"" + selected_outbound + "\"}";
   }
-  const DWORD committed = FwpmTransactionCommit0(engine_);
-  if (committed != ERROR_SUCCESS) {
-    Clear();
-    Fail("split.filter_failed",
-         "The split-tunnel filters were refused: " + Win32Message(committed),
+  json += "\n    ],\n";
+  json += std::string("    \"final\": \"") + final_outbound + "\",\n";
+  json += "    \"auto_detect_interface\": true,\n";
+  json += "    \"find_process\": true,\n";
+  json += "    \"default_domain_resolver\": \"dns-tunnel\"\n";
+  json += "  }\n";
+  json += "}\n";
+
+  const std::wstring path = work_directory_ + L"\\" + kConfigFileName;
+  if (!phantrix::ovpn::WriteRestrictedFile(path, json)) {
+    Fail("split.router_failed",
+         "The split-tunnel router's configuration could not be written.",
          error_code, error_message);
     return false;
   }
   return true;
 }
 
-void Controller::Clear() {
-  if (engine_ != nullptr) {
-    // Closing a dynamic session deletes every filter, callout and provider
-    // context the session created. That is the cleanup guarantee: a helper
-    // that is killed cannot leave routing rules behind.
-    (void)FwpmEngineClose0(engine_);
-    engine_ = nullptr;
+bool Controller::StartRouter(std::string* error_code,
+                             std::string* error_message) {
+  const std::wstring executable = RouterExecutable(module_directory_);
+  const std::wstring config = work_directory_ + L"\\" + kConfigFileName;
+  const std::wstring log = work_directory_ + L"\\" + kLogFileName;
+
+  SECURITY_ATTRIBUTES inherit = {sizeof(inherit), nullptr, TRUE};
+  HANDLE log_handle =
+      CreateFileW(log.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &inherit,
+                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE null_input =
+      CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                  &inherit, OPEN_EXISTING, 0, nullptr);
+
+  // The router dies with the helper whatever way the helper ends: the job
+  // closes when the helper's last handle to it does.
+  job_ = CreateJobObjectW(nullptr, nullptr);
+  if (job_ != nullptr) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    (void)SetInformationJobObject(job_, JobObjectExtendedLimitInformation,
+                                  &limits, sizeof(limits));
   }
-  RemoveIncludeRoute();
+
+  std::wstring command = L"\"" + executable + L"\" run --disable-color -c \"" +
+                         config + L"\" -D \"" + work_directory_ + L"\"";
+  std::vector<wchar_t> command_line(command.begin(), command.end());
+  command_line.push_back(L'\0');
+
+  STARTUPINFOW startup = {};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESTDHANDLES;
+  startup.hStdInput = null_input;
+  startup.hStdOutput = log_handle;
+  startup.hStdError = log_handle;
+  PROCESS_INFORMATION info = {};
+  const BOOL created = CreateProcessW(
+      executable.c_str(), command_line.data(), nullptr, nullptr, TRUE,
+      CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, module_directory_.c_str(),
+      &startup, &info);
+  const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
+  if (log_handle != INVALID_HANDLE_VALUE) {
+    CloseHandle(log_handle);
+  }
+  if (null_input != INVALID_HANDLE_VALUE) {
+    CloseHandle(null_input);
+  }
+  if (!created) {
+    Fail("split.router_failed",
+         "The split-tunnel router could not be started: " +
+             Win32Message(create_error),
+         error_code, error_message);
+    return false;
+  }
+  if (job_ != nullptr) {
+    (void)AssignProcessToJobObject(job_, info.hProcess);
+  }
+  ResumeThread(info.hThread);
+  CloseHandle(info.hThread);
+  process_ = info.hProcess;
+  stopping_ = false;
+
+  // Ready means: its adapter exists and its default routes are installed.
+  const ULONGLONG deadline = GetTickCount64() + kRouterStartTimeoutMillis;
+  bool ready = false;
+  while (GetTickCount64() < deadline) {
+    if (WaitForSingleObject(process_, kRouterPollMillis) == WAIT_OBJECT_0) {
+      break;
+    }
+    NET_LUID luid = {};
+    if (ConvertInterfaceAliasToLuid(kRouterAdapterName, &luid) == NO_ERROR &&
+        RouterRoutesPresent(luid)) {
+      router_luid_ = luid;
+      have_router_luid_ = true;
+      ready = true;
+      break;
+    }
+  }
+  if (!ready) {
+    std::string detail = RouterLogTail();
+    Fail("split.router_failed",
+         "The split-tunnel router did not start" +
+             (detail.empty() ? std::string(".") : ": " + detail),
+         error_code, error_message);
+    return false;
+  }
+
+  (void)RegisterWaitForSingleObject(&wait_, process_, OnRouterExit, this,
+                                    INFINITE, WT_EXECUTEONLYONCE);
+  return true;
+}
+
+void CALLBACK Controller::OnRouterExit(PVOID context, BOOLEAN timed_out) {
+  (void)timed_out;
+  auto* self = static_cast<Controller*>(context);
+  if (self->stopping_.load() || !self->on_exit_) {
+    return;
+  }
+  std::string detail = self->RouterLogTail();
+  self->on_exit_("split.router_failed",
+                 "The split-tunnel router stopped unexpectedly" +
+                     (detail.empty() ? std::string(".") : ": " + detail));
+}
+
+std::string Controller::RouterLogTail() const {
+  if (work_directory_.empty()) {
+    return std::string();
+  }
+  const std::wstring log = work_directory_ + L"\\" + kLogFileName;
+  HANDLE file = CreateFileW(log.c_str(), GENERIC_READ,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (file == INVALID_HANDLE_VALUE) {
+    return std::string();
+  }
+  LARGE_INTEGER size = {};
+  GetFileSizeEx(file, &size);
+  const LONGLONG start = size.QuadPart > 2048 ? size.QuadPart - 2048 : 0;
+  LARGE_INTEGER offset = {};
+  offset.QuadPart = start;
+  SetFilePointerEx(file, offset, nullptr, FILE_BEGIN);
+  std::string text(2048, '\0');
+  DWORD read = 0;
+  (void)ReadFile(file, text.data(), static_cast<DWORD>(text.size()), &read,
+                 nullptr);
+  CloseHandle(file);
+  text.resize(read);
+  // The last non-empty line is the one that says why.
+  while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
+    text.pop_back();
+  }
+  const size_t newline = text.find_last_of('\n');
+  if (newline != std::string::npos) {
+    text = text.substr(newline + 1);
+  }
+  return text;
+}
+
+void Controller::StopRouter() {
+  stopping_ = true;
+  if (wait_ != nullptr) {
+    // Blocks until a running callback has returned, so `this` stays valid.
+    (void)UnregisterWaitEx(wait_, INVALID_HANDLE_VALUE);
+    wait_ = nullptr;
+  }
+  if (process_ != nullptr) {
+    // sing-box removes its adapter and routes when the adapter handle closes,
+    // which process termination does.
+    TerminateProcess(process_, 0);
+    WaitForSingleObject(process_, 5000);
+    CloseHandle(process_);
+    process_ = nullptr;
+  }
+  if (job_ != nullptr) {
+    CloseHandle(job_);
+    job_ = nullptr;
+  }
+  have_router_luid_ = false;
+  router_luid_ = NET_LUID{};
+}
+
+void Controller::TakeTunnelRoutes(NET_LUID tunnel_luid) {
+  tunnel_luid_ = tunnel_luid;
+  have_tunnel_ = true;
+  for (const ADDRESS_FAMILY family : kFamilies) {
+    PMIB_IPFORWARD_TABLE2 table = nullptr;
+    if (GetIpForwardTable2(family, &table) != NO_ERROR || table == nullptr) {
+      continue;
+    }
+    for (ULONG index = 0; index < table->NumEntries; ++index) {
+      const MIB_IPFORWARD_ROW2& row = table->Table[index];
+      if (!SameLuid(row.InterfaceLuid, tunnel_luid) ||
+          !IsTunnelDefaultRoute(row)) {
+        continue;
+      }
+      if (DeleteIpForwardEntry2(&row) == NO_ERROR) {
+        removed_routes_.push_back(row);
+      }
+    }
+    FreeMibTable(table);
+  }
+  // A socket bound to the tunnel adapter needs a route on it. One default
+  // route per family the tunnel carries, at a metric nothing unbound picks.
+  for (const ADDRESS_FAMILY family : kFamilies) {
+    if (!TunnelHasAddress(tunnel_luid, family)) {
+      continue;
+    }
+    MIB_IPFORWARD_ROW2 row = {};
+    InitializeIpForwardEntry(&row);
+    row.InterfaceLuid = tunnel_luid;
+    row.DestinationPrefix.Prefix.si_family = family;
+    row.DestinationPrefix.PrefixLength = 0;
+    row.NextHop.si_family = family;
+    row.Metric = kBoundRouteMetric;
+    row.Protocol = MIB_IPPROTO_NETMGMT;
+    const DWORD created = CreateIpForwardEntry2(&row);
+    if (created == NO_ERROR || created == ERROR_OBJECT_ALREADY_EXISTS) {
+      added_routes_.push_back(row);
+    }
+  }
+}
+
+void Controller::RestoreTunnelRoutes() {
+  for (const MIB_IPFORWARD_ROW2& row : added_routes_) {
+    (void)DeleteIpForwardEntry2(&row);
+  }
+  added_routes_.clear();
+  // Put back only while the adapter still exists; a tunnel that is already
+  // gone took its routes with it.
+  NET_IFINDEX index = 0;
+  const bool tunnel_present =
+      have_tunnel_ &&
+      ConvertInterfaceLuidToIndex(&tunnel_luid_, &index) == NO_ERROR;
+  if (tunnel_present) {
+    for (MIB_IPFORWARD_ROW2 row : removed_routes_) {
+      (void)CreateIpForwardEntry2(&row);
+    }
+  }
+  removed_routes_.clear();
+  have_tunnel_ = false;
+}
+
+bool Controller::RouterLuid(NET_LUID* luid) const {
+  if (!have_router_luid_ || luid == nullptr) {
+    return false;
+  }
+  *luid = router_luid_;
+  return true;
+}
+
+void Controller::Clear() {
+  StopRouter();
+  RestoreTunnelRoutes();
 }
 
 void Controller::Shutdown() {
   Clear();
-  if (driver_started_) {
-    StopDriverService();
-    driver_started_ = false;
-  }
   prepared_ = false;
   policy_ = Policy{};
 }

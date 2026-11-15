@@ -170,9 +170,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
                 )
               : RefreshIndicator(
                   onRefresh: widget.onRefresh ?? () async {},
-                  child: VgContentColumn(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.only(
+                  child: VgScrollColumn(
+                    builder: (context, insets) => ListView.separated(
+                      padding: insets.copyWith(
                         top: VgSpace.xs,
                         bottom: VgSpace.xxl,
                       ),

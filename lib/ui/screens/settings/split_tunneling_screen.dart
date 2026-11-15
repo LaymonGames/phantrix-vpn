@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -20,8 +21,11 @@ import '../../shell.dart';
 /// applications needs a search field, icons and a scrollable list, and none of
 /// those belong inside a list of switches.
 ///
-/// Edits are a draft. Nothing is persisted until Save, so a search or an
-/// accidental checkbox tap cannot silently change a running tunnel's policy.
+/// Every edit is stored the moment it is made, through the settings
+/// controller, so leaving the screen can never lose a choice and the switch on
+/// the settings screen always shows the same state as this one. A running
+/// tunnel is updated after a short pause rather than on every tap, and any
+/// pending update is sent when the screen is closed.
 class SplitTunnelingScreen extends StatefulWidget {
   const SplitTunnelingScreen({
     required this.settings,
@@ -37,27 +41,101 @@ class SplitTunnelingScreen extends StatefulWidget {
 }
 
 class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
-  late SplitTunnelSettings _draft;
+  /// How long a burst of edits waits before reaching a running tunnel.
+  ///
+  /// Each tap is stored at once; only the native policy update is held back,
+  /// so ticking five applications sends one policy rather than five.
+  static const Duration liveApplyDelay = Duration(milliseconds: 600);
+
   final TextEditingController _search = TextEditingController();
   final Map<String, Future<Uint8List?>> _icons = {};
   List<InstalledApp> _installed = const [];
   bool _loading = true;
-  bool _saving = false;
+  bool _applying = false;
+  Timer? _liveApply;
 
   bool get _supported =>
       widget.connection.capabilities.supportsPerAppSplitTunnelling;
 
+  /// The stored policy. Read live rather than copied, so a change made on the
+  /// settings screen shows here and nothing on this screen can drift from it.
+  SplitTunnelSettings get _policy => widget.settings.data.splitTunnel;
+
   @override
   void initState() {
     super.initState();
-    _draft = widget.settings.data.splitTunnel;
+    widget.settings.addListener(_onSettingsChanged);
     _loadInstalled();
   }
 
   @override
+  void didUpdateWidget(SplitTunnelingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.settings != widget.settings) {
+      oldWidget.settings.removeListener(_onSettingsChanged);
+      widget.settings.addListener(_onSettingsChanged);
+    }
+  }
+
+  @override
   void dispose() {
+    widget.settings.removeListener(_onSettingsChanged);
+    // The choice is already stored; what may still be pending is pushing it
+    // to a running tunnel. Send it now rather than dropping it with the
+    // screen.
+    if (_liveApply?.isActive ?? false) {
+      _liveApply!.cancel();
+      unawaited(_pushToTunnel(_policy));
+    }
     _search.dispose();
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Stores [next] at once and schedules it for a running tunnel.
+  void _commit(SplitTunnelSettings next) {
+    final validated = next.validated();
+    widget.settings.update((s) => s.copyWith(splitTunnel: validated));
+    _liveApply?.cancel();
+    if (!widget.connection.hasLiveTunnel) {
+      return;
+    }
+    _liveApply = Timer(liveApplyDelay, () => unawaited(_applyLive()));
+  }
+
+  /// Sends [policy] to the running tunnel, answering null when there is
+  /// nothing to send it to or nothing that should be sent.
+  ///
+  /// Include mode with nothing selected is stored but not applied: it would
+  /// route nothing through the VPN, and the screen says so instead.
+  Future<Result<void>?> _pushToTunnel(SplitTunnelSettings policy) async {
+    if (!_supported ||
+        policy.needsAttention ||
+        !widget.connection.hasLiveTunnel) {
+      return null;
+    }
+    return widget.connection.applySplitTunnel(policy);
+  }
+
+  Future<void> _applyLive() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _applying = true);
+    final result = await _pushToTunnel(_policy);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _applying = false);
+    final error = result?.errorOrNull;
+    if (error != null) {
+      _notice(context.l10n.get('splitApplyFailed', {'message': error.message}));
+    }
   }
 
   Future<void> _loadInstalled() async {
@@ -85,11 +163,12 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
       });
 
   void _toggle(SplitTunnelApp app) {
-    setState(() {
-      _draft = _draft.contains(app.path)
-          ? _draft.withoutPath(app.path)
-          : _draft.withApp(app);
-    });
+    final policy = _policy;
+    _commit(
+      policy.contains(app.path)
+          ? policy.withoutPath(app.path)
+          : policy.withApp(app),
+    );
   }
 
   Future<void> _browse() async {
@@ -106,35 +185,7 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
     if (!app.isValid) {
       return;
     }
-    setState(() {
-      _draft = _draft.withApp(app);
-    });
-  }
-
-  Future<void> _save() async {
-    final l10n = context.l10n;
-    final validated = _draft.validated();
-    if (validated.needsAttention) {
-      _notice(l10n.get('splitNeedsApps'));
-      return;
-    }
-    setState(() => _saving = true);
-    widget.settings.update((settings) {
-      return settings.copyWith(splitTunnel: validated);
-    });
-    String message = l10n.get('splitSavedNext');
-    if (widget.connection.hasLiveTunnel) {
-      final result = await widget.connection.applySplitTunnel(validated);
-      final error = result.errorOrNull;
-      message = error == null
-          ? l10n.get('splitLiveApplied')
-          : l10n.get('splitApplyFailed', {'message': error.message});
-    }
-    if (!mounted) {
-      return;
-    }
-    setState(() => _saving = false);
-    _notice(message);
+    _commit(_policy.withApp(app));
   }
 
   void _notice(String message) {
@@ -148,9 +199,10 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final query = _search.text.trim().toLowerCase();
-    final selected = {for (final app in _draft.apps) app.canonical};
+    final policy = _policy;
+    final selected = {for (final app in policy.apps) app.canonical};
     final rows = <_PickerRow>[
-      for (final app in _draft.apps)
+      for (final app in policy.apps)
         if (query.isEmpty ||
             app.name.toLowerCase().contains(query) ||
             app.path.toLowerCase().contains(query))
@@ -166,9 +218,10 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
           ),
     ];
 
-    return VgContentColumn(
-      child: ListView(
-        padding: const EdgeInsets.only(top: VgSpace.sm, bottom: VgSpace.xxl),
+    // Full-width scroll view so the wheel works over the page margins too.
+    return VgScrollColumn(
+      builder: (context, insets) => ListView(
+        padding: insets.copyWith(top: VgSpace.sm, bottom: VgSpace.xxl),
         children: [
           VgPanel(
             title: l10n.get('settingsSplitTunneling'),
@@ -181,13 +234,11 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                 VgToggleRow(
                   title: l10n.get('splitEnable'),
                   subtitle: l10n.get('splitEnableHint'),
-                  value: _draft.enabled,
+                  value: policy.enabled,
                   enabled: _supported,
                   disabledReason: l10n.get('splitUnsupported'),
                   onChanged: (value) {
-                    setState(() {
-                      _draft = _draft.copyWith(enabled: value);
-                    });
+                    _commit(policy.copyWith(enabled: value));
                   },
                 ),
                 if (!_supported)
@@ -201,10 +252,20 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
+                if (_supported && policy.needsAttention)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: VgSpace.sm),
+                    child: Text(
+                      l10n.get('splitNeedsApps'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (_draft.enabled) ...[
+          if (policy.enabled) ...[
             const SizedBox(height: VgSpace.lg),
             VgPanel(
               title: l10n.get('splitMode'),
@@ -219,31 +280,27 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                     children: [
                       VgSegment(
                         label: l10n.get('splitModeInclude'),
-                        selected: _draft.mode == SplitTunnelMode.include,
+                        selected: policy.mode == SplitTunnelMode.include,
                         onTap: () {
-                          setState(() {
-                            _draft = _draft.copyWith(
-                              mode: SplitTunnelMode.include,
-                            );
-                          });
+                          _commit(
+                            policy.copyWith(mode: SplitTunnelMode.include),
+                          );
                         },
                       ),
                       VgSegment(
                         label: l10n.get('splitModeExclude'),
-                        selected: _draft.mode == SplitTunnelMode.exclude,
+                        selected: policy.mode == SplitTunnelMode.exclude,
                         onTap: () {
-                          setState(() {
-                            _draft = _draft.copyWith(
-                              mode: SplitTunnelMode.exclude,
-                            );
-                          });
+                          _commit(
+                            policy.copyWith(mode: SplitTunnelMode.exclude),
+                          );
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: VgSpace.md),
                   Text(
-                    _draft.mode == SplitTunnelMode.include
+                    policy.mode == SplitTunnelMode.include
                         ? l10n.get('splitModeIncludeHint')
                         : l10n.get('splitModeExcludeHint'),
                     style: theme.textTheme.bodySmall,
@@ -254,11 +311,11 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
             const SizedBox(height: VgSpace.lg),
             VgPanel(
               title: l10n.get('splitAppsUseVpn'),
-              icon: _draft.mode == SplitTunnelMode.include
+              icon: policy.mode == SplitTunnelMode.include
                   ? Icons.vpn_lock_rounded
                   : Icons.public_rounded,
               uppercase: true,
-              trailing: _saving
+              trailing: _applying
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -266,7 +323,7 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                     )
                   : Text(
                       l10n.get('splitSelected', {
-                        'count': '${_draft.apps.length}',
+                        'count': '${policy.apps.length}',
                       }),
                       style: theme.textTheme.labelSmall,
                     ),
@@ -357,21 +414,6 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: VgSpace.lg),
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: FilledButton.icon(
-                onPressed: _saving || !_supported ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined, size: VgIcon.sm),
-                label: Text(l10n.get('splitSave')),
-              ),
-            ),
           ],
         ],
       ),
@@ -407,37 +449,42 @@ class _AppRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListTile(
-      onTap: onToggle,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: VgSpace.xs,
-        vertical: 0,
-      ),
-      minTileHeight: 60,
-      leading: _AppIcon(icon: icon),
-      title: Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        app.path,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall,
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Checkbox(value: selected, onChanged: (_) => onToggle()),
-          if (onRemove != null)
-            IconButton(
-              tooltip: removeLabel,
-              visualDensity: VisualDensity.compact,
-              onPressed: onRemove,
-              icon: Icon(
-                Icons.remove_circle_outline_rounded,
-                size: VgIcon.sm,
-                color: theme.colorScheme.onSurfaceVariant,
+    // Its own transparent Material: the panel's surface is a decorated box,
+    // which would otherwise hide the tile's ink and trips ListTile's check.
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        onTap: onToggle,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: VgSpace.xs,
+          vertical: 0,
+        ),
+        minTileHeight: 60,
+        leading: _AppIcon(icon: icon),
+        title: Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          app.path,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(value: selected, onChanged: (_) => onToggle()),
+            if (onRemove != null)
+              IconButton(
+                tooltip: removeLabel,
+                visualDensity: VisualDensity.compact,
+                onPressed: onRemove,
+                icon: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  size: VgIcon.sm,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

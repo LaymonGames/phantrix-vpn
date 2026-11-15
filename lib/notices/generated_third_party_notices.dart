@@ -1136,6 +1136,16 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
   ),
   ThirdPartyNoticeData(
     component: 'windows',
+    name: 'sing-box (split-tunnel router, separate process, GPL-3.0-or-later)',
+    licenseId: 'GPL-3.0-or-later',
+    licenseKey: 'sing-box-split-tunnel-router-separate-process-gpl-3-0-or-later-gpl-3-0-or-later',
+    licenseSource: 'tools/attribution/sing-box-license.txt',
+    copyright: 'Copyright (c) 2022 by nekohasekai <contact-sagernet@sekai.icu>',
+    noteCodes: <String>['mereAggregation', 'shippedBinary'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'windows',
     name: 'wintun (prebuilt DLL, WireGuard LLC)',
     licenseId: 'Prebuilt Binaries License',
     licenseKey: 'wintun-prebuilt-dll-wireguard-llc-prebuilt-binaries-license',
@@ -1161,6 +1171,16 @@ const List<ThirdPartyNoticeData> thirdPartyNotices = <ThirdPartyNoticeData>[
     licenseSource: 'tools/attribution/openvpn-dart-license.txt',
     copyright: 'Copyright (c) 2023 BlockDev AG',
     noteCodes: <String>['adaptedUpstream'],
+    scopes: <String>[],
+  ),
+  ThirdPartyNoticeData(
+    component: 'attribution',
+    name: 'sing-box (split-tunnel router, separate process, GPL-3.0-or-later)',
+    licenseId: 'GPL-3.0-or-later',
+    licenseKey: 'sing-box-split-tunnel-router-separate-process-gpl-3-0-or-later-gpl-3-0-or-later',
+    licenseSource: 'tools/attribution/sing-box-license.txt',
+    copyright: 'Copyright (c) 2022 by nekohasekai <contact-sagernet@sekai.icu>',
+    noteCodes: <String>['mereAggregation', 'shippedBinary'],
     scopes: <String>[],
   ),
   ThirdPartyNoticeData(
@@ -5894,6 +5914,25 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+''',
+  'sing-box-split-tunnel-router-separate-process-gpl-3-0-or-later-gpl-3-0-or-later':
+      r'''Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+In addition, no derivative work may use the name or imply association
+with this application without prior consent.
 ''',
   'source-map-stack-trace-2-1-2-bsd-3-clause':
       r'''Copyright 2015, the Dart project authors.

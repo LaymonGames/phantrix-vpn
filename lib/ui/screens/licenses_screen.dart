@@ -98,9 +98,9 @@ class _LicensesScreenState extends State<LicensesScreen> {
         .where((notice) => notice.component != 'app')
         .toList(growable: false);
 
-    return VgContentColumn(
-      child: ListView(
-        padding: const EdgeInsets.only(top: VgSpace.xs, bottom: VgSpace.xxl),
+    return VgScrollColumn(
+      builder: (context, insets) => ListView(
+        padding: insets.copyWith(top: VgSpace.xs, bottom: VgSpace.xxl),
         children: [
           VgSectionHeader(l10n.get('licensesTitle')),
           Text(l10n.get('licensesIntro'), style: theme.textTheme.bodyMedium),

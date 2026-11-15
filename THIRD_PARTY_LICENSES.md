@@ -279,7 +279,15 @@ guesses a licence from a package name.
   copy when the engine bundle is present, and the checked-in
   `tools/attribution/openvpn-copying.txt` otherwise;
 - `wintun-LICENSE.txt` — WireGuard LLC's prebuilt-binaries licence, from
-  `tools/attribution/wintun-prebuilt-license.txt`.
+  `tools/attribution/wintun-prebuilt-license.txt`;
+- `sing-box-LICENSE.txt` — the sing-box release's own `LICENSE`
+  (GPL-3.0-or-later, Copyright (C) 2022 nekohasekai), from
+  `tools/attribution/sing-box-license.txt`. sing-box 1.14.4 is the
+  split-tunnel router: the official unmodified `sing-box.exe`, fetched with a
+  pinned SHA-256 by `tools/fetch_singbox_bundle.ps1` and run as a separate
+  process by the elevated helper. Its source is at
+  https://github.com/SagerNet/sing-box/tree/v1.14.4. Its licence also asks
+  that derivative works not use its name; Phantrix does not.
 
 Before this, a Windows build shipped one licence file: OpenVPN's, copied to
 the root of the bundle next to `phantrix.exe`, where nothing identified it as

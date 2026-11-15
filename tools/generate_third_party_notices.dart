@@ -68,6 +68,12 @@ windowsLicenceFiles = [
     notes: ['adaptedUpstream'],
   ),
   (
+    file: 'sing-box-license.txt',
+    bundleFile: 'sing-box/LICENSE',
+    component: 'sing-box (split-tunnel router, separate process, GPL-3.0-or-later)',
+    notes: ['mereAggregation', 'shippedBinary'],
+  ),
+  (
     // Preserve the full binary notice already published in the inventory at
     // 8f72ad8. The source COPYING fallback has different text. Review this
     // snapshot alongside the binary hashes when upgrading the runtime.
@@ -95,6 +101,11 @@ attributionFiles = [
     file: 'wintun-prebuilt-license.txt',
     component: 'wintun (prebuilt DLL, WireGuard LLC)',
     notes: ['shippedBinary'],
+  ),
+  (
+    file: 'sing-box-license.txt',
+    component: 'sing-box (split-tunnel router, separate process, GPL-3.0-or-later)',
+    notes: ['mereAggregation', 'shippedBinary'],
   ),
 ];
 

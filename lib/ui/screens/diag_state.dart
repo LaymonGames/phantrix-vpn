@@ -58,6 +58,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     final platform = await widget.connection.capabilities();
     final connected = widget.connection.isConnected;
     final verifiedIp = widget.connection.verifiedExitIp;
+    final killSwitch = widget.settings.data.killSwitch;
 
     // One real request to an address service — the same probe the connect
     // flow runs. It learns this device's address; that unavoidable
@@ -124,16 +125,36 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             ? l10n.get('diagTunnelVerifiedDetail')
             : l10n.get('diagTunnelNoTunnelDetail'),
       ),
-      DiagRow(
-        id: 'kill',
-        title: l10n.get('diagKillSwitch'),
-        status: platform.supportsKillSwitch
-            ? DiagStatus.passed
-            : DiagStatus.notSupported,
-        detail: platform.supportsKillSwitch
-            ? l10n.get('diagKillSwitchVerifiedDetail')
-            : l10n.get('diagKillSwitchNotSupportedDetail'),
-      ),
+      // Supported means the platform installs firewall rules; whether they
+      // apply depends on the mode the user chose, so Off is a warning
+      // rather than a pass.
+      if (!platform.supportsKillSwitch)
+        DiagRow(
+          id: 'kill',
+          title: l10n.get('diagKillSwitch'),
+          status: DiagStatus.notSupported,
+          detail: l10n.get('diagKillSwitchNotSupportedDetail'),
+        )
+      else
+        DiagRow(
+          id: 'kill',
+          title: l10n.get('diagKillSwitch'),
+          status: killSwitch == KillSwitchMode.off
+              ? DiagStatus.warning
+              : DiagStatus.passed,
+          value: switch (killSwitch) {
+            KillSwitchMode.off => l10n.get('killSwitchOff'),
+            KillSwitchMode.automatic => l10n.get('killSwitchAutomatic'),
+            KillSwitchMode.strict => l10n.get('killSwitchStrict'),
+          },
+          detail: switch (killSwitch) {
+            KillSwitchMode.off => l10n.get('diagKillSwitchOffDetail'),
+            KillSwitchMode.automatic => l10n.get(
+              'diagKillSwitchAutomaticDetail',
+            ),
+            KillSwitchMode.strict => l10n.get('diagKillSwitchStrictDetail'),
+          },
+        ),
     ];
 
     if (!mounted) {
@@ -191,9 +212,9 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           ),
         ),
         Expanded(
-          child: VgContentColumn(
-            child: ListView.separated(
-              padding: const EdgeInsets.only(bottom: VgSpace.xxl),
+          child: VgScrollColumn(
+            builder: (context, insets) => ListView.separated(
+              padding: insets.copyWith(bottom: VgSpace.xxl),
               itemCount: rows.length,
               separatorBuilder: (context, index) =>
                   const SizedBox(height: VgSpace.sm),

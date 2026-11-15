@@ -5,7 +5,8 @@ rules the code enforces. It is written to be auditable: every claim below
 points at the file that implements it.
 
 **Current release status:** the pinned OpenVPN 2.6.17 runtime needs a security
-upgrade before distribution. No strict kill switch is implemented, and DNS/IPv6
+upgrade before distribution. Only Windows implements a kill switch (WFP
+firewall rules, see section 6), and DNS/IPv6
 leak protection is not established by the IPv4 verification gate. See
 [PROJECT_AUDIT.md](docs/PROJECT_AUDIT.md) for remaining risks and checked scope.
 
@@ -166,7 +167,8 @@ are held against replacement while the engine uses them, with reparse-point and
 hardlink checks on session files. Native regression tests cover these rules.
 
 This does **not** mean every request preference is enforced: Windows does not
-implement the requested strict kill switch, custom DNS, MTU, or host IPv6 block.
+implement the requested custom DNS, MTU, or host IPv6 block. The kill switch
+is enforced on Windows (section 6).
 The Android plugin has no engine and rejects a start request explicitly.
 
 ---
@@ -392,22 +394,23 @@ intent and CI compile/static checks, not a live audit of privilege handling:
 
 ## 6. Honest limits
 
-- **No backend here can block traffic itself when the tunnel drops.**
-	`supportsKillSwitch` is false on every platform, and that is a statement
-	of fact, not a missing flag. None of the backends installs a
-	traffic-blocking rule that survives the tunnel interface: not Android
-	(no userspace API exists for one on stock Android), not Windows (no
-	firewall rule is added, by design), not Linux (no nftables/iptables rule
-	is added, by design), not Apple (no `includeAllNetworks` content-filter
-	posture is implemented). A settings control that claimed otherwise would
-	be the single most dangerous lie in the product, so the control reports
-	the limitation instead.
-- **"Automatic" is not blocking.** Connection retries and engine reconnects
-	can happen, but this preference is not a complete failure-recovery
-	supervisor and holds no traffic back during a reconnect.
-- **`strict` is unsupported.** Capabilities report no backend enforcement.
-	Windows does not turn the request into firewall rules. Android has no
-	engine and refuses tunnel starts, irrespective of this preference.
+- **Only Windows blocks traffic itself when the tunnel drops.** The
+	elevated helper installs persistent Windows Filtering Platform filters
+	(user mode, no driver) that block everything outside the tunnel except
+	loopback, the tunnel and split-tunnel adapters, `openvpn.exe`,
+	`sing-box.exe`, `phantrix.exe`, DHCP and the local network; DNS outside
+	the tunnel is blocked except while a connection is being set up.
+	`supportsKillSwitch` stays false on Android (no userspace API on stock
+	Android), Linux and Apple, and those controls report the limitation.
+- **Automatic** holds traffic back from connect until the user disconnects,
+	including while a dropped connection is waiting; closing the app lifts it.
+	A failure before the tunnel ever came up does not hold.
+- **Strict** also keeps blocking after Disconnect, app exit, crash and
+	reboot, until a new connection or the kill switch is turned off (the app
+	asks for administrator rights to lift it). The UI warns before enabling.
+- **Limits:** the local network stays reachable by design; `phantrix.exe`
+	itself is permitted so a new connection can always be made, which means
+	the app's own server-list requests can leave outside the tunnel.
 - **Android's genuine protection is the system's, and it is read live.**
 	Always-on VPN with "Block connections without VPN" is the only traffic
 	blocker on stock Android. The app reads `always_on_vpn_app` and

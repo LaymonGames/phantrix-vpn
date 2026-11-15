@@ -61,6 +61,7 @@ const Map<String, String> _stringsValuesAr = {
   'settingsAbout': 'حول التطبيق',
   'settingsSplitTunneling': 'تقسيم النفق',
   'settingsSplitTunnelingHint': 'اختر التطبيقات التي تستخدم VPN',
+  'settingsSplitTunnelingApps': 'التطبيقات ووضع التوجيه',
   'splitEnable': 'تفعيل تقسيم النفق',
   'splitEnableHint': 'تُطبَّق قواعد التوجيه فقط أثناء اتصال النفق.',
   'splitMode': 'وضع التوجيه',
@@ -70,14 +71,12 @@ const Map<String, String> _stringsValuesAr = {
   'splitModeExcludeHint': 'كل ما عداها يستخدم VPN.',
   'splitSearchHint': 'ابحث عن التطبيقات',
   'splitBrowse': 'اختيار ملف .exe',
-  'splitSave': 'حفظ وتطبيق',
   'splitSaved': 'تم حفظ تقسيم النفق.',
-  'splitSavedNext': 'تم الحفظ. تُطبَّق القواعد عند الاتصال التالي.',
   'splitLiveApplied': 'طُبِّقت القواعد على النفق الحالي.',
   'splitApplyFailed': 'لم تُطبَّق قواعد التوجيه: {message}',
   'splitUnsupported':
-      'يحتاج تقسيم النفق إلى برنامج تشغيل Phantrix الموقّع، وهو غير متوفر '
-      'في هذه النسخة.',
+      'يحتاج تقسيم النفق إلى مكوّن التوجيه المرفق، وهو غير متوفر في هذه '
+      'النسخة أو على هذه المنصة.',
   'splitNeedsApps':
       'اختر تطبيقًا واحدًا على الأقل، أو أوقف تقسيم النفق.',
   'splitSelected': 'المحدد: {count}',
@@ -95,10 +94,10 @@ const Map<String, String> _stringsValuesAr = {
   'settingsPrivacyNotice': 'إشعار الخصوصية',
   'settingsPrivacyNoticeHint': 'ما يسجّله هذا التطبيق وما لا يسجّله',
   'settingsKillSwitchUnsupported':
-      'لا يستطيع Phantrix حجب حركة البيانات بنفسه عند سقوط النفق، '
-      'وإعادة الاتصال التلقائية بعد الفشل لا تحجب مرور البيانات أثناء '
-      'إعادة الاتصال. الحماية المتوفرة هي حجب النظام نفسه لحركة '
-      'البيانات، الموضّح أدناه حيث يوفّره النظام.',
+      'لا يستطيع Phantrix حجب حركة البيانات بنفسه على هذا الجهاز، لذا '
+      'إذا سقط النفق تخرج الحركة عبر الاتصال العادي حتى تعيد الاتصال. '
+      'الحماية المتوفرة هي حجب النظام نفسه لحركة البيانات، الموضّح أدناه '
+      'حيث يوفّره النظام.',
   'settingsSystemLockdown': 'حجب النظام لحركة البيانات',
   'settingsSystemLockdownOn': 'مفعّل',
   'settingsSystemLockdownOff': 'معطّل',
@@ -114,6 +113,33 @@ const Map<String, String> _stringsValuesAr = {
   'killSwitchOff': 'معطّل',
   'killSwitchAutomatic': 'تلقائي',
   'killSwitchStrict': 'صارم',
+  'killSwitchOffHint':
+      'بلا حجب. إذا انقطع اتصال VPN تمرّ الحركة عبر اتصالك العادي.',
+  'killSwitchAutomaticHint':
+      'يحجب كل اتصال بالإنترنت خارج VPN من لحظة الاتصال حتى تضغط قطع '
+      'الاتصال. إذا انقطع الاتصال يبقى الإنترنت محجوبًا حتى تعيد الاتصال '
+      'أو تلغي الحجب. إغلاق Phantrix يرفع الحجب.',
+  'killSwitchStrictHint':
+      'مثل الوضع التلقائي، لكن الإنترنت يبقى محجوبًا أيضًا بعد قطع الاتصال '
+      'وبعد إغلاق Phantrix وبعد إعادة التشغيل، حتى تتصل من جديد أو تعطّل '
+      'مفتاح الإيقاف. تبقى أجهزة الشبكة المحلية كالطابعات متاحة.',
+  'killSwitchStrictConfirmTitle': 'تفعيل مفتاح الإيقاف الصارم؟',
+  'killSwitchStrictConfirmBody':
+      'لن يتوفر على هذا الجهاز أي اتصال بالإنترنت ما دام Phantrix غير '
+      'متصل — حتى بعد إغلاق Phantrix أو إعادة تشغيل الحاسوب. لا يعيده '
+      'إلا الاتصال، أو تحويل مفتاح الإيقاف إلى معطّل أو تلقائي. على '
+      'Windows يتطلب هذا التحويل موافقة المسؤول.\n\nتبقى أجهزة الشبكة '
+      'المحلية كالطابعات متاحة.',
+  'killSwitchStrictConfirm': 'تفعيل الوضع الصارم',
+  'killSwitchReleaseFailed':
+      'تعذّر رفع حجب مفتاح الإيقاف، لذا ما زال الإنترنت محجوبًا. أعد '
+      'المحاولة أو اتصل.',
+  'homeKillSwitchStrict':
+      'مفتاح الإيقاف الصارم: الإنترنت محجوب ما دمت غير متصل',
+  'homeKillSwitchAutomatic':
+      'انقطع الاتصال — مفتاح الإيقاف يحجب الإنترنت حتى تعيد الاتصال',
+  'homeKillSwitchUnblock': 'إلغاء حجب الإنترنت',
+  'homeKillSwitchUnblocking': 'جارٍ إلغاء الحجب…',
   'ipv6': 'IPv6',
   'ipv6Block': 'الحظر أثناء الاتصال',
   'ipv6Prefer': 'التوجيه عند الدعم',
@@ -430,6 +456,18 @@ const Map<String, String> _stringsValuesAr = {
   'diagDnsDetail': 'الملف الذي يرسله الخادم هو من يحدد المُحلِّل، ولا تستطيع هذه الشاشة قراءة المُحلِّل الذي يستخدمه Windows فعلياً، لذا تُبلِغ بذلك بدل أن تدّعي واحداً.',
   'diagTunnelVerifiedDetail': 'تم التحقق من النفق بعد قيامه.',
   'diagTunnelNoTunnelDetail': 'لا نفق قائماً، فلا شيء للتحقق منه.',
-  'diagKillSwitchVerifiedDetail': 'تُسقط الحركة عندما يغيب النفق.',
+  'diagKillSwitchOffDetail':
+      'مفتاح الإيقاف معطّل. إذا سقط النفق تخرج الحركة عبر الاتصال العادي. '
+      'اختر تلقائي أو صارم في الإعدادات لتحجبها قواعد جدار الحماية.',
+  'diagKillSwitchAutomaticDetail':
+      'من لحظة الاتصال حتى تضغط قطع الاتصال، تحجب قواعد جدار الحماية كل '
+      'حركة الإنترنت خارج VPN بما فيها DNS. لا يُسمح إلا لـ Phantrix ومحرك '
+      'VPN الخاص به والشبكة المحلية وDHCP. إذا سقط النفق تبقى القواعد حتى '
+      'تعيد الاتصال أو تلغي الحجب.',
+  'diagKillSwitchStrictDetail':
+      'تحجب قواعد جدار الحماية كل حركة الإنترنت خارج VPN بما فيها DNS '
+      'كلما لم يكن هناك نفق — حتى بعد قطع الاتصال وبعد إغلاق Phantrix '
+      'وبعد إعادة التشغيل. لا يُسمح إلا لـ Phantrix ومحرك VPN الخاص به '
+      'والشبكة المحلية وDHCP.',
   'diagKillSwitchNotSupportedDetail': 'لا تضمن هذه المنصة مفتاح إيقاف صارماً. عندما يسقط النفق تخرج الحركة عبر الاتصال العادي حتى يعاد بناؤه، ويُبلِغ Phantrix بذلك بدل أن يدّعي حماية لا يملكها.',
 };

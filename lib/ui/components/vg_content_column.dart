@@ -41,3 +41,63 @@ class VgContentColumn extends StatelessWidget {
     );
   }
 }
+
+/// The scrolling form of [VgContentColumn].
+///
+/// [VgContentColumn] narrows its child, so a scroll view placed inside it
+/// only receives pointer events over the centred column: a mouse wheel over
+/// the empty margins of a wide desktop window did nothing. This keeps the
+/// scroll view at the full width of the page and moves the measure into its
+/// padding instead, so the content sits exactly where [VgContentColumn]
+/// would put it while the wheel works anywhere on the page.
+///
+/// [builder] receives the horizontal insets to give the scroll view's
+/// `padding`; add the vertical padding with `copyWith`.
+class VgScrollColumn extends StatelessWidget {
+  const VgScrollColumn({
+    required this.builder,
+    this.maxWidth = VgSpace.maxContentWidth,
+    this.wide = false,
+    super.key,
+  });
+
+  final Widget Function(BuildContext context, EdgeInsets insets) builder;
+  final double maxWidth;
+
+  /// Uses the dashboard measure rather than the reading measure.
+  final bool wide;
+
+  /// The horizontal insets that centre a column of at most [maxWidth] in
+  /// [available], gutter included — the same box [VgContentColumn] draws.
+  static EdgeInsets insetsFor({
+    required double available,
+    required double viewportWidth,
+    required double maxWidth,
+  }) {
+    final column = available < maxWidth ? available : maxWidth;
+    final margin = (available - column) / 2;
+    return EdgeInsets.symmetric(
+      horizontal: margin + VgSpace.gutter(viewportWidth),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : viewportWidth;
+        return builder(
+          context,
+          insetsFor(
+            available: available,
+            viewportWidth: viewportWidth,
+            maxWidth: wide ? VgSpace.maxDashboardWidth : maxWidth,
+          ),
+        );
+      },
+    );
+  }
+}

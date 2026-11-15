@@ -253,7 +253,15 @@ struct SplitWait {
 // while a slow tunnel is torn down. Dart still gets its reply: the worker
 // posts it back through the message window.
 struct TunnelJob {
-	enum class Kind { start, stop, teardownOnly, listApps, appIcon, splitPolicy };
+	enum class Kind {
+		start,
+		stop,
+		teardownOnly,
+		listApps,
+		appIcon,
+		splitPolicy,
+		releaseKillSwitch
+	};
 	Kind kind = Kind::teardownOnly;
 	std::string profile;
 	// A single string argument for the icon and policy jobs.
@@ -262,6 +270,10 @@ struct TunnelJob {
 	bool splitEnabled = false;
 	std::string splitMode;
 	std::vector<std::string> splitApps;
+	// The kill-switch mode travelling with a start request.
+	std::string killSwitch;
+	// A stop after a dropped connection: the kill switch keeps blocking.
+	bool holdFirewall = false;
 	flutter::MethodResult<EncodableValue>* result = nullptr;
 	bool publishDisconnected = false;
 };
@@ -290,6 +302,84 @@ std::wstring pluginDirectory() {
 	}
 	directory.resize(slash);
 	return directory;
+}
+
+// The split-tunnel router the build bundles beside the helper.
+bool SplitRouterPresent(const std::wstring& directory) {
+	return !directory.empty() &&
+	       GetFileAttributesW((directory + L"\\sing-box.exe").c_str()) !=
+	           INVALID_FILE_ATTRIBUTES;
+}
+
+// The marker the elevated helper writes while kill-switch rules are installed:
+// `%ProgramData%\Phantrix\kill-switch`, holding the mode. Readable without
+// elevation, which is the point: the app can tell the user that traffic is
+// being blocked without asking for administrator rights.
+std::wstring KillSwitchMarkerPath() {
+	wchar_t buffer[MAX_PATH + 1] = {0};
+	const DWORD length = GetEnvironmentVariableW(L"ProgramData", buffer, MAX_PATH);
+	const std::wstring root = (length == 0 || length > MAX_PATH)
+	                              ? std::wstring(L"C:\\ProgramData")
+	                              : std::wstring(buffer, length);
+	return root + L"\\Phantrix\\kill-switch";
+}
+
+// The mode recorded in the marker, or empty when no rules are installed.
+std::string ReadKillSwitchMarker() {
+	HANDLE file = CreateFileW(
+	    KillSwitchMarkerPath().c_str(), GENERIC_READ,
+	    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE) {
+		return std::string();
+	}
+	char text[32] = {0};
+	DWORD read = 0;
+	(void)ReadFile(file, text, sizeof(text) - 1, &read, nullptr);
+	CloseHandle(file);
+	std::string mode(text, read);
+	if (mode != "automatic" && mode != "strict") {
+		mode = "automatic";
+	}
+	return mode;
+}
+
+// Runs the helper elevated with `--release-firewall` and waits for it. Used
+// when no tunnel session is running to carry the request.
+bool LaunchFirewallRelease(const std::wstring& directory, std::string* errorCode,
+                           std::string* errorMessage) {
+	const std::wstring helper = phantrix::ovpn::HelperExecutable(directory);
+	if (helper.empty() ||
+	    GetFileAttributesW(helper.c_str()) == INVALID_FILE_ATTRIBUTES) {
+		*errorCode = "backend.not_installed";
+		*errorMessage = "The tunnel helper is missing from this installation.";
+		return false;
+	}
+	SHELLEXECUTEINFOW execute = {0};
+	execute.cbSize = sizeof(execute);
+	execute.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+	execute.lpVerb = L"runas";
+	execute.lpFile = helper.c_str();
+	execute.lpParameters = L"--release-firewall";
+	execute.lpDirectory = directory.c_str();
+	execute.nShow = SW_HIDE;
+	if (ShellExecuteExW(&execute) == FALSE || execute.hProcess == nullptr) {
+		*errorCode = "permission.denied";
+		*errorMessage =
+		    "Windows did not grant administrator rights, so the kill switch "
+		    "is still blocking traffic.";
+		return false;
+	}
+	const DWORD waited = WaitForSingleObject(execute.hProcess, 60000);
+	DWORD exitCode = 1;
+	(void)GetExitCodeProcess(execute.hProcess, &exitCode);
+	CloseHandle(execute.hProcess);
+	if (waited != WAIT_OBJECT_0 || exitCode != 0) {
+		*errorCode = "kill_switch.failed";
+		*errorMessage = "The kill switch's firewall rules could not be removed.";
+		return false;
+	}
+	return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -1027,7 +1117,7 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 					std::string message;
 					const bool started = StartOpenVpn(
 					    job.profile, job.splitEnabled, job.splitMode, job.splitApps,
-					    &code, &message);
+					    job.killSwitch, &code, &message);
 					if (!started) {
 						// The same failure the helper would have reported,
 						// through the same path, so Dart sees one shape.
@@ -1043,7 +1133,7 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 					break;
 				}
 				case TunnelJob::Kind::stop: {
-					TeardownOpenVpn();
+					TeardownOpenVpn(job.holdFirewall);
 					auto* pending = new PendingEvent();
 					pending->state = "stopped";
 					pending->result = job.result;
@@ -1052,8 +1142,28 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 					break;
 				}
 				case TunnelJob::Kind::teardownOnly:
-					TeardownOpenVpn();
+					TeardownOpenVpn(job.holdFirewall);
 					break;
+				case TunnelJob::Kind::releaseKillSwitch: {
+					// A running session is stopped first; it carries the
+					// release itself. Anything still installed after that
+					// (strict mode, or a session that ended holding) needs
+					// its own elevated run.
+					TeardownOpenVpn(false);
+					std::string code;
+					std::string message;
+					if (!ReadKillSwitchMarker().empty()) {
+						(void)LaunchFirewallRelease(pluginDirectory(), &code,
+						                            &message);
+					}
+					auto* pending = new PendingEvent();
+					pending->state = "start-finished";
+					pending->errorCode = code;
+					pending->message = message;
+					pending->result = job.result;
+					PostEvent(pending);
+					break;
+				}
 			}
 		}
 	}
@@ -1104,7 +1214,8 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 	bool StartOpenVpn(const std::string& profile, bool splitEnabled,
 	                  const std::string& splitMode,
 	                  const std::vector<std::string>& splitApps,
-	                  std::string* errorCode, std::string* errorMessage);
+	                  const std::string& killSwitch, std::string* errorCode,
+	                  std::string* errorMessage);
 
 	// Sends one policy to the running helper and waits for its acknowledgement.
 	//
@@ -1122,8 +1233,9 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 
 	// Releases every resource the OpenVPN session holds: stops the engine,
 	// waits for the helper, closes the pipe, removes the session directory.
-	// Safe to call when nothing is running.
-	void TeardownOpenVpn();
+	// Safe to call when nothing is running. `holdFirewall` asks the helper to
+	// leave the kill switch blocking (a dropped connection, not a disconnect).
+	void TeardownOpenVpn(bool holdFirewall = false);
 
 	// The reader thread's entry point. Reads the pipe until it goes away,
 	// forwarding each message to the platform thread.
@@ -1183,10 +1295,10 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 		}
 
 		if (method == "capabilities") {
-			// Honest about what this backend can actually do. No kill switch and
-			// no per-app routing: Windows has no equivalent of Android's per-app
-			// VpnService, and a kill switch is not something this implementation
-			// provides, so it is reported false rather than approximated.
+			// Honest about what this backend can actually do. The kill switch is
+			// user-mode firewall rules the elevated helper installs, so it is
+			// available whenever the engine is. Per-app routing needs the
+			// bundled sing-box router as well.
 			//
 			// The engine is answered from what is on disk rather than from what
 			// the build expects. The OpenVPN bundle is fetched and verified by
@@ -1197,11 +1309,7 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			const std::wstring directory = pluginDirectory();
 			const bool openVpnPresent =
 			    phantrix::ovpn::OpenVpnBundlePresent(directory);
-			const bool splitDriverPresent =
-			    !directory.empty() &&
-			    GetFileAttributesW(
-			        (directory + L"\\phantrix_split_tunnel.sys").c_str()) !=
-			        INVALID_FILE_ATTRIBUTES;
+			const bool splitDriverPresent = SplitRouterPresent(directory);
 			const std::string engineName =
 			    openVpnPresent ? "openvpn-community" : "none";
 			std::string limitations;
@@ -1211,14 +1319,17 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				    "through a small helper that asks for administrator rights; "
 				    "the profile is written to a private file and the engine "
 				    "reads that file, so IPv6 policy is whatever the server's "
-				    "configuration carried. Split tunnelling uses a signed WFP "
-				    "callout driver and applies only while a tunnel is up. "
+				    "configuration carried. Split tunnelling routes each "
+				    "application through the bundled sing-box router (no own "
+				    "driver) and applies only while a tunnel is up. The kill "
+				    "switch is Windows Filtering Platform rules; the local "
+				    "network and DHCP stay reachable. "
 				    "Windows' DNS client multiplexes every process through one "
 				    "service, so per-application DNS cannot be separated; DNS "
 				    "stays on the tunnel while split tunnelling is active.";
 				if (!splitDriverPresent) {
 					limitations +=
-					    " The split-tunnel driver is not bundled in this build.";
+					    " The split-tunnel router is not bundled in this build.";
 				}
 			} else {
 				limitations =
@@ -1228,7 +1339,7 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			}
 			EncodableMap map;
 			map[EncodableValue("platform")] = EncodableValue("windows");
-			map[EncodableValue("killSwitch")] = EncodableValue(false);
+			map[EncodableValue("killSwitch")] = EncodableValue(openVpnPresent);
 			map[EncodableValue("ipv6Block")] = EncodableValue(false);
 			map[EncodableValue("vpnDns")] = EncodableValue(true);
 			map[EncodableValue("perApp")] =
@@ -1401,6 +1512,29 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 				job.splitMode = "exclude";
 				job.splitApps = disallowed;
 			}
+			job.killSwitch = getString(*root, "killSwitch");
+			job.result = result.release();
+			EnqueueJob(std::move(job));
+			return;
+		}
+
+		if (method == "killSwitchState") {
+			// Whether kill-switch rules are installed right now, read from the
+			// marker the helper keeps. No elevation needed.
+			const std::string mode = ReadKillSwitchMarker();
+			EncodableMap map;
+			map[EncodableValue("active")] = EncodableValue(!mode.empty());
+			map[EncodableValue("mode")] =
+			    mode.empty() ? EncodableValue() : EncodableValue(mode);
+			result->Success(EncodableValue(map));
+			return;
+		}
+
+		if (method == "releaseKillSwitch") {
+			// Lifts the rules without a tunnel. Needs administrator rights, so
+			// it runs on the worker: the consent prompt can take a while.
+			TunnelJob job;
+			job.kind = TunnelJob::Kind::releaseKillSwitch;
 			job.result = result.release();
 			EnqueueJob(std::move(job));
 			return;
@@ -1417,6 +1551,14 @@ class PhantrixWindowsPlugin : public flutter::Plugin {
 			// user that a tunnel came down which never came up.
 			TunnelJob job;
 			job.kind = TunnelJob::Kind::stop;
+			if (const auto* root = std::get_if<EncodableMap>(call.arguments())) {
+				if (const auto it = root->find(EncodableValue("keepBlocking"));
+				    it != root->end()) {
+					if (const auto* value = std::get_if<bool>(&it->second)) {
+						job.holdFirewall = *value;
+					}
+				}
+			}
 			job.result = result.release();
 			job.publishDisconnected = !openVpnReportedFailure_;
 			EnqueueJob(std::move(job));
@@ -1601,7 +1743,13 @@ LRESULT CALLBACK PhantrixWindowsPlugin::MessageWindowProc(HWND window,
 		// is released, but by the worker: the teardown waits on the helper's
 		// exit, and waiting here would be the window hanging on its own
 		// thread — the freeze that made a failed attempt feel like a crash.
-		plugin->EnqueueJob(TunnelJob{TunnelJob::Kind::teardownOnly});
+		// A connection that had come up and then failed is a drop: the kill
+		// switch keeps blocking until the user reconnects or disconnects. One
+		// that never came up is released (strict mode keeps it regardless).
+		TunnelJob job{TunnelJob::Kind::teardownOnly};
+		job.holdFirewall = plugin->openVpnReportedFailure_ &&
+		                   plugin->openVpn_.handshakeAtMillis > 0;
+		plugin->EnqueueJob(std::move(job));
 	}
 	delete pending;
 	return 0;
@@ -1682,7 +1830,7 @@ DWORD WINAPI PhantrixWindowsPlugin::OpenVpnReaderThread(LPVOID context) {
 	plugin->PostEvent(pending);
 	return 0;
 }
-void PhantrixWindowsPlugin::TeardownOpenVpn() {
+void PhantrixWindowsPlugin::TeardownOpenVpn(bool holdFirewall) {
 	if (openVpn_.pipe == nullptr && openVpn_.helper == nullptr &&
 	    openVpn_.reader == nullptr) {
 		// Nothing was ever started. Cheap out rather than doing the I/O below.
@@ -1696,8 +1844,10 @@ void PhantrixWindowsPlugin::TeardownOpenVpn() {
 	if (openVpn_.pipe != nullptr && openVpn_.pipe != INVALID_HANDLE_VALUE) {
 		if (!openVpn_.stopping && openVpn_.started) {
 			// Ask the helper to stop the engine and tell us when it has.
-			phantrix::ovpn::Message stop =
-			    phantrix::ovpn::MakeMessage(phantrix::ovpn::MessageType::kStop, {});
+			phantrix::ovpn::Message stop = phantrix::ovpn::MakeMessage(
+			    phantrix::ovpn::MessageType::kStop,
+			    holdFirewall ? std::vector<std::string>{"hold"}
+			                 : std::vector<std::string>{});
 			(void)phantrix::ovpn::WriteMessage(openVpn_.pipe, stop);
 		}
 	}
@@ -1938,6 +2088,7 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
                                          bool splitEnabled,
                                          const std::string& splitMode,
                                          const std::vector<std::string>& splitApps,
+                                         const std::string& killSwitch,
                                          std::string* errorCode,
                                          std::string* errorMessage) {
 	// A second request must not create a second tunnel. The first is still
@@ -2151,6 +2302,7 @@ bool PhantrixWindowsPlugin::StartOpenVpn(const std::string& profile,
 	    phantrix::ovpn::WideToUtf8(openVpn_.log),
 	    splitEnabled ? "1" : "0",
 	    splitEnabled ? splitMode : std::string(),
+	    killSwitch.empty() ? std::string("off") : killSwitch,
 	};
 	if (splitEnabled) {
 		startFields.insert(startFields.end(), splitApps.begin(),

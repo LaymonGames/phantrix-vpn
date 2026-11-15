@@ -20,7 +20,9 @@ class ConnectionPanel extends StatelessWidget {
     required this.onOpenSystemVpnSettings,
     required this.systemLockdownActive,
     required this.onStartOnBootChanged,
-    required this.onOpenSplitTunneling,
+    this.killSwitchBlocking,
+    this.onReleaseKillSwitch,
+    this.onRefreshKillSwitch,
     super.key,
   });
 
@@ -29,12 +31,21 @@ class ConnectionPanel extends StatelessWidget {
   final VoidCallback onOpenSystemVpnSettings;
   final Future<bool> Function() systemLockdownActive;
 
-  /// Opens the per-application routing screen.
-  final VoidCallback onOpenSplitTunneling;
-
   /// Asks the platform to start (or to stop starting) the app at sign-in,
   /// answering whether the machine accepted the choice.
   final Future<bool> Function(bool) onStartOnBootChanged;
+
+  /// Whether the kill switch is blocking traffic right now with no tunnel
+  /// up, read live when the setting changes.
+  final bool Function()? killSwitchBlocking;
+
+  /// Lifts the kill switch's blocking rules. On Windows this asks for
+  /// administrator approval.
+  final Future<Result<void>> Function()? onReleaseKillSwitch;
+
+  /// Re-reads the kill switch's state after the setting changed, so the
+  /// home screen's warning matches what the firewall is doing.
+  final Future<void> Function()? onRefreshKillSwitch;
 
   @override
   Widget build(BuildContext context) {
@@ -56,19 +67,25 @@ class ConnectionPanel extends StatelessWidget {
               KillSwitchMode.strict => l10n.get('killSwitchStrict'),
             },
             options: {
-              l10n.get('killSwitchOff'): () => settings.update(
-                (s) => s.copyWith(killSwitch: KillSwitchMode.off),
+              l10n.get('killSwitchOff'): () => unawaited(
+                _setKillSwitch(context, KillSwitchMode.off),
               ),
-              l10n.get('killSwitchAutomatic'): () => settings.update(
-                (s) => s.copyWith(killSwitch: KillSwitchMode.automatic),
+              l10n.get('killSwitchAutomatic'): () => unawaited(
+                _setKillSwitch(context, KillSwitchMode.automatic),
               ),
-              l10n.get('killSwitchStrict'): () => settings.update(
-                (s) => s.copyWith(killSwitch: KillSwitchMode.strict),
+              l10n.get('killSwitchStrict'): () => unawaited(
+                _setKillSwitch(context, KillSwitchMode.strict),
               ),
             },
             enabled: platform.supportsKillSwitch,
             note: platform.supportsKillSwitch
-                ? null
+                ? switch (d.killSwitch) {
+                    KillSwitchMode.off => l10n.get('killSwitchOffHint'),
+                    KillSwitchMode.automatic => l10n.get(
+                      'killSwitchAutomaticHint',
+                    ),
+                    KillSwitchMode.strict => l10n.get('killSwitchStrictHint'),
+                  }
                 : l10n.get('settingsKillSwitchUnsupported'),
           ),
           if (platform.platformName.startsWith('android'))
@@ -91,25 +108,52 @@ class ConnectionPanel extends StatelessWidget {
               unawaited(_setStartOnBoot(context, v));
             },
           ),
-          Divider(
-            color: theme.colorScheme.outline,
-            height: 1,
-            indent: VgSpace.lg,
-            endIndent: VgSpace.lg,
-          ),
-          VgListRow(
-            title: l10n.get('settingsSplitTunneling'),
-            subtitle: l10n.get('settingsSplitTunnelingHint'),
-            leading: Icon(
-              Icons.call_split_rounded,
-              size: VgIcon.sm,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            onTap: onOpenSplitTunneling,
-          ),
         ],
       ),
     );
+  }
+
+  /// Records a kill switch choice, confirming Strict first.
+  ///
+  /// Strict cuts the internet off whenever Phantrix is not connected, even
+  /// after the app closes and across restarts, so it is never one tap away.
+  /// Leaving a blocking mode while nothing is connected lifts the rules
+  /// that mode left behind; otherwise the user would turn the switch off and
+  /// still have no internet.
+  Future<void> _setKillSwitch(BuildContext context, KillSwitchMode next) async {
+    final previous = settings.data.killSwitch;
+    if (next == previous) {
+      return;
+    }
+    if (next == KillSwitchMode.strict) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => const _StrictKillSwitchDialog(),
+      );
+      if (confirmed != true || !context.mounted) {
+        return;
+      }
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final failedText = context.l10n.get('killSwitchReleaseFailed');
+    settings.update((s) => s.copyWith(killSwitch: next));
+
+    final leavesBlocking =
+        next == KillSwitchMode.off ||
+        (previous == KillSwitchMode.strict &&
+            next == KillSwitchMode.automatic);
+    final release = onReleaseKillSwitch;
+    if (leavesBlocking &&
+        release != null &&
+        (killSwitchBlocking?.call() ?? false)) {
+      final result = await release();
+      if (result.errorOrNull != null) {
+        messenger
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(failedText)));
+      }
+    }
+    await onRefreshKillSwitch?.call();
   }
 
   /// Records the choice only after the platform has accepted it.
@@ -129,6 +173,33 @@ class ConnectionPanel extends StatelessWidget {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(context.l10n.get('settingsBootStartFailed'))),
+    );
+  }
+}
+
+/// Asks before turning on the strict kill switch.
+class _StrictKillSwitchDialog extends StatelessWidget {
+  const _StrictKillSwitchDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      icon: const Icon(Icons.gpp_maybe_outlined),
+      title: Text(l10n.get('killSwitchStrictConfirmTitle')),
+      content: SingleChildScrollView(
+        child: Text(l10n.get('killSwitchStrictConfirmBody')),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.get('cancel')),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l10n.get('killSwitchStrictConfirm')),
+        ),
+      ],
     );
   }
 }

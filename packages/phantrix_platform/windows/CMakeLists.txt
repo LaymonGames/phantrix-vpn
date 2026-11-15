@@ -49,14 +49,13 @@ add_executable(phantrix_ovpn_helper WIN32
   "phantrix_ovpn_engine.cpp"
   "phantrix_ovpn_support.cpp"
   "phantrix_split_tunnel.cpp"
-  "driver/phantrix_split_tunnel/phantrix_split_tunnel_public.h"
+  "phantrix_kill_switch.cpp"
 )
 
 apply_standard_settings(phantrix_ovpn_helper)
 
-# The split-tunnel policy agent is user-mode WFP: it creates the filters and
-# provider contexts that the callout driver consumes. These are the documented
-# management APIs, not a driver-side protocol.
+# The kill switch is user-mode WFP: ordinary block and permit filters through
+# the documented management API. No kernel driver of this project is involved.
 target_link_libraries(phantrix_ovpn_helper PRIVATE
   fwpuclnt
   ws2_32
@@ -161,16 +160,17 @@ set(OPENVPN_BUNDLE_FILES
 # missing bundle is a documented configuration state rather than a build
 # failure. Only the files that are actually present are listed for installation,
 # because `install(FILES)` on a path that does not exist is a configure error.
-# The split-tunnel driver is built by the WDK project, not by CMake: kernel
-# targets need the WDK's own toolset and signing step. A build script places
-# the signed (or test-signed) .sys beside this file, and the bundle below
-# installs it next to the helper that starts it. A missing driver is a
-# documented configuration, not a build failure: the capability reports false
-# and the UI refuses to enable split tunneling.
-set(PHANTRIX_SPLIT_DRIVER
-  "${CMAKE_CURRENT_SOURCE_DIR}/driver/phantrix_split_tunnel/phantrix_split_tunnel.sys")
-if(EXISTS "${PHANTRIX_SPLIT_DRIVER}")
-  list(APPEND OPENVPN_BUNDLE_FILES "${PHANTRIX_SPLIT_DRIVER}")
+# Split tunnelling routes per application through the sing-box router, fetched
+# and hash-checked by `tools/fetch_singbox_bundle.ps1`. It needs no driver of
+# its own: its adapter is Wintun, which Microsoft has signed. An own kernel
+# driver was tried first and only loaded with test signing enabled, which is
+# why none is built or shipped. A missing router is a documented configuration,
+# not a build failure: the capability reports false and the UI refuses to
+# enable split tunnelling.
+set(PHANTRIX_SPLIT_ROUTER
+  "${CMAKE_CURRENT_SOURCE_DIR}/bundle/sing-box/sing-box.exe")
+if(EXISTS "${PHANTRIX_SPLIT_ROUTER}")
+  list(APPEND OPENVPN_BUNDLE_FILES "${PHANTRIX_SPLIT_ROUTER}")
 endif()
 
 set(phantrix_platform_bundled_libraries "")

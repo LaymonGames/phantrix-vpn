@@ -133,7 +133,8 @@ operator of the exit server can see the traffic that leaves it, and for public
 relays that operator is an unknown volunteer. It also does not protect your
 accounts, your device, or you from application-level tracking.
 
-No backend implements a strict traffic-blocking kill switch. The IPv6 setting
+Only the Windows backend implements a traffic-blocking kill switch (Windows
+Filtering Platform rules; see SECURITY.md). The IPv6 setting
 is a preference, not proof of host-level blocking — on Windows the app reports
 that it cannot block IPv6 at the host level. A changed IPv4 address does not
 prove DNS or IPv6 leak protection; these remain unverified.

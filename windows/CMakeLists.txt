@@ -160,3 +160,10 @@ install(
   DESTINATION "${PHANTRIX_LICENCE_DIR}"
   RENAME "wintun-LICENSE.txt"
   COMPONENT Runtime)
+# sing-box (GPL-3.0-or-later): the split-tunnel router. The checked-in copy is
+# the release's own LICENSE; the GPL-3.0 text itself is phantrix-LICENSE.txt.
+install(
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/../tools/attribution/sing-box-license.txt"
+  DESTINATION "${PHANTRIX_LICENCE_DIR}"
+  RENAME "sing-box-LICENSE.txt"
+  COMPONENT Runtime)

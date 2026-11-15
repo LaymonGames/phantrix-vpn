@@ -110,6 +110,13 @@ jobs:
           pwsh -NoProfile -File tools/fetch_openvpn_bundle.ps1 -VerifyOnly
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Fetch and verify the split-tunnel router
+        # sing-box routes per application for split tunnelling. Without it the
+        # build still works but reports split tunnelling as unavailable.
+        run: |
+          pwsh -NoProfile -File tools/fetch_singbox_bundle.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build the release bundle
         run: flutter build windows --release
 

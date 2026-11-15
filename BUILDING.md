@@ -404,11 +404,22 @@ than worked around:
 - **Running a tunnel needs Administrator rights.** The prompt comes from
   the helper's `runas` launch, which the user can also decline (reported as
   a failure, never retried silently). This code never elevates itself
-  beyond that, never installs a driver outside the OpenVPN bundle flow, and
-  never alters firewall rules.
-- **There is no kill switch on Windows.** When the tunnel drops, traffic
-  can leave over the normal network until the app reconnects. The app says
-  so in Settings instead of claiming protection it does not have.
+  beyond that and never installs a kernel driver of its own. The only
+  firewall rules it adds are the kill switch's (below).
+- **The kill switch is Windows Filtering Platform rules.** The elevated
+  helper adds persistent user-mode WFP filters (provider "Phantrix") that
+  block traffic outside the tunnel, permitting loopback, the tunnel and
+  split-tunnel adapters, `openvpn.exe`, `sing-box.exe`, `phantrix.exe`,
+  DHCP and the local network (except DNS). *Automatic* keeps them from
+  connect until Disconnect, including while a dropped connection waits;
+  *strict* also keeps them after Disconnect, app exit and reboot. The app
+  lifts them with an elevated `phantrix_ovpn_helper.exe --release-firewall`.
+- **Split tunnelling uses the bundled sing-box router.** Fetch it with
+  `powershell -NoProfile -ExecutionPolicy Bypass -File toolsetch_singbox_bundle.ps1`
+  (pinned SHA-256). sing-box creates a "Phantrix Split" Wintun adapter and
+  routes each application by executable path through the OpenVPN adapter or
+  the physical network. No own kernel driver is built: one that is not
+  Microsoft-signed does not load on ordinary PCs (`ERROR_INVALID_IMAGE_HASH`).
 
 An OpenVPN profile (which carries the relay's certificates) is written to a
 session directory with an explicit owner-only DACL and removed with the whole

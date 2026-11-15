@@ -20,6 +20,7 @@ class ConnectionView {
     this.lastHandshakeAt,
     this.selectedLabel,
     this.ipv6Policy = Ipv6Mode.block,
+    this.killSwitch = KillSwitchState.inactive,
   });
 
   final VpnState state;
@@ -54,6 +55,16 @@ class ConnectionView {
   /// session panel, and reading the settings controller from a screen would
   /// mean a second source of truth for what is about to be applied.
   final Ipv6Mode ipv6Policy;
+
+  /// Whether the platform's kill switch is blocking traffic right now.
+  ///
+  /// Only meaningful while no tunnel is up: then it means the internet is
+  /// blocked on purpose, and the user needs a way to lift it.
+  final KillSwitchState killSwitch;
+
+  /// The kill switch is blocking and no tunnel carries traffic.
+  bool get killSwitchBlocking =>
+      killSwitch.active && !state.isConnected && !state.isTransitioning;
 
   static const ConnectionView initial = ConnectionView(
     state: VpnState.disconnected,

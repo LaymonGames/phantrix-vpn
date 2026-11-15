@@ -70,8 +70,8 @@ class ConnectAttemptOutcome {
   /// broken, so treating one such failure as a verdict on the whole country
   /// left every other relay in it unvisited.
   ///
-  /// Split-tunnel failures split the same way. A driver or policy-engine
-  /// failure (`split.driver_missing`, `split.filter_failed`, …) belongs to the
+  /// Split-tunnel failures split the same way. A router or kill-switch
+  /// failure (`split.router_missing`, `kill_switch.failed`, …) belongs to the
   /// machine and recurs on every relay, so it stays terminal. A policy that
   /// could not be applied to *this* tunnel (`split.policy_rejected`,
   /// `split.route_failed`) may be a property of this adapter and is walked
