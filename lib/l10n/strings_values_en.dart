@@ -75,6 +75,7 @@ const Map<String, String> _stringsValuesEn = {
       'Everything else keeps your normal internet connection.',
   'splitModeExcludeHint': 'Everything else uses the VPN.',
   'splitSearchHint': 'Search applications',
+  'splitSearchClear': 'Clear search',
   'splitBrowse': 'Choose an .exe',
   'splitSaved': 'Split tunneling saved.',
   'splitLiveApplied': 'Rules applied to the running tunnel.',
@@ -135,6 +136,10 @@ const Map<String, String> _stringsValuesEn = {
       'after Phantrix closes and across restarts, until you connect again '
       'or turn the kill switch off. Local network devices such as printers '
       'stay reachable.',
+  'killSwitchSplitPaused':
+      'Paused while split tunneling is on: the applications that skip the VPN '
+      'need a normal connection. The setting applies again when split '
+      'tunneling is turned off.',
   'killSwitchStrictConfirmTitle': 'Turn on the strict kill switch?',
   'killSwitchStrictConfirmBody':
       'This device will have no internet at all while Phantrix is not '

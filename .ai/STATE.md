@@ -6,6 +6,7 @@ tunnelling bundled `sing-box.exe` (tools/fetch_singbox_bundle.ps1). Android: Vpn
 
 ## Status (2026-11-15)
 - Split tunneling: driverless (sing-box). Builds; NOT live-tested yet.
+- Split router: IPv6 disabled (ipv4_only + reject v6) unless tunnel and physical both have IPv6. Stop kills OpenVPN after 250 ms.
 - Kill switch: Windows only, WFP rules in helper. Builds; NOT live-tested yet.
 - Settings UI: split tunneling own section, toggle, autosave, full-page wheel scroll.
 - Old test-signed driver build output may remain untracked at

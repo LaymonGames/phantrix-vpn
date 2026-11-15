@@ -617,6 +617,19 @@ void StartEngine(HANDLE pipe, Engine& engine, const std::wstring& moduleDirector
 		return;
 	}
 
+	// Split tunneling and the kill switch ask for opposite things: the policy
+	// deliberately sends some traffic outside the tunnel, and the kill switch
+	// exists to block exactly that. Engaged together they fight, and every
+	// application the policy routes directly loses the internet — which reads
+	// as "split tunneling broke my connection". The block is therefore not
+	// installed while a split policy is active. The setting is kept, so it
+	// comes back the moment split tunneling is turned off.
+	const bool splitActive = splitPolicy.enabled &&
+	                         !(splitPolicy.include_mode && splitPolicy.apps.empty());
+	if (splitActive && killSwitchMode != phantrix::firewall::Mode::kOff) {
+		killSwitchMode = phantrix::firewall::Mode::kOff;
+	}
+
 	// The kill switch goes up before anything else touches the network, so
 	// there is no moment of this connection without it. With the kill switch
 	// off, rules a strict session left behind are removed instead.

@@ -9,7 +9,10 @@ import '../../components/surfaces.dart';
 import '../../shell.dart';
 
 class PrivacyPanel extends StatelessWidget {
-  const PrivacyPanel({required this.settings, super.key});
+  const PrivacyPanel({
+    required this.settings,
+    super.key,
+  });
 
   final SettingsController settings;
 

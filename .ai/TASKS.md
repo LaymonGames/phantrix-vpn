@@ -2,6 +2,7 @@
 - [x] Native review fixes (race, hold release, DNS reconnect, route order, ProgramData ACL)
 - [x] Redesign: theme engine, light mode, accent picker, home, sidebar, titles, Inter
 - [x] Windows --release build
-- [ ] Linux --release build (needs Linux host / WSL / CI)
+- [ ] Linux --release build (WSL features enabled; one Windows restart, then tools\build_linux_wsl.ps1)
 - [ ] LIVE TEST on second PC: split include/exclude, kill switch automatic/strict, unblock, UAC flows
 - [ ] Commit redesign (not yet requested)
+- [x] Home centred, settings sections expanded, split picker scroll-to-top, split-tunnel internet fix (strict_route off, kill switch paused)

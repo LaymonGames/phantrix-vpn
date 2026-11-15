@@ -127,7 +127,8 @@ class Controller {
  private:
   bool WriteConfig(const std::wstring& tunnel_alias,
                    const std::wstring& physical_alias,
-                   const std::string& dns_server, std::string* error_code,
+                   const std::string& dns_server, bool ipv6,
+                   std::string* error_code,
                    std::string* error_message);
   bool StartRouter(std::string* error_code, std::string* error_message);
   void StopRouter();

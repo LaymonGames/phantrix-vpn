@@ -8,7 +8,10 @@ import '../../shell.dart';
 import 'accent_picker.dart';
 
 class AppearancePanel extends StatelessWidget {
-  const AppearancePanel({required this.settings, super.key});
+  const AppearancePanel({
+    required this.settings,
+    super.key,
+  });
 
   final SettingsController settings;
 

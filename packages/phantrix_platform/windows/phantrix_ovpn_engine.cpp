@@ -11,20 +11,15 @@ namespace ovpn {
 namespace {
 
 // How long the engine has to exit after a console control event before it is
-// killed outright. Ten seconds is generous for a graceful OpenVPN shutdown,
-// which normally takes well under a second; it is bounded so a wedged engine
-// cannot leave the user pressing Disconnect forever.
-constexpr DWORD kGracefulStopMillis = 10000;
-
-// The same window for an engine that never completed a handshake. There is
-// nothing to unwind politely at that point — no routes were installed and no
-// pushed configuration was applied — while the state most likely to be left
-// behind is an engine retrying a dead relay, where the graceful path does not
-// land. Waiting the full ten seconds there is not safety; it is ten seconds of
-// a dead relay's life charged to the user before the walk can offer the next
-// one. The console event is still sent first: when it works, the engine exits
-// in well under this window.
-constexpr DWORD kDialingStopMillis = 2000;
+// killed outright. A stop is the user saying "now": OpenVPN's polite exit can
+// spend seconds on explicit-exit-notify retries to a server that may never
+// answer, and the user watched that as a "Disconnecting" that would not end,
+// or a server switch that kept negotiating with the old relay. A quarter of a
+// second still lets an engine with nothing to notify exit on its own and undo
+// its routes; anything slower is killed. What the kill leaves behind is
+// harmless: the adapter, and every route and DNS setting on it, goes with the
+// process, and the server's host route is replaced by the next connection.
+constexpr DWORD kStopGraceMillis = 250;
 
 // How often the statistics file is read, and how often the loop wakes.
 constexpr int64_t kTrafficPollMillis = 1000;
@@ -439,15 +434,6 @@ DWORD Engine::Stop() {
 	running_ = false;
 	stopRequested_ = true;
 
-	// Whether a handshake ever completed decides how long the engine is given
-	// to leave politely: a tunnel that carried traffic has routes and a
-	// notified peer to unwind, while an engine still retrying a relay that
-	// never answered has nothing to unwind at all. The flag is written by the
-	// monitor thread and read here the same way the engine reads its other
-	// cross-thread flags: as a plain boolean whose stale value can only
-	// change how long the bounded grace period is.
-	const bool everConnected = everConnected_;
-
 	if (process_ != nullptr && outputWrite_ != nullptr) {
 		// Closing the engine's stdout is what unblocks the reader thread at the
 		// end of the tunnel. It is done before the graceful-stop dance, and only
@@ -484,10 +470,7 @@ DWORD Engine::Stop() {
 		// A request that never reached the engine has nothing to be polite
 		// about: the grace period covers a polite exit, and none is under way.
 		// The kill happens now rather than after a deadline spent in silence.
-		const int64_t deadline =
-		    NowMillis() + (asked ? (everConnected ? kGracefulStopMillis
-		                                          : kDialingStopMillis)
-		                         : 0);
+		const int64_t deadline = NowMillis() + (asked ? kStopGraceMillis : 0);
 		while (NowMillis() < deadline) {
 			if (WaitForSingleObject(process_, 100) == WAIT_OBJECT_0) {
 				break;

@@ -18,7 +18,10 @@ import '../../shell.dart';
 /// hardcoded `'1.0.0'` here, which was already wrong: the package version is
 /// `1.0.0+1`.
 class AboutPanel extends StatelessWidget {
-  const AboutPanel({required this.onOpenLicenses, super.key});
+  const AboutPanel({
+    required this.onOpenLicenses,
+    super.key,
+  });
 
   /// Opens the licences and credits screen.
   final VoidCallback onOpenLicenses;

@@ -113,6 +113,10 @@ class SettingsScreen extends StatelessWidget {
         //
         // The scroll view itself spans the page so the mouse wheel works
         // over the margins too; only its content is held to the measure.
+        //
+        // Every section is open. Folding them was tried and rejected: the
+        // groups are short, and a page where one tap hides three options
+        // reads as missing settings.
         return VgScrollColumn(
           builder: (context, insets) => ListView(
             padding: insets.copyWith(top: VgSpace.sm, bottom: VgSpace.xxl),

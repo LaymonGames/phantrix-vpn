@@ -294,6 +294,37 @@ std::wstring PhysicalDefaultAlias(const NET_LUID& tunnel_luid) {
   return alias;
 }
 
+// Whether the machine has a usable IPv6 path outside the tunnel: a ::/0 route
+// on a connected interface that is neither the tunnel nor the router.
+bool PhysicalHasIpv6(const NET_LUID& tunnel_luid) {
+  NET_LUID router = {};
+  const bool have_router =
+      ConvertInterfaceAliasToLuid(kRouterAdapterName, &router) == NO_ERROR;
+  PMIB_IPFORWARD_TABLE2 table = nullptr;
+  if (GetIpForwardTable2(AF_INET6, &table) != NO_ERROR || table == nullptr) {
+    return false;
+  }
+  bool found = false;
+  for (ULONG index = 0; index < table->NumEntries && !found; ++index) {
+    const MIB_IPFORWARD_ROW2& row = table->Table[index];
+    if (row.DestinationPrefix.PrefixLength != 0 ||
+        SameLuid(row.InterfaceLuid, tunnel_luid) ||
+        (have_router && SameLuid(row.InterfaceLuid, router))) {
+      continue;
+    }
+    MIB_IPINTERFACE_ROW iface = {};
+    InitializeIpInterfaceEntry(&iface);
+    iface.Family = AF_INET6;
+    iface.InterfaceLuid = row.InterfaceLuid;
+    if (GetIpInterfaceEntry(&iface) == NO_ERROR && !iface.Connected) {
+      continue;
+    }
+    found = true;
+  }
+  FreeMibTable(table);
+  return found;
+}
+
 }  // namespace
 
 std::wstring RouterExecutable(const std::wstring& module_directory) {
@@ -429,7 +460,14 @@ bool Controller::Apply(NET_LUID tunnel_luid, std::string* error_code,
   // so it never depends on which default route happens to win while the
   // tunnel's routes are being changed.
   const std::wstring physical_alias = PhysicalDefaultAlias(tunnel_luid);
-  if (!WriteConfig(tunnel_alias, physical_alias, dns, error_code,
+  // IPv6 is offered through the router only when both of its paths can carry
+  // it. The router's own adapter always has an IPv6 address and route, so
+  // without this every application believed IPv6 worked: lookups returned
+  // AAAA records, the router accepted the connection and then found no IPv6
+  // path out, and the browser — which had already "connected" — never fell
+  // back to IPv4. Most sites, search engines first, simply did not load.
+  const bool ipv6 = tunnel_v6 && PhysicalHasIpv6(tunnel_luid);
+  if (!WriteConfig(tunnel_alias, physical_alias, dns, ipv6, error_code,
                    error_message)) {
     return false;
   }
@@ -448,7 +486,7 @@ bool Controller::Apply(NET_LUID tunnel_luid, std::string* error_code,
 
 bool Controller::WriteConfig(const std::wstring& tunnel_alias,
                              const std::wstring& physical_alias,
-                             const std::string& dns_server,
+                             const std::string& dns_server, bool ipv6,
                              std::string* error_code,
                              std::string* error_message) {
   std::vector<std::string> app_patterns;
@@ -463,6 +501,17 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
   const char* selected_outbound = policy_.include_mode ? "vpn" : "direct";
   const char* final_outbound = policy_.include_mode ? "direct" : "vpn";
 
+  // strict_route stays off on purpose.
+  //
+  // On Windows it makes sing-box block port 53 traffic that leaves through
+  // any interface other than its own adapter. The router's own upstream DNS
+  // queries leave through the tunnel adapter (or the physical one), so the
+  // block took every lookup with it: the tunnel came up, connections to
+  // addresses worked, and no site opened. DNS is still captured — the
+  // hijack-dns rule below and auto_route both stay on — so the leak this
+  // guarded against is already closed by routing every query through
+  // sing-box.
+
   std::string json;
   json += "{\n";
   json += "  \"log\": {\"level\": \"warn\", \"timestamp\": true},\n";
@@ -472,13 +521,16 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
           JsonEscape(dns_server) + "\", \"detour\": \"vpn\"}\n";
   json += "    ],\n";
   json += "    \"final\": \"dns-tunnel\",\n";
-  json += "    \"strategy\": \"prefer_ipv4\"\n";
+  // Without IPv6 on both paths, lookups answer IPv4 only, so applications
+  // never try an address the router cannot reach.
+  json += std::string("    \"strategy\": \"") +
+          (ipv6 ? "prefer_ipv4" : "ipv4_only") + "\"\n";
   json += "  },\n";
   json += "  \"inbounds\": [\n";
   json += "    {\"type\": \"tun\", \"tag\": \"tun-in\", \"interface_name\": \"" +
           JsonEscape(WideToUtf8(kRouterAdapterName)) + "\",\n";
   json += "     \"address\": [\"172.19.0.1/30\", \"fdfe:dcba:9876::1/126\"],\n";
-  json += "     \"mtu\": 1400, \"auto_route\": true, \"strict_route\": true,\n";
+  json += "     \"mtu\": 1400, \"auto_route\": true, \"strict_route\": false,\n";
   json += "     \"stack\": \"mixed\"}\n";
   json += "  ],\n";
   json += "  \"outbounds\": [\n";
@@ -494,6 +546,13 @@ bool Controller::WriteConfig(const std::wstring& tunnel_alias,
   json += "  ],\n";
   json += "  \"route\": {\n";
   json += "    \"rules\": [\n";
+  if (!ipv6) {
+    // An IPv6 destination an application already knew (a cached or literal
+    // address) is refused at once, before the router accepts the connection,
+    // so the application falls back to IPv4 instead of waiting on a
+    // connection that was accepted and then dropped.
+    json += "      {\"ip_version\": 6, \"action\": \"reject\"},\n";
+  }
   json += "      {\"action\": \"sniff\"},\n";
   json += "      {\"protocol\": \"dns\", \"action\": \"hijack-dns\"},\n";
   json += "      {\"process_path_regex\": [\"" + JsonEscape(engine_pattern) +

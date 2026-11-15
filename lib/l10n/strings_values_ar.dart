@@ -70,6 +70,7 @@ const Map<String, String> _stringsValuesAr = {
   'splitModeIncludeHint': 'كل ما عداها يستخدم اتصالك العادي.',
   'splitModeExcludeHint': 'كل ما عداها يستخدم VPN.',
   'splitSearchHint': 'ابحث عن التطبيقات',
+  'splitSearchClear': 'مسح البحث',
   'splitBrowse': 'اختيار ملف .exe',
   'splitSaved': 'تم حفظ تقسيم النفق.',
   'splitLiveApplied': 'طُبِّقت القواعد على النفق الحالي.',
@@ -144,6 +145,9 @@ const Map<String, String> _stringsValuesAr = {
       'مثل الوضع التلقائي، لكن الإنترنت يبقى محجوبًا أيضًا بعد قطع الاتصال '
       'وبعد إغلاق Phantrix وبعد إعادة التشغيل، حتى تتصل من جديد أو تعطّل '
       'مفتاح الإيقاف. تبقى أجهزة الشبكة المحلية كالطابعات متاحة.',
+  'killSwitchSplitPaused':
+      'متوقف مؤقتًا أثناء تشغيل تقسيم النفق: التطبيقات التي تتجاوز VPN تحتاج '
+      'اتصالًا عاديًا. يعود الإعداد للعمل عند إيقاف تقسيم النفق.',
   'killSwitchStrictConfirmTitle': 'تفعيل مفتاح الإيقاف الصارم؟',
   'killSwitchStrictConfirmBody':
       'لن يتوفر على هذا الجهاز أي اتصال بالإنترنت ما دام Phantrix غير '

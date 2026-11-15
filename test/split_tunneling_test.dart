@@ -15,6 +15,7 @@ import 'package:phantrix_core/phantrix_core.dart';
 import 'package:phantrix_platform/phantrix_platform.dart';
 
 const _chromePath = r'C:\Program Files\Google\Chrome\chrome.exe';
+const _chromeApp = InstalledApp(name: 'Chrome', path: _chromePath);
 
 PlatformCapabilities _capabilities({required bool perApp}) =>
     PlatformCapabilities(
@@ -33,9 +34,10 @@ PlatformCapabilities _capabilities({required bool perApp}) =>
 
 /// A bridge that answers the split-tunnel calls without a method channel.
 class _SplitBridge extends PhantrixPlatform {
-  _SplitBridge({this.perApp = true});
+  _SplitBridge({this.perApp = true, this.installed = const [_chromeApp]});
 
   final bool perApp;
+  final List<InstalledApp> installed;
   final _events = StreamController<PlatformEvent>.broadcast();
   final applied = <SplitTunnelSettings>[];
 
@@ -47,9 +49,7 @@ class _SplitBridge extends PhantrixPlatform {
       _capabilities(perApp: perApp);
 
   @override
-  Future<List<InstalledApp>> listInstalledApps() async => const [
-    InstalledApp(name: 'Chrome', path: _chromePath),
-  ];
+  Future<List<InstalledApp>> listInstalledApps() async => installed;
 
   @override
   Future<String?> appIcon(String path) async => null;
@@ -78,8 +78,9 @@ Future<ConnectionController> _connection(
   WidgetTester tester,
   SettingsController settings, {
   bool perApp = true,
+  List<InstalledApp> installed = const [_chromeApp],
 }) async {
-  final bridge = _SplitBridge(perApp: perApp);
+  final bridge = _SplitBridge(perApp: perApp, installed: installed);
   final controller = ConnectionController(platform: bridge, settings: settings);
   addTearDown(controller.dispose);
   // Lets the capability probe started by the constructor finish.
@@ -184,6 +185,96 @@ void main() {
       await tester.tap(find.text('Chrome'));
       await tester.pumpAndSettle();
       expect(settings.data.splitTunnel.apps, isEmpty);
+    });
+
+    testWidgets('ticking an app near the bottom scrolls the list back to the '
+        'top, where the app moved to', (tester) async {
+      final apps = [
+        for (var i = 1; i <= 20; i++)
+          InstalledApp(name: 'App $i', path: r'C:\Apps\app$i.exe'),
+      ];
+      // A tall window so the applications panel is on screen without the
+      // page itself having to scroll: this test is about the list's scroll.
+      tester.view.physicalSize = const Size(500, 1500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final settings = SettingsController();
+      final connection = await _connection(
+        tester,
+        settings,
+        installed: apps,
+      );
+      await tester.pumpWidget(
+        _app(SplitTunnelingScreen(settings: settings, connection: connection)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+
+      final list = find.byType(ListView).last;
+      final scrollable = find.descendant(
+        of: list,
+        matching: find.byType(Scrollable),
+      );
+      // Scroll the applications list itself, then pick a row that is fully
+      // on screen: that is the row a user ticks without scrolling further.
+      tester.state<ScrollableState>(scrollable).position.jumpTo(200);
+      await tester.pumpAndSettle();
+      final before = tester.state<ScrollableState>(scrollable).position.pixels;
+      expect(before, greaterThan(0));
+
+      final listRect = tester.getRect(list);
+      Finder? target;
+      for (var i = 0; i < 20 && target == null; i++) {
+        final candidate = find.byType(ListTile).at(i);
+        if (candidate.evaluate().isEmpty) {
+          break;
+        }
+        final rect = tester.getRect(candidate);
+        if (rect.top >= listRect.top && rect.bottom <= listRect.bottom) {
+          target = candidate;
+        }
+      }
+      expect(target, isNotNull, reason: 'no application row was fully visible');
+
+      final name =
+          tester.widget<ListTile>(target!).title! as Text;
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+
+      expect(
+        settings.data.splitTunnel.apps.map((a) => a.name),
+        contains(name.data),
+      );
+      expect(tester.state<ScrollableState>(scrollable).position.pixels, 0);
+      expect(find.text(name.data!), findsOneWidget);
+    });
+
+    testWidgets('the search box can be emptied with one tap', (tester) async {
+      final settings = SettingsController();
+      final connection = await _connection(tester, settings);
+      await tester.pumpWidget(
+        _app(SplitTunnelingScreen(settings: settings, connection: connection)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+
+      // Nothing to clear while the box is empty.
+      expect(find.byTooltip('Clear search'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'chr');
+      await tester.pumpAndSettle();
+      expect(find.text('Chrome'), findsOneWidget);
+      expect(find.byTooltip('Clear search'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          isEmpty);
+      expect(find.byTooltip('Clear search'), findsNothing);
+      expect(find.text('Chrome'), findsOneWidget);
     });
 
     testWidgets('a change made elsewhere shows on the screen', (tester) async {

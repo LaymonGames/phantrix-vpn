@@ -44,78 +44,95 @@ class _HomeScreenState extends State<HomeScreen> {
         // margins too; only its content is held to the dashboard measure.
         return VgScrollColumn(
           wide: true,
-          builder: (context, insets) => SingleChildScrollView(
-            padding: insets.copyWith(top: VgSpace.xl, bottom: VgSpace.xl),
-            child: LayoutBuilder(
-              builder: (context, inner) {
-                final twoColumn =
-                    MediaQuery.sizeOf(context).width >=
-                    VgBreakpoints.twoColumn;
-                final hero = HeroPanel(
-                  view: view,
-                  location: location,
-                  reducedMotion: widget.reducedMotion,
-                  onPressed: () => _primary(view),
-                  onChooseLocation: widget.onChooseLocation,
-                );
-                final details = _DetailColumn(
-                  view: view,
-                  l10n: l10n,
-                  settings: widget.settings,
-                  selectedCountryCode: widget.selectedCountryCode,
-                  onChooseLocation: widget.onChooseLocation,
-                  onOpenSettings: widget.onOpenSettings,
-                );
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _StatusHeader(view: view, location: location),
-                    const SizedBox(height: VgSpace.xl),
-                    // An error spans the full width on every layout: it is
-                    // the one thing on this screen that must not be
-                    // missed, and squeezing it into a narrow column is how
-                    // a failure gets scrolled past.
-                    if (view.errorMessage != null) ...[
-                      VgErrorCard(
-                        message: view.errorMessage!,
-                        code: view.errorCode,
-                        actionLabel: view.canRetry
-                            ? l10n.get('tryAgain')
-                            : null,
-                        onAction: view.canRetry
-                            ? () => unawaited(widget.connection.retry())
-                            : null,
-                      ),
-                      const SizedBox(height: VgSpace.lg),
-                    ],
-                    // Full width for the same reason: "no internet" with no
-                    // visible cause is the worst outcome a kill switch can
-                    // produce.
-                    if (view.killSwitchBlocking) ...[
-                      _KillSwitchCard(
-                        strict: view.killSwitch.strict,
-                        onUnblock: widget.connection.releaseKillSwitch,
-                      ),
-                      const SizedBox(height: VgSpace.lg),
-                    ],
-                    if (twoColumn)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          builder: (context, insets) => LayoutBuilder(
+            builder: (context, viewport) {
+              // Short content is centred in the window instead of hanging
+              // from the top edge with a screenful of empty space under it.
+              // Tall content still scrolls; the minimum only ever adds
+              // space, never clips. The vertical padding is subtracted so
+              // the centred block sits in the padded area.
+              final availableHeight =
+                  viewport.maxHeight - (VgSpace.xl * 2);
+              return SingleChildScrollView(
+                padding: insets.copyWith(top: VgSpace.xl, bottom: VgSpace.xl),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: availableHeight > 0 ? availableHeight : 0,
+                  ),
+                  child: Builder(
+                    builder: (context) {
+                      final twoColumn =
+                          MediaQuery.sizeOf(context).width >=
+                          VgBreakpoints.twoColumn;
+                      final hero = HeroPanel(
+                        view: view,
+                        location: location,
+                        reducedMotion: widget.reducedMotion,
+                        onPressed: () => _primary(view),
+                        onChooseLocation: widget.onChooseLocation,
+                      );
+                      final details = _DetailColumn(
+                        view: view,
+                        l10n: l10n,
+                        settings: widget.settings,
+                        selectedCountryCode: widget.selectedCountryCode,
+                        onChooseLocation: widget.onChooseLocation,
+                        onOpenSettings: widget.onOpenSettings,
+                      );
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(flex: 5, child: hero),
-                          const SizedBox(width: VgSpace.columnGap),
-                          Expanded(flex: 6, child: details),
+                          _StatusHeader(view: view, location: location),
+                          const SizedBox(height: VgSpace.xl),
+                          // An error spans the full width on every layout: it is
+                          // the one thing on this screen that must not be
+                          // missed, and squeezing it into a narrow column is how
+                          // a failure gets scrolled past.
+                          if (view.errorMessage != null) ...[
+                            VgErrorCard(
+                              message: view.errorMessage!,
+                              code: view.errorCode,
+                              actionLabel: view.canRetry
+                                  ? l10n.get('tryAgain')
+                                  : null,
+                              onAction: view.canRetry
+                                  ? () => unawaited(widget.connection.retry())
+                                  : null,
+                            ),
+                            const SizedBox(height: VgSpace.lg),
+                          ],
+                          // Full width for the same reason: "no internet" with no
+                          // visible cause is the worst outcome a kill switch can
+                          // produce.
+                          if (view.killSwitchBlocking) ...[
+                            _KillSwitchCard(
+                              strict: view.killSwitch.strict,
+                              onUnblock: widget.connection.releaseKillSwitch,
+                            ),
+                            const SizedBox(height: VgSpace.lg),
+                          ],
+                          if (twoColumn)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 5, child: hero),
+                                const SizedBox(width: VgSpace.columnGap),
+                                Expanded(flex: 6, child: details),
+                              ],
+                            )
+                          else ...[
+                            hero,
+                            const SizedBox(height: VgSpace.lg),
+                            details,
+                          ],
                         ],
-                      )
-                    else ...[
-                      hero,
-                      const SizedBox(height: VgSpace.lg),
-                      details,
-                    ],
-                  ],
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

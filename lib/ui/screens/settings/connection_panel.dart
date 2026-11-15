@@ -79,13 +79,24 @@ class ConnectionPanel extends StatelessWidget {
             },
             enabled: platform.supportsKillSwitch,
             note: platform.supportsKillSwitch
-                ? switch (d.killSwitch) {
-                    KillSwitchMode.off => l10n.get('killSwitchOffHint'),
-                    KillSwitchMode.automatic => l10n.get(
-                      'killSwitchAutomaticHint',
-                    ),
-                    KillSwitchMode.strict => l10n.get('killSwitchStrictHint'),
-                  }
+                ? [
+                    switch (d.killSwitch) {
+                      KillSwitchMode.off => l10n.get('killSwitchOffHint'),
+                      KillSwitchMode.automatic => l10n.get(
+                        'killSwitchAutomaticHint',
+                      ),
+                      KillSwitchMode.strict => l10n.get(
+                        'killSwitchStrictHint',
+                      ),
+                    },
+                    // The helper does not install the block while a split
+                    // policy is active, because the policy's direct route and
+                    // the blanket block contradict each other. Say so here
+                    // rather than let the user believe they are protected.
+                    if (d.killSwitch != KillSwitchMode.off &&
+                        d.splitTunnel.enabled)
+                      l10n.get('killSwitchSplitPaused'),
+                  ].join('\n\n')
                 : l10n.get('settingsKillSwitchUnsupported'),
           ),
           if (platform.platformName.startsWith('android'))

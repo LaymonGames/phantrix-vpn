@@ -49,6 +49,10 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
   static const Duration liveApplyDelay = Duration(milliseconds: 600);
 
   final TextEditingController _search = TextEditingController();
+
+  /// The applications list's own scroll, so a selection made near its bottom
+  /// can be followed to where the row moved to (the top).
+  final ScrollController _appScroll = ScrollController();
   final Map<String, Future<Uint8List?>> _icons = {};
   List<InstalledApp> _installed = const [];
   bool _loading = true;
@@ -89,6 +93,7 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
       unawaited(_pushToTunnel(_policy));
     }
     _search.dispose();
+    _appScroll.dispose();
     super.dispose();
   }
 
@@ -165,11 +170,41 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
 
   void _toggle(SplitTunnelApp app) {
     final policy = _policy;
+    final adding = !policy.contains(app.path);
     _commit(
-      policy.contains(app.path)
-          ? policy.withoutPath(app.path)
-          : policy.withApp(app),
+      adding ? policy.withApp(app) : policy.withoutPath(app.path),
     );
+    if (adding) {
+      _followMovedRow();
+    }
+  }
+
+  /// Brings the list back to its top after a tick.
+  ///
+  /// A selected application is listed above the unselected ones, so ticking
+  /// one near the bottom of a long list moves it out of sight — the user saw
+  /// their choice vanish. Scrolling to where the row went is the cheapest
+  /// honest answer: the row is visibly at the top, inside the "selected"
+  /// group, instead of silently gone.
+  void _followMovedRow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_appScroll.hasClients) {
+        return;
+      }
+      final reduceMotion =
+          MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+      if (reduceMotion) {
+        _appScroll.jumpTo(0);
+        return;
+      }
+      unawaited(
+        _appScroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
   }
 
   Future<void> _browse() async {
@@ -344,6 +379,23 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                               Icons.search_rounded,
                               size: VgIcon.sm,
                             ),
+                            // Clears the box in one tap. A search field that
+                            // has to be emptied key by key is the thing
+                            // people give up on, and here an empty box is
+                            // how the whole list comes back.
+                            suffixIcon: _search.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: l10n.get('splitSearchClear'),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: VgIcon.sm,
+                                    ),
+                                    onPressed: () {
+                                      _search.clear();
+                                      setState(() {});
+                                    },
+                                  ),
                             isDense: true,
                           ),
                         ),
@@ -391,6 +443,7 @@ class _SplitTunnelingScreenState extends State<SplitTunnelingScreen> {
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 420),
                       child: ListView.separated(
+                        controller: _appScroll,
                         shrinkWrap: true,
                         itemCount: rows.length,
                         separatorBuilder: (_, _) => Divider(
