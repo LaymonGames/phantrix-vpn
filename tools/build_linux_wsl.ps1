@@ -18,7 +18,20 @@ $bundle = 'build/linux/x64/release/bundle'
 
 function Invoke-Wsl {
     param([string[]]$Command)
-    & wsl.exe -d $distro -u root -- @Command
+    # wsl.exe re-splits arguments that contain spaces, so `bash -lc '<script>'`
+    # ran only its first word (exit 127 later). Hand the script over as a file.
+    # Call sites write `'bash','-lc','a' + 'b'`; the comma binds tighter than +,
+    # so the script arrives split across elements 2..n. Rejoin it here.
+    if ($Command.Count -ge 3 -and $Command[0] -eq 'bash' -and $Command[1] -eq '-lc') {
+        $sh = Join-Path $env:TEMP 'phantrix-wsl-step.sh'
+        $script = -join $Command[2..($Command.Count - 1)]
+        [IO.File]::WriteAllText($sh, ($script -replace "`r`n", "`n") + "`n")
+        $full = ($sh -replace '\\', '/')
+        $guestSh = "/mnt/$($full.Substring(0, 1).ToLower())$($full.Substring(2))"
+        & wsl.exe -d $distro -u root -- bash -l $guestSh
+    } else {
+        & wsl.exe -d $distro -u root -- @Command
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "WSL command failed ($LASTEXITCODE): $($Command -join ' ')"
     }
@@ -61,7 +74,7 @@ Invoke-Wsl @(
     'bash', '-lc',
     'set -e; ' +
     'if [ ! -d /opt/flutter ]; then ' +
-    'git clone --depth 1 -b stable https://github.com/flutter/flutter.git /opt/flutter; ' +
+    'git clone --depth 1 -b 3.47.7 https://github.com/flutter/flutter.git /opt/flutter; ' +
     'fi; ' +
     'git config --global --add safe.directory /opt/flutter; ' +
     '/opt/flutter/bin/flutter config --no-analytics >/dev/null; ' +
@@ -73,7 +86,7 @@ Write-Host 'Copying the repository into the WSL filesystem...'
 # Windows file times upset the build tools.
 $archive = Join-Path $env:TEMP 'phantrix-linux-src.tar.gz'
 if (Test-Path $archive) { Remove-Item $archive -Force }
-& tar.exe -czf $archive `
+& "$env:SystemRoot\System32\tar.exe" -czf $archive `
     --exclude=build `
     --exclude=.dart_tool `
     --exclude=.git `
