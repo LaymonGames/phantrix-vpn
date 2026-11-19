@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:phantrix_core/phantrix_core.dart';
 
+import 'server_region_lookup.dart';
+
 part 'provider_id.dart';
 part 'discovery_outcome.dart';
 part 'discovery_refresh.dart';
@@ -40,16 +42,35 @@ class DiscoveryController {
   factory DiscoveryController({
     required List<ServerProvider> providers,
     DirectoryCache? cache,
+    RegionLookup? regionLookup,
   }) {
     final resolved = cache ?? MemoryDirectoryCache();
     return DiscoveryController._(
       List.unmodifiable(providers),
       resolved,
       ServerDirectory(cache: resolved),
+      regionLookup,
     );
   }
 
-  DiscoveryController._(this._providers, this._cache, this._directory);
+  DiscoveryController._(
+    this._providers,
+    this._cache,
+    this._directory,
+    this._regionLookup,
+  );
+
+  /// Fills in each server's state when the feed published none. Null in
+  /// tests, so they never touch the network.
+  final RegionLookup? _regionLookup;
+
+  /// Server IP to state, kept across refreshes so a refresh does not ask
+  /// again for addresses already resolved.
+  final Map<String, String> _regions = {};
+
+  /// IPs the lookup could not place, so they are not asked for every refresh.
+  final Set<String> _unresolvable = {};
+  bool _enriching = false;
 
   final List<ServerProvider> _providers;
   final DirectoryCache _cache;
@@ -120,6 +141,7 @@ class DiscoveryController {
     _directory.restoreFromCache();
     _hasLiveDirectoryData = false;
     _emit();
+    unawaited(_enrichRegions());
   }
 
   /// Fetches every provider and merges the results.

@@ -807,19 +807,26 @@ bool Engine::ReadStatusFile(int64_t* rxBytes, int64_t* txBytes) {
 			if (line.compare(0, keyLength, key) != 0) {
 				return -1;
 			}
-			const size_t comma = line.find(',', keyLength);
-			if (comma == std::string::npos) {
+			// The key passed in already ends with the comma, so the number
+			// starts right after it. Searching for another comma past the key
+			// found none on any line and made every counter read as missing:
+			// no sample was ever reported and the meters sat at zero.
+			if (line.size() <= keyLength) {
 				return -1;
 			}
-			return std::atoll(line.c_str() + comma + 1);
+			return std::atoll(line.c_str() + keyLength);
 		};
+		// Named from the adapter's side: the engine *reads* from the adapter
+		// what this machine sends (upload) and *writes* to it what arrived
+		// from the server (download). rx is download, so it is the write
+		// counter; mapping read to rx showed the two meters swapped.
 		const int64_t readBytes = valueOf("TUN/TAP read bytes,");
 		if (readBytes >= 0) {
-			rx = readBytes;
+			tx = readBytes;
 		}
 		const int64_t writtenBytes = valueOf("TUN/TAP write bytes,");
 		if (writtenBytes >= 0) {
-			tx = writtenBytes;
+			rx = writtenBytes;
 		}
 	}
 	if (rx < 0 || tx < 0) {

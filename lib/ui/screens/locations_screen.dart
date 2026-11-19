@@ -32,6 +32,8 @@ class LocationsScreen extends StatefulWidget {
     required this.onCountrySelected,
     required this.snapshot,
     this.selectedCountryCode = 'AUTO',
+    this.selectedRegion,
+    this.onRegionSelected,
     this.openVpnSupported = false,
     this.onRefresh,
     this.isRefreshing = false,
@@ -44,6 +46,13 @@ class LocationsScreen extends StatefulWidget {
   /// a pure function of its inputs and needs no provider plumbing of its own.
   final DirectorySnapshot snapshot;
   final String selectedCountryCode;
+
+  /// The chosen state inside [selectedCountryCode]; null means fastest.
+  final String? selectedRegion;
+
+  /// Called with a country and a state; a null state means "fastest". When
+  /// absent, state rows fall back to [onCountrySelected].
+  final void Function(String countryCode, String? region)? onRegionSelected;
 
   /// Whether this build can start an OpenVPN tunnel itself.
   ///

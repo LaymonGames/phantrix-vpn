@@ -7,6 +7,7 @@ import 'package:phantrix_platform/phantrix_platform.dart';
 import '../l10n/strings.dart';
 import '../settings/settings_controller.dart';
 import 'connect_attempt_outcome.dart';
+import 'connection_trace.dart';
 import 'connection_view.dart';
 import 'leak_check.dart';
 import 'openvpn_profile.dart';
@@ -149,7 +150,7 @@ class ConnectionController {
   /// cleanup, and short enough that a platform which has stopped answering
   /// costs the user one bounded wait rather than an attempt that never
   /// begins.
-  static const Duration settleTimeout = Duration(seconds: 5);
+  static const Duration settleTimeout = Duration(seconds: 20);
 
   /// True while [platform.startTunnel] has not returned yet.
   bool _launching = false;
@@ -403,6 +404,29 @@ class ConnectionController {
   /// are visible instead of frozen at zero.
   PlatformTraffic _traffic = PlatformTraffic.empty;
 
+  /// When a counter sample was last written to the connection trace.
+  DateTime? _trafficTracedAt;
+
+  /// Writes a counter sample to the connection trace at most every 15 s, so
+  /// a "meters stay at zero" report can be told apart: no samples at all
+  /// (the engine side) or samples that stay at zero (no tunnel traffic).
+  void _traceTraffic() {
+    final now = DateTime.now();
+    final last = _trafficTracedAt;
+    if (last != null && now.difference(last) < const Duration(seconds: 15)) {
+      return;
+    }
+    _trafficTracedAt = now;
+    ConnectionTrace.log(
+      'traffic rx=${_traffic.rxBytes} tx=${_traffic.txBytes} '
+      'rxRate=${_session.rxRate} txRate=${_session.txRate}',
+    );
+  }
+
+  /// The sample a byte rate is measured from, and when it was taken.
+  PlatformTraffic _rateBase = PlatformTraffic.empty;
+  DateTime? _trafficSampledAt;
+
   /// Guards against two overlapping verification passes, which the engine's
   /// per-second statistics could otherwise trigger.
   bool _verificationInFlight = false;
@@ -505,6 +529,15 @@ class ConnectionController {
         _lastHandshakeAt =
             _handshakeFrom(event.lastHandshakeAtMillis) ?? _lastHandshakeAt;
         _absorbTraffic(event.traffic);
+        if (_current.isConnected) {
+          // A verified tunnel's repeated handshake events are its byte
+          // counters (one per second). Verification will not run again, so
+          // the new sample must be published here or the meters freeze on
+          // the first reading.
+          _traceTraffic();
+          _emit();
+          break;
+        }
         await _verifyAndPromote();
       case PlatformTunnelState.reconnecting:
         if (_current.isConnected) {
@@ -552,6 +585,7 @@ class ConnectionController {
           _statusMessage = _tr('flowNotConnected');
           _session = ConnectionSession.none;
           _traffic = PlatformTraffic.empty;
+          _trafficSampledAt = null;
           _lastHandshakeAt = null;
         }
       case PlatformTunnelState.disconnecting:
@@ -609,12 +643,46 @@ class ConnectionController {
   /// crossed the tunnel — a fabricated-looking number in the one place the
   /// app promises measurements.
   void _absorbTraffic(PlatformTraffic traffic) {
+    // The engine reports totals only, about once a second. The rate is
+    // derived from the previous sample, and only from a real interval: a
+    // first sample or a counter that went backwards (a new session) shows
+    // no rate rather than an invented one.
+    final now = DateTime.now();
+    final previousAt = _trafficSampledAt;
+    final previous = _rateBase;
+    var rxRate = traffic.rxRate;
+    var txRate = traffic.txRate;
+    var advance = true;
+    if (rxRate == null && txRate == null && previousAt != null) {
+      final ms = now.difference(previousAt).inMilliseconds;
+      final rxDelta = traffic.rxBytes - previous.rxBytes;
+      final txDelta = traffic.txBytes - previous.txBytes;
+      if (rxDelta < 0 || txDelta < 0) {
+        rxRate = null;
+        txRate = null;
+      } else if (ms < 2000) {
+        // Measured over at least two seconds: the engine's counters move in
+        // bursts, so a one-second reading flickers between near zero and
+        // double. Until the window fills, keep the last rate and keep
+        // measuring from the older sample.
+        rxRate = _session.rxRate;
+        txRate = _session.txRate;
+        advance = false;
+      } else {
+        rxRate = rxDelta * 1000 ~/ ms;
+        txRate = txDelta * 1000 ~/ ms;
+      }
+    }
     _traffic = traffic;
+    if (advance) {
+      _trafficSampledAt = now;
+      _rateBase = traffic;
+    }
     _session = _session.copyWith(
       rxBytes: traffic.rxBytes,
       txBytes: traffic.txBytes,
-      rxRate: traffic.rxRate,
-      txRate: traffic.txRate,
+      rxRate: rxRate,
+      txRate: txRate,
       lastHandshakeAt: traffic.lastHandshake,
       protocolLabel: traffic.protocolLabel,
     );
@@ -1363,6 +1431,7 @@ class ConnectionController {
       _stopFailed = false;
       _session = ConnectionSession.none;
       _traffic = PlatformTraffic.empty;
+      _trafficSampledAt = null;
       _lastHandshakeAt = null;
       _statusMessage = _tr('flowNotConnected');
       if (userInitiated) {

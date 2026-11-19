@@ -74,12 +74,16 @@ class VgStat extends StatelessWidget {
     required this.value,
     this.icon,
     this.tone,
+    this.detail,
     super.key,
   });
 
   final String label;
   final String value;
   final IconData? icon;
+
+  /// A smaller second figure under [value], such as a live rate.
+  final String? detail;
 
   /// Overrides the default emphasis. Used to make a live figure stand out.
   final Color? tone;
@@ -139,6 +143,16 @@ class VgStat extends StatelessWidget {
               ),
             ),
           ),
+          if (detail != null)
+            Text(
+              detail!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontFeatures: VgType.tabular,
+              ),
+            ),
         ],
       ),
     );

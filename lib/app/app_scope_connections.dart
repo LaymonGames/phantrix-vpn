@@ -33,6 +33,7 @@ extension AppScopeConnections on AppScope {
       SelectionRequest(
         mode: SelectionMode.recommended,
         countryCode: countryCode,
+        region: countryCode == null ? null : _settings.data.selectedRegion,
         favorites: _settings.data.favoriteServers,
         recents: _settings.data.recentServers,
       ),
@@ -43,7 +44,10 @@ extension AppScopeConnections on AppScope {
   /// Remembers the country immediately (even if its current server is down),
   /// then attempts that exact country from the current directory. A refresh
   /// is awaited only when no saved directory exists at all.
-  Future<void> connectToCountry(String countryCode) async {
+  ///
+  /// [region] is a state inside the country; null means "fastest" — the best
+  /// server of the whole country.
+  Future<void> connectToCountry(String countryCode, [String? region]) async {
     // Choosing somewhere else abandons what is running now — a live tunnel
     // or an attempt still negotiating — at whatever point it had reached.
     // Done here rather than after the new server is resolved, so the old
@@ -55,7 +59,10 @@ extension AppScopeConnections on AppScope {
     final suppliedCode = countryCode.toUpperCase();
     final code = GeoDatabase.byIso3(suppliedCode)?.iso2 ?? suppliedCode;
     _settings.update(
-      (settings) => settings.copyWith(selectedCountryCode: code),
+      (settings) => settings.copyWith(
+        selectedCountryCode: code,
+        selectedRegion: code == 'AUTO' ? null : region,
+      ),
     );
     if (code == 'AUTO') {
       await connect();
@@ -75,6 +82,7 @@ extension AppScopeConnections on AppScope {
       SelectionRequest(
         mode: SelectionMode.recommended,
         countryCode: code,
+        region: region,
         favorites: _settings.data.favoriteServers,
         recents: _settings.data.recentServers,
       ),

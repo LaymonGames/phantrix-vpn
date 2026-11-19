@@ -5,7 +5,9 @@ import 'package:phantrix_platform/phantrix_platform.dart';
 
 import '../discovery/discovery_controller.dart';
 import '../l10n/strings.dart';
+import 'connect_attempt_outcome.dart';
 import 'connection_controller.dart';
+import 'connection_trace.dart';
 import 'relay_probe.dart';
 import 'resolve_result.dart';
 
@@ -72,6 +74,43 @@ class ConnectionResolver {
   /// How many servers one automatic attempt may try, in rank order.
   final int walkDepth;
 
+  /// Relays that failed recently in this session, by server id.
+  ///
+  /// Not a blocklist: a failed relay stays eligible. It is only tried after
+  /// every relay that has not just failed, so pressing Connect again moves
+  /// on to fresh relays instead of re-dialling the one that was full
+  /// (VPN Gate answers `AUTH_FAILED` when a relay is at capacity) or silent.
+  final Map<String, DateTime> _recentFailures = {};
+
+  /// How long a failure pushes a relay to the back of the queue.
+  static const Duration failureMemory = Duration(minutes: 15);
+
+  bool _failedRecently(VpnServer server) {
+    final at = _recentFailures[server.id];
+    return at != null && DateTime.now().difference(at) < failureMemory;
+  }
+
+  /// [servers] with recently failed relays moved behind the rest, order
+  /// otherwise kept.
+  List<VpnServer> _freshFirst(List<VpnServer> servers) => [
+    ...servers.where((server) => !_failedRecently(server)),
+    ...servers.where(_failedRecently),
+  ];
+
+  void _record(VpnServer server, ConnectAttemptOutcome outcome) {
+    if (outcome.connected) {
+      _recentFailures.remove(server.id);
+    } else {
+      _recentFailures[server.id] = DateTime.now();
+    }
+    ConnectionTrace.log(
+      'attempt ${server.hostAddress ?? server.hostname} '
+      '${server.countryCode}${server.region == null ? '' : '/${server.region}'} '
+      '${server.protocol.shortLabel} -> '
+      '${outcome.connected ? 'connected' : '${outcome.code}: ${outcome.message}'}',
+    );
+  }
+
   /// How long each server of a walk gets before the attempt moves on.
   ///
   /// Shorter than a single explicit attempt on purpose: a live relay
@@ -122,7 +161,7 @@ class ConnectionResolver {
   /// edge of that measurement and still keeps dead relay steps bounded: the
   /// sweep asks reachability up front, so a step that runs its full budget
   /// is a relay the probe could not see, not the common case.
-  static const Duration defaultWalkStepTimeout = Duration(seconds: 10);
+  static const Duration defaultWalkStepTimeout = Duration(seconds: 7);
 
   /// True when [SelectionMode.nearest] would be a lie, because the user's
   /// position is not known.
@@ -218,8 +257,8 @@ class ConnectionResolver {
     PlatformCapabilities? capabilities,
   }) async {
     final snapshot = discovery.snapshot;
-    final servers = snapshot.servers;
-    if (servers.isEmpty) {
+    final allServers = snapshot.servers;
+    if (allServers.isEmpty) {
       return ResolveFailureResult(
         ResolveFailure.noServers,
         _tr('selNoEndpoints'),
@@ -228,13 +267,43 @@ class ConnectionResolver {
 
     final country = request.countryCode;
     if (country != null && country.isNotEmpty) {
-      final known = servers.any((s) => s.countryCode == country.toUpperCase());
+      final known = allServers.any(
+        (s) => s.countryCode == country.toUpperCase(),
+      );
       if (!known) {
         return ResolveFailureResult(
           ResolveFailure.unknownCountry,
           _tr('selUnknownCountry', {'country': country}),
         );
       }
+    }
+
+    // A named state narrows every later step to that state, so a failure
+    // there never silently lands the user in another state.
+    final region = request.region;
+    final servers = (country != null && country.isNotEmpty && region != null)
+        ? allServers
+              .where(
+                (s) =>
+                    s.countryCode == country.toUpperCase() &&
+                    s.subdivision == region,
+              )
+              .toList(growable: false)
+        : allServers;
+    if (servers.isEmpty) {
+      // The state has left the feed: the country still answers.
+      return resolve(
+        SelectionRequest(
+          mode: request.mode,
+          countryCode: request.countryCode,
+          serverId: request.serverId,
+          favorites: request.favorites,
+          recents: request.recents,
+          seed: request.seed,
+          maxDistanceKm: request.maxDistanceKm,
+        ),
+        capabilities: capabilities,
+      );
     }
 
     final selectionPool = _poolForSelection(servers, capabilities);
@@ -414,7 +483,12 @@ class ConnectionResolver {
       request,
       capabilities: connection.capabilities,
     );
+    ConnectionTrace.log(
+      'request mode=${request.mode.name} country=${request.countryCode} '
+      'region=${request.region}',
+    );
     if (result is ResolveFailureResult) {
+      ConnectionTrace.log('resolve failed: ${result.message}');
       connection.reportSelectionFailure(result.message);
       return result;
     }
@@ -432,6 +506,28 @@ class ConnectionResolver {
     var target = success.target;
     var alternates = _alternates(request, success, connection.capabilities);
     final resolved = <String, ResolvedTarget>{target.server.id: target};
+    if (_failedRecently(target.server)) {
+      // The pick just failed: start from the best relay that has not.
+      final ordered = _freshFirst(<VpnServer>[target.server, ...alternates]);
+      if (ordered.first.id != target.server.id) {
+        final fresh = await _resolveAlternate(
+          connection,
+          ordered.first,
+          request.mode,
+        );
+        if (fresh != null) {
+          resolved[fresh.server.id] = fresh;
+          target = fresh;
+        }
+      }
+    }
+    alternates = _freshFirst(
+      alternates.where((s) => s.id != target.server.id).toList(),
+    );
+    if (!alternates.any((s) => s.id == success.target.server.id) &&
+        target.server.id != success.target.server.id) {
+      alternates.add(success.target.server);
+    }
     // Ids the TCP probe asked and heard nothing back from. They are still
     // walked — the probe itself may be what this network blocks — but the
     // count of them is the one fact that separates "the list moved on" from
@@ -466,15 +562,18 @@ class ConnectionResolver {
       countryLabel: target.server.countryCode,
       timeout: walkStepTimeout,
     );
+    _record(target.server, outcome);
     if (sweepSettled != null && !outcome.connected) {
       // The dial is over — connected walks never need the ordering. A
       // settled sweep that survives past this point is discarded: its
       // probes answer at their own budget and nothing reads them.
       final orderedAndSilent = await sweepSettled;
       silent = orderedAndSilent.silent;
-      alternates = orderedAndSilent.ordered
-          .where((candidate) => candidate.id != target.server.id)
-          .toList(growable: true);
+      alternates = _freshFirst(
+        orderedAndSilent.ordered
+            .where((candidate) => candidate.id != target.server.id)
+            .toList(growable: true),
+      );
     }
 
     // The one relay whose engine reached a full handshake but whose exit
@@ -519,6 +618,7 @@ class ConnectionResolver {
         countryLabel: target.server.countryCode,
         timeout: walkStepTimeout,
       );
+      _record(target.server, outcome);
       if (!outcome.connected &&
           outcome.code != null &&
           outcome.code!.startsWith('leak.')) {
@@ -541,6 +641,7 @@ class ConnectionResolver {
         countryLabel: target.server.countryCode,
         timeout: walkStepTimeout,
       );
+      _record(target.server, outcome);
     }
 
     if (outcome.connected) {
@@ -603,7 +704,9 @@ class ConnectionResolver {
           (candidate) =>
               requestedCountry == null ||
               requestedCountry.isEmpty ||
-              candidate.countryCode == requestedCountry,
+              (candidate.countryCode == requestedCountry &&
+                  (request.region == null ||
+                      candidate.subdivision == request.region)),
         )
         .toList(growable: false);
     var attempted = 0;
@@ -823,7 +926,12 @@ class ConnectionResolver {
     final pool = country == null || country.isEmpty
         ? discovery.snapshot.servers
         : discovery.snapshot.servers
-              .where((server) => server.countryCode == country)
+              .where(
+                (server) =>
+                    server.countryCode == country &&
+                    (request.region == null ||
+                        server.subdivision == request.region),
+              )
               .toList(growable: false);
     final ranked = selector
         .rank(_poolForSelection(pool, capabilities), _scoreContext)
@@ -840,6 +948,27 @@ class ConnectionResolver {
         country,
         capabilities,
       )) {
+        if (seen.add(server.id)) {
+          ranked.add(server);
+        }
+      }
+    }
+    if (country != null && country.isNotEmpty && request.region != null) {
+      // A state with a handful of volunteer relays is often entirely down.
+      // Once every relay in the state has been tried, the walk continues
+      // into the rest of the same country rather than ending with no
+      // connection — never into another country.
+      final seen = ranked.map((server) => server.id).toSet();
+      final countryPool = discovery.snapshot.servers
+          .where((server) => server.countryCode == country)
+          .toList(growable: false);
+      final rest = [
+        ...selector
+            .rank(_poolForSelection(countryPool, capabilities), _scoreContext)
+            .map((scored) => _originalServer(scored.server, countryPool)),
+        ..._rankCountryIncludingUnverified(countryPool, country, capabilities),
+      ];
+      for (final server in rest) {
         if (seen.add(server.id)) {
           ranked.add(server);
         }

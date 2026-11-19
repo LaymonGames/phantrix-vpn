@@ -10,6 +10,7 @@ import 'package:phantrix_platform/phantrix_platform.dart';
 import 'package:phantrix/net/app_http_fetcher.dart';
 import 'package:phantrix/settings/settings_controller.dart';
 import 'package:phantrix/vpn/connection_controller.dart';
+import 'package:phantrix/vpn/connection_view.dart';
 import 'package:phantrix/vpn/leak_check.dart';
 
 /// A bridge whose events and methods the test drives directly.
@@ -218,6 +219,44 @@ void main() {
       expect(controller.currentView.traffic.rxBytes, 4096);
       expect(controller.currentView.traffic.txBytes, 1024);
       expect(controller.currentView.lastHandshakeAt, isNotNull);
+    });
+
+    test('counters keep updating the view after connecting', () async {
+      final controller = await build(
+        leakCheck: exitAddress('{"ip":"203.0.113.9"}'),
+        baseline: '198.51.100.4',
+      );
+      await drive(controller);
+      controller.debugReceive(
+        evt(
+          PlatformTunnelState.handshaked,
+          handshakeAtMillis: DateTime.now().millisecondsSinceEpoch,
+          rx: 4096,
+          tx: 1024,
+        ),
+      );
+      await pumpEventQueue();
+      await waitForConnected(controller);
+
+      final views = <ConnectionView>[];
+      final sub = controller.views.listen(views.add);
+      addTearDown(sub.cancel);
+      controller.debugReceive(
+        evt(
+          PlatformTunnelState.handshaked,
+          handshakeAtMillis: DateTime.now().millisecondsSinceEpoch,
+          rx: 1048576,
+          tx: 65536,
+        ),
+      );
+      await pumpEventQueue();
+
+      // A later sample is published, not swallowed by the "already
+      // verified" guard.
+      expect(views, isNotEmpty);
+      expect(views.last.session.rxBytes, 1048576);
+      expect(views.last.session.txBytes, 65536);
+      expect(controller.currentView.state.isConnected, isTrue);
     });
 
     test('a handshaked state with no handshake time is not a pass', () async {

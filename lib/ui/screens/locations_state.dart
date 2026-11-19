@@ -194,7 +194,11 @@ class _LocationsScreenState extends State<LocationsScreen> {
                         return CountryCard(
                           entry: entry,
                           selected: entry.code == widget.selectedCountryCode,
+                          selectedRegion: widget.selectedRegion,
                           onSelected: widget.onCountrySelected,
+                          onRegionSelected:
+                              widget.onRegionSelected ??
+                              (code, region) => widget.onCountrySelected(code),
                         );
                       },
                     ),

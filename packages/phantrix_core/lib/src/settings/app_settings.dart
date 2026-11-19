@@ -54,6 +54,10 @@ enum Ipv6Mode {
 ///
 /// Immutable. Every change produces a new instance so the UI can diff and
 /// persistence can be a single, atomic write.
+/// Sentinel so `copyWith(selectedRegion: null)` can clear the region while
+/// omitting the argument keeps it.
+const Object _keep = Object();
+
 class AppSettings {
   const AppSettings({
     this.killSwitch = KillSwitchMode.automatic,
@@ -74,6 +78,7 @@ class AppSettings {
     this.trustedNetworks = const [],
     this.favoriteCountries = const [],
     this.selectedCountryCode = 'AUTO',
+    this.selectedRegion,
     this.favoriteServers = const [],
     this.recentServers = const [],
     this.diagnosticsOptIn = false,
@@ -119,6 +124,10 @@ class AppSettings {
   /// Last country selected by the user. `AUTO` deliberately means the app
   /// may choose the best available server; this preference survives restarts.
   final String selectedCountryCode;
+
+  /// State / region chosen inside [selectedCountryCode]. Null means
+  /// "fastest": the best server of the country, whatever state it is in.
+  final String? selectedRegion;
   final List<String> favoriteServers;
 
   /// Server ids, most recent first. Local only.
@@ -167,6 +176,7 @@ class AppSettings {
     List<String>? trustedNetworks,
     List<String>? favoriteCountries,
     String? selectedCountryCode,
+    Object? selectedRegion = _keep,
     List<String>? favoriteServers,
     List<String>? recentServers,
     bool? diagnosticsOptIn,
@@ -195,6 +205,9 @@ class AppSettings {
     trustedNetworks: trustedNetworks ?? this.trustedNetworks,
     favoriteCountries: favoriteCountries ?? this.favoriteCountries,
     selectedCountryCode: selectedCountryCode ?? this.selectedCountryCode,
+    selectedRegion: identical(selectedRegion, _keep)
+        ? this.selectedRegion
+        : selectedRegion as String?,
     favoriteServers: favoriteServers ?? this.favoriteServers,
     recentServers: recentServers ?? this.recentServers,
     diagnosticsOptIn: diagnosticsOptIn ?? this.diagnosticsOptIn,

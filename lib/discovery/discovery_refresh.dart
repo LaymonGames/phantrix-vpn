@@ -43,6 +43,40 @@ extension DiscoveryControllerRefresh on DiscoveryController {
         return _directory.snapshot();
       }
 
+      // A new feed must not erase what the user already had. Servers from
+      // the previous list that the feed no longer mentions are kept (the
+      // feed drops volunteer relays that blink offline and brings them
+      // back), until they have gone unseen for a week or the cache limit is
+      // reached. Their resolved states are remembered too, so reopening the
+      // app does not look every address up again.
+      final previous = _directory.servers;
+      for (final server in previous) {
+        final ip = server.hostAddress;
+        final region = server.region;
+        if (ip != null && region != null && region.trim().isNotEmpty) {
+          _regions[ip] = region;
+        }
+      }
+      merged = List<VpnServer>.of(merged);
+      final seen = merged.map(ServerMerger.key).toSet();
+      final cutoff = DateTime.now().subtract(const Duration(days: 7));
+      for (final server in previous) {
+        final lastSeen = server.lastSeenAt;
+        if (merged.length >= 2000 ||
+            seen.contains(ServerMerger.key(server)) ||
+            (lastSeen != null && lastSeen.isBefore(cutoff))) {
+          continue;
+        }
+        // Kept for the list, but marked unverified: the feed stopped
+        // vouching for it, so automatic selection must prefer relays the
+        // feed lists now. The resolver still reaches it as a last resort.
+        merged.add(
+          server.status == ServerStatus.withdrawn
+              ? server
+              : server.copyWith(status: ServerStatus.unknown),
+        );
+      }
+
       final fetchedAt = hasFreshData
           ? (newestFetchedAt ?? DateTime.now())
           : (newestFetchedAt ??
@@ -56,6 +90,9 @@ extension DiscoveryControllerRefresh on DiscoveryController {
         _cache.write(merged, fetchedAt);
       }
       _emit();
+      // States are looked up after the list is published, so a slow or
+      // unreachable lookup service never delays the country list.
+      unawaited(_enrichRegions());
       return _directory.snapshot();
     } finally {
       _refreshing = false;
@@ -94,6 +131,58 @@ extension DiscoveryControllerRefresh on DiscoveryController {
         ),
       );
       return _Outcome(provider.id, const [], usedCache: false, fetchedAt: null);
+    }
+  }
+
+  /// Gives every server without a state the one its IP resolves to.
+  Future<void> _enrichRegions() async {
+    final lookup = _regionLookup;
+    if (lookup == null || _enriching) {
+      return;
+    }
+    _enriching = true;
+    try {
+      for (final server in _directory.servers) {
+        final ip = server.hostAddress;
+        final region = server.region;
+        if (ip != null && region != null && region.trim().isNotEmpty) {
+          _regions[ip] = region;
+        }
+      }
+      final missing = <String>{
+        for (final server in _directory.servers)
+          if (server.hostAddress != null &&
+              !_regions.containsKey(server.hostAddress) &&
+              !_unresolvable.contains(server.hostAddress))
+            server.hostAddress!,
+      }.toList(growable: false);
+      if (missing.isNotEmpty) {
+        final found = await lookup(missing);
+        _regions.addAll(found);
+        _unresolvable.addAll(missing.where((ip) => !found.containsKey(ip)));
+      }
+      var changed = false;
+      final updated = [
+        for (final server in _directory.servers)
+          if ((server.region == null || server.region!.trim().isEmpty) &&
+              _regions[server.hostAddress] != null)
+            (() {
+              changed = true;
+              return server.copyWith(region: _regions[server.hostAddress]);
+            })()
+          else
+            server,
+      ];
+      final at = _directory.snapshot().lastFetchedAt;
+      if (changed && at != null) {
+        _directory.replaceAll(updated, at);
+        _directory.persist();
+        _emit();
+      }
+    } on Object {
+      // Best effort: without states a country still offers "Fastest".
+    } finally {
+      _enriching = false;
     }
   }
 

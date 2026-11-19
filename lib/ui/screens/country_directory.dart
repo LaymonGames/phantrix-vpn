@@ -44,6 +44,59 @@ class CountryEntry {
   }
 
   String get flag => GeoDatabase.flagOf(code);
+
+  /// The states this country has servers in, fastest first. Servers whose
+  /// provider published no state are not listed here; they still count
+  /// toward "fastest".
+  List<StateEntry> get states {
+    final byState = <String, List<VpnServer>>{};
+    for (final server in servers) {
+      final state = server.subdivision;
+      if (state != null) {
+        byState.putIfAbsent(state, () => <VpnServer>[]).add(server);
+      }
+    }
+    final entries = [
+      for (final e in byState.entries)
+        StateEntry(name: e.key, servers: List.unmodifiable(e.value)),
+    ];
+    entries.sort((a, b) {
+      final la = a.bestLatencyMs;
+      final lb = b.bestLatencyMs;
+      if (la == null && lb == null) {
+        return a.name.compareTo(b.name);
+      }
+      if (la == null) {
+        return 1;
+      }
+      if (lb == null) {
+        return -1;
+      }
+      return la.compareTo(lb);
+    });
+    return entries;
+  }
+}
+
+/// One state inside a country, derived from real server data.
+class StateEntry {
+  StateEntry({required this.name, required this.servers});
+
+  final String name;
+  final List<VpnServer> servers;
+
+  int get serverCount => servers.length;
+
+  int? get bestLatencyMs {
+    final measured = servers
+        .map((s) => s.metrics.latencyMs)
+        .whereType<int>()
+        .toList(growable: false);
+    if (measured.isEmpty) {
+      return null;
+    }
+    return measured.reduce((a, b) => a < b ? a : b);
+  }
 }
 
 /// Builds country rows from a directory snapshot.
@@ -57,6 +110,11 @@ List<CountryEntry> buildCountryEntries(DirectorySnapshot snapshot) {
       continue;
     }
     final code = group.key.toUpperCase();
+    // ZZ is the placeholder for a server with no known country; it is not a
+    // place a user can choose.
+    if (code == 'ZZ') {
+      continue;
+    }
 
     // Only latencies that were actually measured count. A null in the
     // list must not become 0, which would sort to the top.

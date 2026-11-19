@@ -30,7 +30,9 @@ List<Destination> _destinations(
       builder: (context) => DiscoveryGate(
         controller: scope.discovery,
         selectedCountryCode: scope.settingsController.data.selectedCountryCode,
+        selectedRegion: scope.settingsController.data.selectedRegion,
         onCountrySelected: scope.connectToCountry,
+        onRegionSelected: scope.connectToCountry,
         openVpnSupported: scope.connection.capabilities.openVpn,
       ),
     ),

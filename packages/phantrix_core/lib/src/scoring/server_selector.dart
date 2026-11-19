@@ -45,6 +45,7 @@ class SelectionRequest {
   const SelectionRequest({
     this.mode = SelectionMode.recommended,
     this.countryCode,
+    this.region,
     this.serverId,
     this.favorites = const [],
     this.recents = const [],
@@ -54,6 +55,10 @@ class SelectionRequest {
 
   final SelectionMode mode;
   final String? countryCode;
+
+  /// A state / region inside [countryCode]. Null means any state, so the
+  /// best-scoring server of the country wins ("fastest").
+  final String? region;
   final String? serverId;
 
   /// Server ids the user pinned, in order.
@@ -237,6 +242,7 @@ class ServerSelector {
     final requestInCountry = SelectionRequest(
       mode: request.mode,
       countryCode: countryCode,
+      region: request.region,
       serverId: request.serverId,
       favorites: request.favorites,
       recents: request.recents,

@@ -253,13 +253,13 @@ void main() {
         buildCountryEntries(
           snapshotOf([
             server(id: 'a', country: 'DE', latencyMs: 50),
-            server(id: 'b', country: 'ZZ'),
+            server(id: 'b', country: 'FR'),
           ]),
         ),
         'latency',
       );
       expect(entries.first.code, 'DE');
-      expect(entries.last.code, 'ZZ');
+      expect(entries.last.code, 'FR');
     });
 
     test('an unknown sort mode falls back rather than throwing', () {
@@ -276,7 +276,10 @@ void main() {
 
   group('DiscoveryController', () {
     test('connect readiness refreshes provider data even when disk cache is populated', () async {
-      final cachedServer = server(id: 'cached', country: 'HK');
+      final cachedServer = server(
+        id: 'cached',
+        country: 'HK',
+      ).copyWith(hostAddress: '192.0.2.9');
       final freshServer = server(id: 'fresh', country: 'HK');
       final cache = MemoryDirectoryCache();
       cache.write([cachedServer], DateTime.now());
@@ -295,13 +298,18 @@ void main() {
 
       expect(provider.calls, 1);
       expect(controller.hasLiveDirectoryData, isTrue);
-      expect(snapshot.servers.single.id, 'fresh');
+      // The feed no longer lists the cached server, but a refresh must not
+      // erase what the user already had.
+      expect(snapshot.servers.map((s) => s.id).toSet(), {'fresh', 'cached'});
     });
 
     test(
       'cached data remains available when the live provider fails',
       () async {
-        final cachedServer = server(id: 'cached', country: 'HK');
+        final cachedServer = server(
+        id: 'cached',
+        country: 'HK',
+      ).copyWith(hostAddress: '192.0.2.9');
         final cache = MemoryDirectoryCache();
         cache.write([cachedServer], DateTime.now());
         final provider = _FakeProvider(

@@ -10,6 +10,7 @@ import 'package:phantrix_platform/phantrix_platform.dart';
 import '../discovery/discovery_controller.dart';
 import '../discovery/file_directory_cache.dart';
 import '../discovery/file_vpn_gate_profile_cache.dart';
+import '../discovery/server_region_lookup.dart';
 import '../l10n/strings.dart';
 import '../net/app_http_fetcher.dart';
 import '../settings/settings_controller.dart';
@@ -17,6 +18,7 @@ import '../settings/settings_persistence.dart';
 import '../storage/app_store.dart';
 import '../vpn/connection_controller.dart';
 import '../vpn/connection_resolver.dart';
+import '../vpn/connection_trace.dart';
 import '../vpn/relay_probe.dart';
 
 part 'app_scope_connections.dart';
@@ -77,6 +79,9 @@ class AppScope {
             profileCache: profileCache,
           ),
       cache: directoryCache,
+      // Production only: a test that supplies its own providers must not
+      // reach the network for states.
+      regionLookup: providers == null ? ipApiRegionLookup() : null,
     );
     connection = ConnectionController(
       platform: _platform,
@@ -113,6 +118,7 @@ class AppScope {
   }) async {
     final bridge = platform ?? PhantrixPlatform();
     final directory = await _privateDirectory(bridge);
+    ConnectionTrace.configure(directory);
     final store = await openDefaultStore(directory);
     final settings = await PersistentSettingsController.loadFrom(store);
     // The stored preference is the truth about starting at sign-in, and the

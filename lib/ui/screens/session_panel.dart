@@ -47,6 +47,7 @@ class SessionPanel extends StatelessWidget {
                 child: VgStat(
                   label: l10n.get('sessionDownloaded'),
                   value: _bytes(session.rxBytes),
+                  detail: _rate(session.rxRate),
                   icon: Icons.south_rounded,
                 ),
               ),
@@ -55,6 +56,7 @@ class SessionPanel extends StatelessWidget {
                 child: VgStat(
                   label: l10n.get('sessionUploaded'),
                   value: _bytes(session.txBytes),
+                  detail: _rate(session.txRate),
                   icon: Icons.north_rounded,
                 ),
               ),
@@ -104,6 +106,19 @@ class SessionPanel extends StatelessWidget {
         Ipv6Mode.preferTunnel => l10n.get('sessionIpv6ThroughTunnel'),
       };
 
+  /// Live speed under a total, or nothing before two samples exist.
+  static String? _rate(int? bytesPerSecond) {
+    if (bytesPerSecond == null) {
+      return null;
+    }
+    // KB/s below one megabyte per second: a browser download at 32 KB/s
+    // reads as `0.03 MB/s`, which looks like nothing.
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(0)} KB/s';
+    }
+    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(2)} MB/s';
+  }
+
   static String _duration(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60);
@@ -118,19 +133,18 @@ class SessionPanel extends StatelessWidget {
     return '0:$padded';
   }
 
+  /// Totals and rates in megabytes, so the figure keeps one unit as it
+  /// grows instead of jumping B, KB, MB. Two decimals show a web page's few
+  /// hundred kilobytes as movement rather than as `0.0`. Gigabytes only past
+  /// 1024 MB, where megabytes stop being readable.
   static String _bytes(int count) {
+    const mb = 1024 * 1024;
     if (count <= 0) {
-      return '0 B';
+      return '0.00 MB';
     }
-    if (count < 1024) {
-      return '$count B';
+    if (count >= 1024 * mb) {
+      return '${(count / (1024 * mb)).toStringAsFixed(2)} GB';
     }
-    if (count < 1024 * 1024) {
-      return '${(count / 1024).toStringAsFixed(1)} KB';
-    }
-    if (count < 1024 * 1024 * 1024) {
-      return '${(count / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(count / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+    return '${(count / mb).toStringAsFixed(2)} MB';
   }
 }

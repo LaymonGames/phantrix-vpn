@@ -37,3 +37,32 @@
 - 2026-11-15: Kill switch did not block on Windows. Causes: (1) helper forced kill switch Off whenever a split policy was active (user had split on); (2) strict rules were only installed at connect, so choosing strict while disconnected installed nothing. Fixes: split exclusion removed (router egress is sing-box.exe, a permitted app; router adapter permitted after Apply); new elevated `phantrix_ovpn_helper.exe --engage-firewall --app <exe>` installs strict rules with no tunnel (Engage + KeepAfterExit + recovery helper); plugin method `engageKillSwitch` (worker job, skipped while a session runs or marker already strict); Dart PhantrixPlatform.engageKillSwitch, ConnectionController.engageStrictKillSwitch (called when strict is confirmed in settings and after every user teardown that ends disconnected); `killSwitchSplitPaused` note + strings removed. 530 tests pass, analyze clean. Native compiled; release install step failed only because phantrix.exe was running. NOT live-tested.
 - 2026-11-15: Live kill-switch change while connected. New pipe msg kKillSwitch(14) plugin->helper; helper rebuilds rules in place (Disengage for off; Engage + permit adapter/router + DNS off past handshake otherwise). Plugin method setKillSwitchMode; Dart PhantrixPlatform.setKillSwitchMode; ConnectionController engage/release call _applyKillSwitchLive when connected; panel also calls engage for Off->Automatic. Analyze clean, 531 tests, Windows release built. NOT live-tested. Still open: strict-mode connect problems and app-exit orphan processes were only partly addressed by earlier (opencode) edits; verify live.
 - 2026-11-15: App exit now lifts kill switch in every mode (plugin dtor: TeardownOpenVpn(false) + elevated release if marker remains). Mode changes verified against marker (_verifyKillSwitch); mismatch/denied UAC => Err => settings revert. Live change while connected uses elevated helper (no new UAC). Linux script unchanged (Windows-only + Dart). 531 tests, Windows release built. Not live-tested.
+
+## 2026-11-19 — State (region) server selection
+- Locations: every country row is expandable; children = "Fastest" (best server in whole country) + each state.
+- States come from `VpnServer.region`. VPN Gate publishes none, so `DiscoveryController` resolves server IPs via ip-api.com batch (`lib/discovery/server_region_lookup.dart`) after each refresh/restore, in background, cached in memory + persisted in directory cache. Disabled when tests inject providers.
+- Selection: `AppSettings.selectedRegion` (null = fastest), `SelectionRequest.region`; resolver scopes every pool to the state, never falls back to another state.
+- Built Windows release and Linux release (WSL) successfully. Not live-tested.
+
+## 2026-11-19 — Connection reliability after state selection
+- Servers kept from the previous list (absent from new feed) are now status `unknown`: shown, never auto-picked ahead of live relays, last-resort only.
+- State selection: an empty state falls back to the whole country; a walk that exhausts the state's relays continues into the rest of the same country (never another country).
+- Walk step timeout 10s to 7s.
+- Not live-tested. Known slow spot (not changed): 26 MB VPN Gate profile cache JSON written synchronously on every feed refresh.
+
+## 2026-11-19 — Connect failures investigation
+- Relays verified healthy offline: 10/16 cached VPN Gate relays return PUSH_REPLY via bundled openvpn.exe (unelevated). Failures are app-side/relay-choice, not "all servers dead".
+- Connect code path with no state selected is identical to HEAD; no regression found there.
+- Engine logs showed overlapping sessions when switching servers (new engine started before old stopped). `settleTimeout` 5s to 20s.
+- Resolver now remembers relays that failed in the last 15 min and tries them after fresh ones (AUTH_FAILED = relay full).
+- New app-side trace: `<app data>/logs/connection.log` (`lib/vpn/connection_trace.dart`): request, resolve failure, each attempt with outcome code/message. Read this first on the next failure report.
+
+## 2026-11-19 — Download/upload meters
+- Bug 1: once connected, repeated `handshaked` events (the 1 s counter samples) were absorbed but never emitted; UI froze on first value. Fixed in `ConnectionController._onPlatformEvent`.
+- Bug 2 (Windows engine): `TUN/TAP read bytes` is upload, `write bytes` is download; were swapped. Fixed in `phantrix_ovpn_engine.cpp`.
+- Live rates derived in Dart from consecutive samples; shown under totals in `SessionPanel` (`VgStat.detail`).
+- Linux plugin is WireGuard (`wg-quick`) only; no OpenVPN counters there.
+
+## 2026-11-19 — Meters stuck at 0 (root cause)
+- `Engine::ReadStatusFile` (phantrix_ovpn_engine.cpp) `valueOf()` searched for a comma AFTER the key, but the key already ends in a comma, so every line returned -1, ReadStatusFile always returned false, helper never sent kTraffic. connection.log had zero `traffic` lines over a 3 min connected session, confirming no samples reached Dart.
+- Fixed: number is parsed right after the key. Helper rebuilt.

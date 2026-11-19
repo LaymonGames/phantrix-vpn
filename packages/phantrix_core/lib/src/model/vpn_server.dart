@@ -74,6 +74,12 @@ class VpnServer {
   /// Country name in ISO 3166-1 alpha-2 form when the code is not known.
   String get countryName => countryCode;
 
+  /// The state / region this server sits in, or null when unknown.
+  String? get subdivision {
+    final value = region?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
   String get locationLabel {
     final city = this.city;
     final country = countryName;

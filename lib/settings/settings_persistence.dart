@@ -47,6 +47,7 @@ class SettingsCodec {
     'trustedNetworks': settings.trustedNetworks,
     'favoriteCountries': settings.favoriteCountries,
     'selectedCountryCode': settings.selectedCountryCode,
+    'selectedRegion': settings.selectedRegion,
     'favoriteServers': settings.favoriteServers,
     'recentServers': settings.recentServers,
     'diagnosticsOptIn': settings.diagnosticsOptIn,
@@ -127,6 +128,10 @@ class SettingsCodec {
         decoded['selectedCountryCode'],
         d.selectedCountryCode,
       ),
+      selectedRegion: decoded['selectedRegion'] is String &&
+              (decoded['selectedRegion'] as String).trim().isNotEmpty
+          ? (decoded['selectedRegion'] as String).trim()
+          : null,
       favoriteServers: _strings(decoded['favoriteServers'], d.favoriteServers),
       recentServers: _strings(decoded['recentServers'], d.recentServers),
       diagnosticsOptIn: _bool(decoded['diagnosticsOptIn'], d.diagnosticsOptIn),

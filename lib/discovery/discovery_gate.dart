@@ -21,6 +21,8 @@ class DiscoveryGate extends StatefulWidget {
     required this.controller,
     this.selectedCountryCode = 'AUTO',
     required this.onCountrySelected,
+    this.selectedRegion,
+    this.onRegionSelected,
     required this.openVpnSupported,
     this.refreshOnMount = true,
     super.key,
@@ -29,6 +31,12 @@ class DiscoveryGate extends StatefulWidget {
   final DiscoveryController controller;
   final String selectedCountryCode;
   final void Function(String countryCode) onCountrySelected;
+
+  /// The chosen state inside [selectedCountryCode]; null means fastest.
+  final String? selectedRegion;
+
+  /// Called with a country and a state; a null state means "fastest".
+  final void Function(String countryCode, String? region)? onRegionSelected;
 
   /// Whether this build can start an OpenVPN tunnel itself; passed
   /// through to the screen's notice, which must not tell a capable build
@@ -85,6 +93,8 @@ class _DiscoveryGateState extends State<DiscoveryGate> {
     selectedCountryCode: widget.selectedCountryCode,
     openVpnSupported: widget.openVpnSupported,
     onCountrySelected: widget.onCountrySelected,
+    selectedRegion: widget.selectedRegion,
+    onRegionSelected: widget.onRegionSelected,
     onRefresh: () => widget.controller.refresh(force: true),
   );
 }
